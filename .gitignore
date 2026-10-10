@@ -1,0 +1,17 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.env*
+!.env.example
+build/
+*.so
+*.so.*
+aqtinstall.log
+artifacts/*.lgx
+artifacts/*.log
+__pycache__/
+
+.venv/
+
+artifacts/
+.runtime-tools/

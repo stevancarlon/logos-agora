@@ -1,0 +1,20 @@
+name: Native checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: sudo apt-get update && sudo apt-get install -y build-essential libssl-dev libgl1-mesa-dev libxkbcommon-dev libxcb-cursor0
+      - run: pip install aqtinstall==3.3.0
+      - run: python -m aqt install-qt linux desktop 6.9.2 linux_gcc_64 -O "$RUNNER_TEMP/Qt" --modules qtremoteobjects qtmultimedia --archives qtbase qtdeclarative qtremoteobjects qtmultimedia icu
+      - run: QMAKE="$RUNNER_TEMP/Qt/6.9.2/gcc_64/bin/qmake" scripts/build-native.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: forum-native-linux-amd64
+          path: native/forum/

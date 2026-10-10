@@ -1,0 +1,91 @@
+# Agora
+
+**Public alpha:** [downloads](https://github.com/stevancarlon/logos-agora/releases/tag/v0.2.0-alpha.1) · [installation instructions](INSTALL.md). Linux x86_64 only; unsigned; cross-computer messaging remains unverified.
+
+A native discussion app for **Logos Basecamp 0.3.2**, built with **QML, C++17, Qt 6.9.2 and SQLite**. The UI focuses on compact thread lists, readable conversations, quotes and quick replies. There is no centralized application server.
+
+The app loads in Basecamp and reads its native backend through the host bridge. Backend and UI tests pass on Qt 6.9.2. The local Linux x86_64 LGX passes the official package validator. **Live cross-machine Delivery/Store exchange is still an acceptance check; this is not yet a verified production network release or a completed prize submission.**
+
+Dark is the default theme. The **sun / moon toggle** in the header switches themes and saves your preference locally.
+
+## Open the installed app
+
+Basecamp is installed at `~/Applications/LogosBasecamp-0.3.2-x86_64.AppImage`. Agora is installed in its local plugins folder. Launch with the multimedia-enabled wrapper (also used by the desktop shortcut), then open Agora:
+
+```sh
+~/Applications/LogosBasecamp-Agora --uri=basecamp://app/logos_forum
+```
+
+Use the header’s **/all/** and board links to browse. The feed places its sort dropdown on the left and **New thread** on the right; the board dropdown appears only on narrow windows where the header board links are hidden. Each thread shows its opening text, latest reply preview when available, and a **Reply** action that opens its composer. Desktop search lives in the header; Ctrl+F focuses search. The profile icon opens identity/avatar settings. Saved threads and network settings are available in the footer. Narrow windows retain board and sort selectors. Pending and failed delivery states stay on posts; there is no sidebar or Outbox tab.
+
+Create a thread, reply, quote a post, switch boards, search, bookmark or change identity. Text-only posts enter the durable outbox. Attachment posts and replies to attachment threads stay local. In **Network**, connect to an already-running Delivery node, or explicitly start one. The app subscribes to its content topic and sends one queued item at a time. A matching Delivery acknowledgement changes it to sent. A sent label does not guarantee receipt by every peer.
+
+Offline threads, drafts, identities and outbox entries remain available after restart. **Load history** requests at most 50 messages from a Store peer multiaddress you provide; its cursor is persisted. No public peer or centralized API is hardcoded.
+
+## Build and test
+
+Linux x86_64 requires a C++17 compiler, make, Python 3, OpenSSL 3 development headers, and Qt **6.9.2** with Core, GUI, Quick, QML, SQL/SQLite, Multimedia and QuickTest. Match the Qt version shipped by Basecamp; a plugin compiled against system Qt 6.11 cannot safely be loaded into Qt 6.9.
+
+```sh
+python3 -m venv .venv
+.venv/bin/pip install aqtinstall==3.3.0
+.venv/bin/python -m aqt install-qt linux desktop 6.9.2 linux_gcc_64 -O "$HOME/Qt" --modules qtmultimedia --archives qtbase qtdeclarative qtmultimedia icu
+QMAKE="$HOME/Qt/6.9.2/gcc_64/bin/qmake" scripts/build-native.sh
+python3 scripts/install-media-runtime.py --qt "$HOME/Qt/6.9.2/gcc_64"
+python3 scripts/install-basecamp.py
+```
+
+Restart Basecamp after installing an update. Installation does not touch user data. The backend binary is `native/forum/libforum_backend.so`; the installer renames it to `forum_backend.so` as required by the manifest.
+
+`build/qt6.9.2-preview/forum-preview` runs the native interface standalone; Delivery is only available inside Basecamp. For UI development with another Qt version, use `ALLOW_OTHER_QT=1` and do not install that binary in Basecamp. `--screenshot artifacts/forum-desktop.png` uses temporary, clearly labeled examples and never publishes them.
+
+The build script runs backend tests (signatures, tampering, deduplication, separate database exchange, restart recovery, history validation) and QML workflow tests (compose/reply/quote, identities, search, narrow layout, delivery callback races/failures). GitHub Actions is configured in this repository. Check its current run results; local passing tests alone do not establish hosted CI success.
+
+## Package
+
+Build the official [logos-package CLI](https://github.com/logos-co/logos-package) and put `lgx` on PATH, then:
+
+```sh
+python3 scripts/package-native.py --lgx /absolute/path/to/lgx
+```
+
+This produces `artifacts/logos_forum-0.2.0-linux-amd64.lgx` and runs `lgx verify`. It is an **unsigned local development package**, published through a community testing catalog, not a trusted-signed or official catalog. It includes original-code licenses and an original 256×256 icon. Only Linux x86_64 has been built here. Package CLI revision used locally: `c25a1167578aef5cbd9a9b6f822ffe2ae4fd6a89`.
+
+The header profile icon opens **Profile**. You can upload, replace or remove a PNG/JPEG avatar (up to 8 MB and 4096 pixels per side). It is cropped to a square, resized and saved locally for that identity. Avatars are not included in published posts.
+
+## Data and identities
+
+Basecamp data: `~/.local/share/Logos/LogosBasecamp/module_data/logos_forum/forum.sqlite`. `LOGOS_USER_DIR` selects another Basecamp profile; `LOGOS_FORUM_DATA_DIR` overrides the database directory. SQLite uses WAL, transactions, parameterized queries, a busy timeout, and owner-only directory/file permissions. Close the app before copying the entire data directory for a backup; keep it private because it contains signing keys. Data and keys are **not encrypted at rest**.
+
+Alias and UID posts are signed with Ed25519. Alias text is not unique: the public key defines the identity. Anonymous posts omit the stable public key and signature. Optional rotation creates a new signing identity after each new thread. Public posts are not end-to-end encrypted. Anonymous display, key rotation and requested mix routing do not constitute a verified network-anonymity guarantee.
+
+## Source map
+
+- `native/backend/`: persistence, signing, validation and durable outbox.
+- `native/forum/qml/`: native interface and Basecamp Delivery adapter.
+- `native/preview/`: standalone visual development runner.
+- `native/tests/`: backend and native QML workflow tests.
+- `scripts/`: build, install and official LGX packaging.
+- `docs/PROTOCOL.md`: wire format and integration contracts.
+- `docs/FURPS.md`: evidence and outstanding acceptance checks.
+- `src/`: preserved earlier React browser prototype; **not the Basecamp app**.
+
+Original code is dual-licensed **MIT OR Apache-2.0**. Independent community project; no official Logos endorsement. Example screenshots are synthetic and are not evidence of community adoption.
+
+The UI bundles Adwaita Sans for consistent typography; its upstream license is included in `native/forum/qml/fonts/LICENSE`. The approved modern-imageboard concept C is under `design/agora/concepts/`. Liberation Serif is bundled for thread titles with its license in the same fonts directory. Image attachments are not part of protocol v1.
+
+## Local attachment preview
+
+Threads and replies accept up to four PNG/JPEG images, MP4/WebM videos or PDFs, each at most 64 MB (images at most 24 megapixels). Files are copied into the profile's private `attachments/` directory, with metadata and thumbnail data in SQLite. Back up the whole data directory, not just the database.
+
+Images have inline thumbnails. Video and PDF posters use optional `ffmpeg` and `pdftoppm` helpers to make thumbnails; without these tools they display a file-type placeholder. Videos play directly in the discussion. Compact play/pause, seek and volume controls overlay the picture, fade out while playing, and reappear on hover, pause or keyboard focus. Download is a small overlay icon; video filename/size footers are omitted. PDF/image Open launches the system viewer using `xdg-open`. Download saves a separate copy and does not overwrite existing files. Removed draft attachments remain stored locally for now.
+
+Attachment transfer is not implemented in protocol v1. Posts containing attachments, and replies within those local threads, are explicitly local-only and excluded from delivery and wire export. The examples profile (`AgoraExamples`) contains clearly labeled synthetic image/video/PDF discussions and disables publishing. The normal profile is never seeded.
+
+## Embedded video runtime
+
+The multimedia launcher keeps the official Basecamp AppImage intact and selects an additional local Qt 6.9.2 runtime. `scripts/install-media-runtime.py` installs it and updates the desktop shortcut (preserving its previous contents). The LGX depends on this companion runtime; it is not sufficient by itself on stock Basecamp 0.3.2. Standalone preview commands need `QML_IMPORT_PATH="$PWD/build/qt6.9.2-media/qml"`.
+
+Video decoding and audio run in the out-of-process native backend. The player accepts a stored video attachment ID, never an arbitrary media URL. QML receives only state and bounded RGBA frames, displayed by the small `Agora.Media` renderer in the explicitly installed runtime. The renderer has no filesystem or networking API. Basecamp's URL/network sandbox is unchanged. Playback is limited to a 640-pixel maximum dimension, with frames polled at most 25 times per second; original attachment files and exported copies are unchanged. One video plays at a time, and leaving/destroying its discussion stops playback.
+
+The default Qt/FFmpeg codecs are used. Unsupported media shows an inline error. Video sharing over the peer network remains outside protocol v1.

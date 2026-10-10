@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 2,
+  "repositoryName": "stevancarlon-agora",
+  "generatedAt": "2026-10-10T18:54:05.885739Z",
+  "packages": [
+    {
+      "name": "logos_forum",
+      "versions": [
+        {
+          "releasedAt": "2026-10-10T18:54:05.885739Z",
+          "publisherRef": "v0.2.0-alpha.1",
+          "url": "https://github.com/stevancarlon/logos-agora/releases/download/v0.2.0-alpha.1/logos_forum-0.2.0-linux-amd64.lgx",
+          "urls": [
+            "https://github.com/stevancarlon/logos-agora/releases/download/v0.2.0-alpha.1/logos_forum-0.2.0-linux-amd64.lgx"
+          ],
+          "size": 1784261,
+          "sha256": "1daf67fb81ac1bb26c942783bcc98695c25e9261d17a9e553fa22e5d4de63455",
+          "rootHash": "10cf959da4967c7fb168406eb30661485220ca86c949001241690c7c45d254c9",
+          "manifest": {
+            "author": "Logos Forum contributors",
+            "category": "social",
+            "dependencies": [
+              {
+                "name": "delivery_module",
+                "version": ">=0.3.0"
+              }
+            ],
+            "description": "Public discussions, local drafts and deliberate identity choices.",
+            "display_name": "Agora",
+            "hashes": {
+              "assets": "be9933cbc8437d0da226eae09fbe660b3ef2a00c3b203bbaefb62d7636c9d293",
+              "licenses": "097529c41cae003f93ba58e1b078eb3bb831571ebcb8d81ea97eaebc85a2e856",
+              "root": "10cf959da4967c7fb168406eb30661485220ca86c949001241690c7c45d254c9",
+              "variants": "6053b1dde118563bc744ba56b47f3bbfd067c3d4ab14d07cbe9b1c0fb069a9a4",
+              "variants/linux-amd64": "f66cbd9dc4139d55bc66eb1263f940cb5fbf15cf878d528482fa0b39451c9d4c"
+            },
+            "icon": "assets/icon.png",
+            "main": {
+              "linux-amd64": "forum_backend.so"
+            },
+            "manifestVersion": "0.6.0",
+            "name": "logos_forum",
+            "type": "ui_qml",
+            "version": "0.2.0",
+            "view": "qml/Main.qml"
+          }
+        }
+      ]
+    }
+  ]
+}
