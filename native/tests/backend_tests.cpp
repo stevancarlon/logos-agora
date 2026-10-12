@@ -52,7 +52,14 @@ private slots:
     const auto path=QFINDTESTDATA("../../design/agora/demo-media/playback-test.webm");
     QFile sample(path);
     QVERIFY(sample.open(QIODevice::ReadOnly));
-    const auto detected=QMimeDatabase().mimeTypeForData(sample.peek(65536)).name();
+    const auto header=sample.peek(65536);
+    const auto detected=QMimeDatabase().mimeTypeForData(header).name();
+    QCOMPARE(attachmentMime(header), QString("video/webm"));
+    auto otherDoctype=header;
+    otherDoctype.replace("webm", "xxxx");
+    QVERIFY(attachmentMime(otherDoctype)!=QString("video/webm"));
+    QVERIFY(attachmentMime(QByteArray("not a movie.webm"))!=QString("video/webm"));
+    QVERIFY(attachmentMime(QByteArray::fromHex("1a45dfa380")+"webm")!=QString("video/webm"));
     const auto imported=call({{"op","attachmentImport"},{"file",QUrl::fromLocalFile(path).toString()}});
     QVERIFY2(imported["ok"].toBool(), qPrintable(QString::fromUtf8(QJsonDocument(imported).toJson())+" detected="+detected));
     QCOMPARE(imported["attachment"].toObject()["mime"].toString(), QString("video/webm"));

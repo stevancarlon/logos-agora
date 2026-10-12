@@ -5,7 +5,7 @@ on:
     paths:
       - .github/workflows/windows-matched.yml
       - nix/windows-agora.nix
-      - native/CMakeLists.txt
+      - 'native/**'
 permissions:
   contents: read
 concurrency:
@@ -27,11 +27,13 @@ jobs:
           nix eval --impure --raw --file nix/windows-agora.nix qtVersion
           nix build --impure --file nix/windows-agora.nix multimedia --out-link result-media -L
           nix build --impure --file nix/windows-agora.nix native --out-link result-native -L
+          nix build --impure --file nix/windows-agora.nix codecs --out-link result-codecs -L
       - name: Collect native binaries and media runtime
         run: |
           mkdir -p artifacts/windows-matched/native artifacts/windows-matched/qt
           cp -RL result-native/. artifacts/windows-matched/native/
           cp -RL result-media/. artifacts/windows-matched/qt/
+          cp -L result-codecs/bin/*.dll artifacts/windows-matched/qt/bin/
           nix eval --impure --raw --file nix/windows-agora.nix qtVersion > artifacts/windows-matched/qt-version.txt
           tar -czf artifacts/agora-windows-matching-qt.tar.gz -C artifacts windows-matched
           sha256sum artifacts/agora-windows-matching-qt.tar.gz > artifacts/agora-windows-matching-qt.tar.gz.sha256

@@ -40,5 +40,6 @@ let
 in {
   native = app;
   multimedia = media;
+  codecs = pkgs.lib.getLib ffmpeg;
   qtVersion = pkgs.qt6.qtbase.version;
 }
