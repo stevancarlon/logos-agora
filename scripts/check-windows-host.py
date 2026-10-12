@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import time
 
 p = argparse.ArgumentParser(description=__doc__)
@@ -20,9 +21,15 @@ system = Path(os.environ['SystemRoot'])
 env.update(PATH=os.pathsep.join(map(str, [a.host_bin, a.runtime_dir / 'bin', system / 'System32', system])),
            LOGOS_USER_DIR=str(a.profile), LOGOS_NO_SCHEME_REGISTER='1',
            QT_PLUGIN_PATH=str(a.runtime_dir / 'plugins'), QML_IMPORT_PATH=str(a.runtime_dir / 'qml'),
-           QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software')
+           QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software',
+           QT_LOGGING_RULES='logos.viewhost.debug=true')
 result = {'passed': False, 'actualBasecampHost': True, 'videoPlaybackVerified': False,
           'crossMachineVerified': False, 'buildToolchainRemovedFromPath': True}
+probe = subprocess.run([sys.executable, '-c',
+    'import ctypes,sys; ctypes.WinDLL(sys.argv[1], winmode=8); print("Native backend DLL dependencies resolved")',
+    str(a.profile / 'plugins/logos_forum/forum_backend.dll')], env=env, capture_output=True, timeout=15)
+(a.output / 'dll-load.log').write_bytes(probe.stdout + probe.stderr)
+result['backendDllLoadPassed'] = probe.returncode == 0
 with (a.output / 'basecamp.log').open('w+', encoding='utf-8', errors='replace') as log:
     proc = subprocess.Popen([str(a.host_bin / 'LogosBasecamp.exe'), '--user-dir', str(a.profile),
                              '--uri=basecamp://app/logos_forum'], env=env, stdout=log, stderr=log)

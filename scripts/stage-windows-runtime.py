@@ -4,14 +4,15 @@ import argparse
 import json
 import os
 from pathlib import Path
-import re
 import shutil
-import subprocess
+from pe_dependencies import dll_imports
 import sys
 
 p = argparse.ArgumentParser(description=__doc__)
-for name in ('qt', 'host-bin', 'user-dir', 'runtime-dir', 'objdump'):
+for name in ('qt', 'host-bin', 'user-dir', 'runtime-dir'):
     p.add_argument('--' + name, type=Path, required=True)
+p.add_argument('--toolchain', type=Path, help='Optional MinGW runtime DLL directory')
+p.add_argument('--launcher', type=Path, help='Write a Windows launch script')
 a = p.parse_args()
 if sys.platform != 'win32':
     p.error('Run on Windows with matching Qt MinGW builds')
@@ -35,7 +36,8 @@ for category, pattern in [('multimedia', '*.dll'), ('sqldrivers', '*sqlite*.dll'
         shutil.copy2(source, dest)
         queue.append(dest)
 lookup = {}
-for directory in [qt / 'bin', a.objdump.parent, host]:
+toolchain = a.toolchain or qt.parents[1] / 'Tools/mingw1310_64/bin'
+for directory in [qt / 'bin', toolchain, host]:
     for path in directory.glob('*.dll'):
         lookup[path.name.lower()] = path
 system = Path(os.environ['SystemRoot']) / 'System32'
@@ -46,8 +48,7 @@ while queue:
     if binary in processed:
         continue
     processed.add(binary)
-    details = subprocess.check_output([str(a.objdump), '-p', str(binary)], text=True)
-    imports = re.findall(r'DLL Name:\s*(\S+)', details)
+    imports = dll_imports(binary)
     if not imports:
         raise SystemExit(f'No PE imports found in {binary}')
     records.append({'binary': str(binary), 'imports': imports})
@@ -65,3 +66,17 @@ while queue:
             queue.append(dest)
 (runtime / 'dependencies.json').write_text(json.dumps(records, indent=2) + '\n')
 print(f'Staged and checked {len(processed)} Agora libraries; Basecamp libraries unchanged')
+
+if a.launcher:
+    def batch_path(path):
+        return str(path.resolve()).replace('%', '%%')
+    lines = ['@echo off', 'setlocal DisableDelayedExpansion', 'chcp 65001 >nul',
+             'set "LOGOS_NO_SCHEME_REGISTER=1"',
+             'set "PATH=' + batch_path(host) + ';' + batch_path(runtime / 'bin') + ';%PATH%"',
+             'set "QT_PLUGIN_PATH=' + batch_path(runtime / 'plugins') + '"',
+             'set "QML_IMPORT_PATH=' + batch_path(runtime / 'qml') + '"',
+             '"' + batch_path(host / 'LogosBasecamp.exe') + '" %*',
+             'exit /b %ERRORLEVEL%']
+    a.launcher.parent.mkdir(parents=True, exist_ok=True)
+    a.launcher.write_bytes(('\r\n'.join(lines) + '\r\n').encode('utf-8'))
+    print(f'Launcher: {a.launcher}')

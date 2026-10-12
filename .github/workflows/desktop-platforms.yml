@@ -103,7 +103,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Delivery installation failed' }
           python scripts/prepare-host-video.py --profile "$env:RUNNER_TEMP/agora-profile"
           if ($LASTEXITCODE -ne 0) { throw 'Video probe installation failed' }
-          python scripts/stage-windows-runtime.py --qt "$env:RUNNER_TEMP/Qt/6.9.2/mingw_64" --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --user-dir "$env:RUNNER_TEMP/agora-profile" --runtime-dir "$env:RUNNER_TEMP/agora-runtime" --objdump "$env:RUNNER_TEMP/Qt/Tools/mingw1310_64/bin/objdump.exe"
+          python scripts/stage-windows-runtime.py --qt "$env:RUNNER_TEMP/Qt/6.9.2/mingw_64" --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --user-dir "$env:RUNNER_TEMP/agora-profile" --runtime-dir "$env:RUNNER_TEMP/agora-runtime" --launcher "$env:RUNNER_TEMP/Launch-Agora.cmd"
           if ($LASTEXITCODE -ne 0) { throw 'Dependency staging failed' }
           python scripts/check-windows-host.py --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --runtime-dir "$env:RUNNER_TEMP/agora-runtime" --profile "$env:RUNNER_TEMP/agora-profile" --output "$env:RUNNER_TEMP/agora-windows-host-check" --video
       - uses: actions/upload-artifact@v4
