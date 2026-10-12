@@ -21,6 +21,11 @@ let
   }).overrideAttrs (old: { meta = old.meta // { broken = false; }; });
   media = (pkgs.qt6.qtmultimedia.override { inherit ffmpeg; }).overrideAttrs (old: {
     cmakeFlags = (old.cmakeFlags or []) ++ [ "-DFEATURE_ffmpeg=ON" ];
+    postPatch = (old.postPatch or "") + ''
+      # Windows resolves this spelling; the Linux cross builder is case-sensitive.
+      substituteInPlace src/plugins/multimedia/ffmpeg/ffmpeg_pch.h \
+        --replace-fail '<D3d11.h>' '<d3d11.h>'
+    '';
   });
   app = pkgs.stdenv.mkDerivation {
     pname = "agora-windows-native";

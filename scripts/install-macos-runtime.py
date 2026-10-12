@@ -118,6 +118,7 @@ def main():
     launcher.parent.mkdir(parents=True, exist_ok=True)
     launcher.write_text('#!/bin/sh\nset -eu\n' +
         'export LOGOS_NO_SCHEME_REGISTER=1\n' +
+        'export LOGOS_USER_DIR=' + shlex.quote(str(a.user_dir.resolve())) + '\n' +
         'export QML_IMPORT_PATH=' + shlex.quote(':'.join([str(runtime / 'qml')] + host_qml)) + '${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}\n' +
         'export QT_PLUGIN_PATH=' + shlex.quote(':'.join([str(runtime / 'plugins')] + host_plugins)) + '${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}\n' +
         'exec ' + shlex.quote(str(executable)) + ' "$@"\n')

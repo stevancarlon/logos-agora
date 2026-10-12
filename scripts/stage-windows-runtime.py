@@ -78,6 +78,7 @@ if a.launcher:
         return str(path.resolve()).replace('%', '%%')
     lines = ['@echo off', 'setlocal DisableDelayedExpansion', 'chcp 65001 >nul',
              'set "LOGOS_NO_SCHEME_REGISTER=1"',
+             'set "LOGOS_USER_DIR=' + batch_path(a.user_dir) + '"',
              'set "PATH=' + batch_path(host) + ';' + batch_path(runtime / 'bin') + ';%PATH%"',
              'set "QT_PLUGIN_PATH=' + batch_path(runtime / 'plugins') + '"',
              'set "QML_IMPORT_PATH=' + batch_path(runtime / 'qml') + '"',
