@@ -1,6 +1,6 @@
 # Agora
 
-The last published alpha is [v0.2.0-alpha.1](https://github.com/stevancarlon/logos-agora/releases/tag/v0.2.0-alpha.1). The source below describes the 0.3.0 candidate; use [the release guide](docs/RELEASE.md) for candidate packages. [INSTALL.md](INSTALL.md) documents the older published alpha.
+**Public alpha:** [v0.3.0-alpha.1](https://github.com/stevancarlon/logos-agora/releases/tag/v0.3.0-alpha.1) · [installation instructions](INSTALL.md). Linux x86_64 only; unsigned; cross-machine messaging remains unverified.
 
 A native discussion app for **Logos Basecamp 0.3.2**, built with **QML, C++17, Qt 6.9.2 and SQLite**. The UI focuses on compact thread lists, readable conversations, quotes and quick replies. There is no centralized application server.
 

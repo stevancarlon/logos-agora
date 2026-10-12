@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "cleanOSVerified": false,
+  "isolatedProfile": true,
+  "corruptReleaseRejected": true,
+  "compiledOnInstall": false,
+  "container": "Ubuntu 24.04",
+  "hostKernelShared": true,
+  "fullDesktopVerified": false,
+  "runtimeNetwork": "disabled",
+  "archiveSha256": "1ba51beaac9f9159e156e1bfffa57f26429f7373b61429751a8a7309ca415e56"
+}

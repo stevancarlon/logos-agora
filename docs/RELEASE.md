@@ -3,7 +3,7 @@
 The release kit supplies compiled Agora code, the pixel renderer and a verified
 unsigned LGX. It does not contain a user database, signing keys, or sample posts.
 This is currently a companion-runtime installation, not an LGX-only installation
-on stock Basecamp. Catalog publication and package signing remain release gates.
+on stock Basecamp. The unsigned alpha is served by the community catalog. Publisher signing and catalog UI installation acceptance remain open.
 
 Requirements: Linux x86_64, Python 3 with venv support, OpenSSL 3, a working
 Basecamp 0.3.2 AppImage, and Qt 6.9.2 with Multimedia. Install Delivery 0.3.2 in
@@ -17,7 +17,7 @@ python3 scripts/install-release.py --verify-only
 ```
 
 Checksums detect accidental corruption; they do not authenticate the publisher.
-Obtain releases from the project's published repository once available.
+Obtain releases from [the project's release page](https://github.com/stevancarlon/logos-agora/releases).
 
 If the matching Qt runtime is not already installed, download official Qt binaries
 using aqtinstall (no Agora compilation is necessary):
