@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--verify-only', action='store_true')
-    p.add_argument('--qt', type=Path, help='Matching Qt 6.9.2 directory with Multimedia')
+    p.add_argument('--qt', type=Path, help='Matching Qt runtime directory with Multimedia')
     p.add_argument('--appimage', type=Path)
     p.add_argument('--app', type=Path, help='macOS Basecamp application bundle')
     p.add_argument('--host-bin', type=Path, help='Windows Basecamp bin directory')
@@ -41,7 +41,14 @@ def main():
         p.error(f"This kit targets {manifest['platform']}, but this computer is {host}")
     if a.qt:
         qmake = a.qt / 'bin' / ('qmake.exe' if host.startswith('windows-') else 'qmake')
-        version = subprocess.check_output([str(qmake), '-query', 'QT_VERSION'], text=True).strip()
+        if host.startswith('windows-') and not qmake.is_file():
+            # Matching Nix runtime artifact has no compiler or SDK tools.
+            stamp = a.qt.parent / 'qt-version.txt'
+            if not stamp.is_file():
+                p.error('Windows runtime must include its adjacent qt-version.txt')
+            version = stamp.read_text().strip()
+        else:
+            version = subprocess.check_output([str(qmake), '-query', 'QT_VERSION'], text=True).strip()
         if version != manifest['qt']:
             p.error(f"This kit requires Qt {manifest['qt']}, found {version}")
     if host.startswith(('darwin-', 'windows-')):
@@ -50,15 +57,16 @@ def main():
         if host.startswith('darwin-'):
             data = Path.home() / 'Library/Application Support'
             user_dir = a.user_dir or Path(os.environ.get('LOGOS_USER_DIR', str(data / 'Logos/LogosBasecamp')))
-            runtime = a.runtime_dir or data / 'Logos/Agora/qt-media-6.9.2'
+            runtime = a.runtime_dir or data / ('Logos/Agora/qt-media-' + manifest['qt'])
             launcher = a.launcher or Path.home() / 'Applications/Agora.command'
             command = [sys.executable, str(ROOT / 'scripts/install-macos-runtime.py'), '--app', str(a.app.resolve())]
         else:
             user_dir = a.user_dir or Path(os.environ.get('LOGOS_USER_DIR', str(Path(os.environ['APPDATA']) / 'Logos/LogosBasecamp')))
             data = Path(os.environ['LOCALAPPDATA'])
-            runtime = a.runtime_dir or data / 'Logos/Agora/qt-media-6.9.2'
+            runtime = a.runtime_dir or data / ('Logos/Agora/qt-media-' + manifest['qt'])
             launcher = a.launcher or data / 'Programs/Agora/Launch-Agora.cmd'
-            command = [sys.executable, str(ROOT / 'scripts/stage-windows-runtime.py'), '--host-bin', str(a.host_bin.resolve())]
+            command = [sys.executable, str(ROOT / 'scripts/stage-windows-runtime.py'), '--host-bin', str(a.host_bin.resolve()),
+                       '--renderer', str(ROOT / ('build/qt' + manifest['qt'] + '-media/qml/Agora/Media'))]
         subprocess.run([sys.executable, str(ROOT / 'scripts/install-basecamp.py'), '--user-dir', str(user_dir.resolve())], check=True)
         command += ['--qt', str(a.qt.resolve()), '--user-dir', str(user_dir.resolve()),
                     '--runtime-dir', str(runtime.resolve()), '--launcher', str(launcher.resolve())]

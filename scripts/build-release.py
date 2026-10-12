@@ -24,6 +24,7 @@ def main():
     a.output.mkdir(parents=True, exist_ok=True)
     library = {'linux-amd64': 'libforum_backend.so', 'darwin-amd64': 'libforum_backend.dylib',
                'darwin-arm64': 'libforum_backend.dylib', 'windows-amd64': 'forum_backend.dll'}[a.variant]
+    qt_version = '6.11.1' if a.variant == 'windows-amd64' else '6.9.2'
     backend = a.backend or ROOT / 'native/forum' / library
     subprocess.run([sys.executable, str(ROOT / 'scripts/package-native.py'), '--lgx', a.lgx,
                     '--variant', a.variant, '--backend', str(backend)], check=True)
@@ -35,7 +36,7 @@ def main():
         folders = ('native/forum/qml', 'native/forum/assets')
         for folder in folders:
             shutil.copytree(ROOT / folder, stage / folder)
-        renderer_path = 'build/qt6.9.2-media/qml/Agora/Media'
+        renderer_path = f'build/qt{qt_version}-media/qml/Agora/Media'
         shutil.copytree(a.renderer or ROOT / renderer_path, stage / renderer_path)
         shutil.copy2(backend, stage / 'native/forum' / library)
         files = ['README.md', 'LICENSE-MIT', 'LICENSE-APACHE', 'docs/RELEASE.md', 'docs/STORAGE.md',
@@ -57,7 +58,7 @@ def main():
         hashes = {str(path.relative_to(stage)): hashlib.sha256(path.read_bytes()).hexdigest()
                   for path in sorted(stage.rglob('*')) if path.is_file()}
         (stage / 'release.json').write_text(json.dumps(dict(version=version, platform=a.variant,
-            qt='6.9.2', basecamp='0.3.2', signed=False, sha256=hashes), indent=2) + '\n')
+            qt=qt_version, basecamp='0.3.2', signed=False, sha256=hashes), indent=2) + '\n')
         subprocess.run([sys.executable, str(stage / 'scripts/install-release.py'), '--verify-only'], check=True)
         output = a.output / (name + '.tar.gz')
         with tarfile.open(output, 'w:gz') as archive:
