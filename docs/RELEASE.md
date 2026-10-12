@@ -8,7 +8,7 @@ on stock Basecamp. Catalog publication and package signing remain release gates.
 Requirements: Linux x86_64, Python 3 with venv support, OpenSSL 3, a working
 Basecamp 0.3.2 AppImage, and Qt 6.9.2 with Multimedia. Install Delivery 0.3.2 in
 Basecamp's module manager before connecting. Basecamp/AppImage system dependencies
-must already be satisfied. Close Basecamp before updating an existing runtime.
+must already be satisfied. On Ubuntu 24.04, include `libopengl0`, `libharfbuzz0b`, `libpulse0` and `libasound2t64`; these are needed even with the matching Qt runtime. The complete isolated test environment is listed in `scripts/containers/ubuntu-runtime.Dockerfile` in the source repository. Close Basecamp before updating an existing runtime.
 
 From the extracted release directory, validate the files:
 

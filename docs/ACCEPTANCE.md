@@ -78,3 +78,19 @@ latency; do not mark these gates passed from a local relay result.
 8. Show CI, catalog installation, adoption evidence and remaining limitations.
 
 This outline is preparation, not a recorded demo or submission.
+
+## Fresh Ubuntu userspace
+
+```sh
+python3 scripts/check-linux-container.py --archive artifacts/agora-0.3.0-linux-amd64.tar.gz --qt "$HOME/Qt/6.9.2/gcc_64" --basecamp "$HOME/Applications/LogosBasecamp-0.3.2-x86_64.AppImage" --modules "$HOME/.local/share/Logos/LogosBasecamp/modules"
+```
+
+This builds a pinned Ubuntu 24.04 container with explicit desktop libraries, then
+installs and loads the precompiled kit as an unprivileged user with runtime
+network access disabled. Inputs are read-only; only the result directory is
+writable on the host. Use `--build-network host` if Docker's default network cannot
+download apt packages; this affects image preparation only. Evidence records the
+archive hash. This passed for the 0.3.0 candidate, including checksum-corruption
+rejection and actual Basecamp UI/backend initialization. It shares the host kernel
+and uses offscreen rendering, so it does not establish full desktop, audio-device,
+fresh Qt download, clean-OS or cross-machine acceptance.
