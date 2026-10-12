@@ -1,7 +1,9 @@
 #include "../backend/ForumBackend.h"
+#include "../backend/AttachmentMime.h"
 #include <QJsonDocument>
 #include <QImage>
 #include <QUrl>
+#include <QMimeDatabase>
 #include <QTcpServer>
 #include <QSqlDatabase>
 #include <QSqlQuery>
@@ -38,6 +40,14 @@ private slots:
     QVERIFY(backend->lastError().isEmpty());
   }
   void cleanup() { backend.reset(); }
+  void canonicalizesMp4ContentAcrossMimeDatabases() {
+    QFile sample(QFINDTESTDATA("../../design/agora/demo-media/playback-test.mp4"));
+    QVERIFY(sample.open(QIODevice::ReadOnly));
+    QCOMPARE(attachmentMime(sample.read(65536)), QString("video/mp4"));
+    QByteArray quicktime=QByteArray::fromHex("0000001466747970717420200000000071742020");
+    QVERIFY(attachmentMime(quicktime)!=QString("video/mp4"));
+    QVERIFY(attachmentMime(QByteArray("not a movie.mp4"))!=QString("video/mp4"));
+  }
   void largeArchiveKeepsPagesBounded() {
     // Synthetic database fixture only: these rows are never sent over Delivery.
     const QString connection="archive-fixture";
@@ -161,6 +171,12 @@ private slots:
   }
   void videoPlaybackIsScopedToStoredAttachments() {
     auto imported=call({{"op","attachmentImport"},{"file",QUrl::fromLocalFile(QFINDTESTDATA("../../design/agora/demo-media/playback-test.mp4")).toString()}});
+    if (!imported["ok"].toBool()) {
+      QFile input(QFINDTESTDATA("../../design/agora/demo-media/playback-test.mp4"));
+      input.open(QIODevice::ReadOnly);
+      qWarning() << "Video import failed" << imported << "detected MIME"
+                 << QMimeDatabase().mimeTypeForData(input.peek(65536)).name();
+    }
     QVERIFY(imported["ok"].toBool());
     const auto aid=imported["attachment"].toObject()["id"].toString();
     QVERIFY(!call({{"op","attachmentVideo"},{"action","play"},{"id","missing"}})["ok"].toBool());

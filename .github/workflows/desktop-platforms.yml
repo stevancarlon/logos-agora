@@ -4,7 +4,7 @@ permissions:
   contents: read
 concurrency:
   group: desktop-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   macos:
     strategy:
@@ -41,7 +41,17 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@v1
       - run: pip install aqtinstall==3.3.0
       - run: python -m aqt install-qt windows desktop 6.9.2 win64_msvc2022_64 -O "$env:RUNNER_TEMP/Qt" --modules qtmultimedia --archives qtbase qtdeclarative qtmultimedia
+      - name: Identify OpenSSL dependency revision
+        run: |
+          $revision = git -C "$env:VCPKG_INSTALLATION_ROOT" rev-parse HEAD
+          "VCPKG_REV=$revision" >> $env:GITHUB_ENV
+      - uses: actions/cache@v4
+        id: openssl-cache
+        with:
+          path: ${{ runner.temp }}/agora-openssl
+          key: openssl-windows2022-x64-${{ env.VCPKG_REV }}
       - name: Install OpenSSL development library
+        if: steps.openssl-cache.outputs.cache-hit != 'true'
         run: |
           & "$env:VCPKG_INSTALLATION_ROOT/vcpkg.exe" install openssl:x64-windows "--x-install-root=$env:RUNNER_TEMP/agora-openssl"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
