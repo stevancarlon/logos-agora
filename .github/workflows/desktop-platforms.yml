@@ -43,7 +43,7 @@ jobs:
         if: matrix.runner == 'macos-15'
         run: |
           brew install libsodium icu4c nlohmann-json pkg-config
-          cmake -S .tools/logos-package -B "$RUNNER_TEMP/lgx" -DCMAKE_BUILD_TYPE=Release
+          cmake -S .tools/logos-package -B "$RUNNER_TEMP/lgx" -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS="-L$(brew --prefix libsodium)/lib"
           cmake --build "$RUNNER_TEMP/lgx" --target lgx --parallel 3
           python3 scripts/build-release.py --variant darwin-arm64 --lgx "$RUNNER_TEMP/lgx/lgx"
       - name: Inspect official Apple Silicon Basecamp runtime

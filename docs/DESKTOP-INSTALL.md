@@ -14,6 +14,8 @@ its SQLite database or identities. Close Basecamp before updating a kit.
 - Basecamp 0.3.2 and the official Delivery 0.3.2 module installed through its package
   manager. The companion runtime does not supply Delivery.
 - Python 3.12 or newer to run the installer.
+- On macOS, Apple Command Line Tools providing `install_name_tool` and `codesign`
+  for dependency relocation and local signatures. Agora itself is not compiled.
 - The matching Qt 6.9.2 distribution with Multimedia. This is currently a separate
   download; the kit does not include Qt. For example, install `aqtinstall==3.3.0`
   in a Python virtual environment, then use the corresponding command:
