@@ -35,7 +35,9 @@ jobs:
           cmake -S .tools/logos-package -B "$RUNNER_TEMP/lgx" -DCMAKE_BUILD_TYPE=Release
           cmake --build "$RUNNER_TEMP/lgx" --target lgx --parallel 2
           cd "$RUNNER_TEMP/matching-download"
-          sha256sum -c agora-windows-matching-qt.tar.gz.sha256
+          expected=$(cut -d " " -f1 agora-windows-matching-qt.tar.gz.sha256)
+          actual=$(sha256sum agora-windows-matching-qt.tar.gz | cut -d " " -f1)
+          test "$expected" = "$actual"
           tar -xzf agora-windows-matching-qt.tar.gz
           cd "$GITHUB_WORKSPACE"
           python3 scripts/build-release.py --variant windows-amd64 --lgx "$RUNNER_TEMP/lgx/lgx" --backend "$RUNNER_TEMP/matching-download/windows-matched/native/native/forum/forum_backend.dll" --renderer "$RUNNER_TEMP/matching-download/windows-matched/native/build/qt6.11.1-media/qml/Agora/Media"
