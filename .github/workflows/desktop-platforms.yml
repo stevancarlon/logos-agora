@@ -33,6 +33,19 @@ jobs:
           path: |
             native/forum/*.dylib
             build/qt6.9.2-media/qml/
+      - uses: actions/checkout@v4
+        if: matrix.runner == 'macos-15'
+        with:
+          repository: logos-co/logos-package
+          ref: c25a1167578aef5cbd9a9b6f822ffe2ae4fd6a89
+          path: .tools/logos-package
+      - name: Build official validator and Apple Silicon installation kit
+        if: matrix.runner == 'macos-15'
+        run: |
+          brew install libsodium icu4c nlohmann-json pkg-config
+          cmake -S .tools/logos-package -B "$RUNNER_TEMP/lgx" -DCMAKE_BUILD_TYPE=Release
+          cmake --build "$RUNNER_TEMP/lgx" --target lgx --parallel 3
+          python3 scripts/build-release.py --variant darwin-arm64 --lgx "$RUNNER_TEMP/lgx/lgx"
       - name: Inspect official Apple Silicon Basecamp runtime
         if: matrix.runner == 'macos-15'
         run: |
@@ -44,10 +57,10 @@ jobs:
           python3 scripts/inspect-macos-host.py --app "$app" --output "$RUNNER_TEMP/basecamp-runtime.json"
           mkdir -p "$RUNNER_TEMP/agora-profile"
           touch "$RUNNER_TEMP/agora-profile/.agora-disposable-profile"
-          python3 scripts/install-basecamp.py --user-dir "$RUNNER_TEMP/agora-profile"
+          kit=$(find artifacts -maxdepth 1 -name 'agora-*-darwin-arm64.tar.gz' -print -quit)
+          python3 scripts/check-desktop-kit-install.py --archive "$kit" --qt "$RUNNER_TEMP/Qt/6.9.2/macos" --app "$app" --profile "$RUNNER_TEMP/agora-profile" --runtime-dir "$RUNNER_TEMP/agora-runtime" --launcher "$RUNNER_TEMP/launch-agora" --output "$RUNNER_TEMP/agora-kit-check"
           python3 scripts/install-test-delivery.py --profile "$RUNNER_TEMP/agora-profile"
           python3 scripts/prepare-host-video.py --profile "$RUNNER_TEMP/agora-profile"
-          python3 scripts/install-macos-runtime.py --qt "$RUNNER_TEMP/Qt/6.9.2/macos" --app "$app" --user-dir "$RUNNER_TEMP/agora-profile" --runtime-dir "$RUNNER_TEMP/agora-runtime" --launcher "$RUNNER_TEMP/launch-agora" --test-offscreen
           python3 scripts/check-macos-host.py --launcher "$RUNNER_TEMP/launch-agora" --profile "$RUNNER_TEMP/agora-profile" --output "$RUNNER_TEMP/agora-host-check" --video
           hdiutil detach "$RUNNER_TEMP/basecamp-volume"
       - uses: actions/upload-artifact@v4
@@ -57,7 +70,16 @@ jobs:
           path: |
             ${{ runner.temp }}/basecamp-runtime.json
             ${{ runner.temp }}/agora-host-check/
+            ${{ runner.temp }}/agora-kit-check/
           if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: success() && matrix.runner == 'macos-15'
+        with:
+          name: agora-kit-darwin-arm64-development
+          if-no-files-found: error
+          path: |
+            artifacts/agora-*-darwin-arm64.tar.gz*
+            artifacts/logos_forum-*-darwin-arm64.lgx
   windows:
     runs-on: windows-2022
     timeout-minutes: 40
@@ -105,6 +127,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Video probe installation failed' }
           python scripts/stage-windows-runtime.py --qt "$env:RUNNER_TEMP/Qt/6.9.2/mingw_64" --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --user-dir "$env:RUNNER_TEMP/agora-profile" --runtime-dir "$env:RUNNER_TEMP/agora-runtime" --launcher "$env:RUNNER_TEMP/Launch-Agora.cmd"
           if ($LASTEXITCODE -ne 0) { throw 'Dependency staging failed' }
+          python scripts/inspect-pe-symbols.py --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --runtime-dir "$env:RUNNER_TEMP/agora-runtime" --backend "$env:RUNNER_TEMP/agora-profile/plugins/logos_forum/forum_backend.dll" --output "$env:RUNNER_TEMP/agora-runtime/symbols.json"
           python scripts/check-windows-host.py --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --runtime-dir "$env:RUNNER_TEMP/agora-runtime" --profile "$env:RUNNER_TEMP/agora-profile" --output "$env:RUNNER_TEMP/agora-windows-host-check" --video
       - uses: actions/upload-artifact@v4
         if: always()
@@ -113,4 +136,5 @@ jobs:
           path: |
             ${{ runner.temp }}/agora-windows-host-check/
             ${{ runner.temp }}/agora-runtime/dependencies.json
+            ${{ runner.temp }}/agora-runtime/symbols.json
           if-no-files-found: warn

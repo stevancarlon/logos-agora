@@ -43,7 +43,7 @@ def main():
                  'native/forum/manifest.json', 'native/forum/variant',
                  'scripts/install-basecamp.py', 'scripts/install-media-runtime.py', 'scripts/install-release.py',
                  'scripts/install-macos-runtime.py', 'scripts/stage-windows-runtime.py', 'scripts/pe_dependencies.py',
-                 'docs/PLATFORMS.md',
+                 'docs/PLATFORMS.md', 'docs/DESKTOP-INSTALL.md',
                  f'artifacts/logos_forum-{version}-{a.variant}.lgx']
         for relative in files:
             target = stage / relative

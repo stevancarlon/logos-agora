@@ -23,6 +23,7 @@ def main():
     p.add_argument('--runtime-dir', type=Path)
     p.add_argument('--launcher', type=Path)
     p.add_argument('--no-desktop', action='store_true')
+    p.add_argument('--test-offscreen', action='store_true', help='Stage the Mac display plugin used by CI')
     a = p.parse_args()
     manifest = json.loads((ROOT / 'release.json').read_text())
     for relative, digest in manifest['sha256'].items():
@@ -38,6 +39,11 @@ def main():
     host = platform.system().lower() + '-' + str(arch)
     if manifest['platform'] != host:
         p.error(f"This kit targets {manifest['platform']}, but this computer is {host}")
+    if a.qt:
+        qmake = a.qt / 'bin' / ('qmake.exe' if host.startswith('windows-') else 'qmake')
+        version = subprocess.check_output([str(qmake), '-query', 'QT_VERSION'], text=True).strip()
+        if version != manifest['qt']:
+            p.error(f"This kit requires Qt {manifest['qt']}, found {version}")
     if host.startswith(('darwin-', 'windows-')):
         if not a.qt or (host.startswith('darwin-') and not a.app) or (host.startswith('windows-') and not a.host_bin):
             p.error('Provide --qt and --app (macOS) or --host-bin (Windows)')
@@ -56,6 +62,8 @@ def main():
         subprocess.run([sys.executable, str(ROOT / 'scripts/install-basecamp.py'), '--user-dir', str(user_dir.resolve())], check=True)
         command += ['--qt', str(a.qt.resolve()), '--user-dir', str(user_dir.resolve()),
                     '--runtime-dir', str(runtime.resolve()), '--launcher', str(launcher.resolve())]
+        if a.test_offscreen and host.startswith('darwin-'):
+            command.append('--test-offscreen')
         subprocess.run(command, check=True)
         return
     if not a.qt or not a.appimage:
