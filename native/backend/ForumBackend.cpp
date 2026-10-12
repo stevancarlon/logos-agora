@@ -158,7 +158,7 @@ void ForumBackend::initialize() {
   if (root.isEmpty()) {
     root = qEnvironmentVariable("LOGOS_USER_DIR");
     if (root.isEmpty())
-      root = QDir::homePath() + "/.local/share/Logos/LogosBasecamp";
+      root = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/Logos/LogosBasecamp";
     root += "/module_data/logos_forum";
   }
   require(QDir().mkpath(root), "Cannot create forum data directory");
@@ -631,7 +631,13 @@ QJsonObject ForumBackend::attachment(const QJsonObject &c) {
   }
   require(QFileInfo::exists(path),"Attachment file is missing");
   if (op == "attachmentOpen") {
+#ifdef Q_OS_MACOS
+    const QString opener = "/usr/bin/open";
+#elif defined(Q_OS_WIN)
+    const auto opener = QStandardPaths::findExecutable("explorer.exe");
+#else
     const auto opener = QStandardPaths::findExecutable("xdg-open");
+#endif
     require(!opener.isEmpty() && QProcess::startDetached(opener,{path}),"Could not start the system viewer");
     return {};
   }

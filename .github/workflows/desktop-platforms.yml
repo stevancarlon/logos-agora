@@ -1,0 +1,59 @@
+name: Desktop platform checks
+on: [push, pull_request]
+permissions:
+  contents: read
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: brew install openssl@3
+      - run: pip install aqtinstall==3.3.0
+      - run: python -m aqt install-qt mac desktop 6.9.2 clang_64 -O "$RUNNER_TEMP/Qt" --modules qtmultimedia --archives qtbase qtdeclarative qtmultimedia
+      - name: Build and test native application
+        run: OPENSSL_ROOT_DIR="$(brew --prefix openssl@3)" QMAKE="$RUNNER_TEMP/Qt/6.9.2/macos/bin/qmake" python3 scripts/build-native.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-build-${{ matrix.runner }}
+          if-no-files-found: error
+          path: |
+            native/forum/*.dylib
+            build/qt6.9.2-media/qml/
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: ilammy/msvc-dev-cmd@v1
+      - run: pip install aqtinstall==3.3.0
+      - run: python -m aqt install-qt windows desktop 6.9.2 win64_msvc2022_64 -O "$env:RUNNER_TEMP/Qt" --modules qtmultimedia --archives qtbase qtdeclarative qtmultimedia
+      - name: Install OpenSSL development library
+        run: |
+          & "$env:VCPKG_INSTALLATION_ROOT/vcpkg.exe" install openssl:x64-windows "--x-install-root=$env:RUNNER_TEMP/agora-openssl"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build and test native application
+        run: |
+          $env:QMAKE = "$env:RUNNER_TEMP/Qt/6.9.2/msvc2022_64/bin/qmake.exe"
+          $env:OPENSSL_ROOT_DIR = "$env:RUNNER_TEMP/agora-openssl/x64-windows"
+          python scripts/build-native.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-build-windows-amd64
+          if-no-files-found: error
+          path: |
+            native/forum/*.dll
+            build/qt6.9.2-media/qml/

@@ -6,7 +6,7 @@ TARGET = forum_backend
 DESTDIR = $$PWD/../forum
 HEADERS += ForumBackend.h
 SOURCES += ForumBackend.cpp
-LIBS += -lcrypto
+include(crypto.pri)
 
 
 QMAKE_LFLAGS_RPATH =
