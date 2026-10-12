@@ -24,7 +24,25 @@ jobs:
             extra-substituters = https://cache.nix.logos.co/public
             extra-trusted-public-keys = public:l4HrXgL4nw246+LBh2SOJyhz64BoGegOYLheT/iIAPU=
       - name: Build pinned Delivery 0.3.2 Intel package
-        run: nix build .#lgx --accept-flake-config -L
+        run: |
+          # The pinned Nim linker uses clang (C), but BoringSSL and Leopard
+          # contain C++ objects. Upstream adds stdc++ on Linux, omitting libc++
+          # on Darwin. Patch only that build flag in a copied pinned input.
+          source=$(nix eval --impure --raw --expr '(builtins.getFlake (toString ./.)).inputs.logos-delivery.outPath')
+          patched="$RUNNER_TEMP/delivery-core-intel"
+          cp -R "$source" "$patched"
+          chmod -R u+w "$patched"
+          python3 - "$patched/nix/default.nix" <<'PYCODE'
+          import pathlib, sys
+          p = pathlib.Path(sys.argv[1])
+          text = p.read_text()
+          old = '+ lib.optionalString hostPlatform.isLinux " -lstdc++";'
+          new = '+ lib.optionalString hostPlatform.isLinux " -lstdc++"\n      + lib.optionalString hostPlatform.isDarwin " -lc++";'
+          assert text.count(old) == 1, "Pinned Darwin linker patch no longer matches"
+          p.write_text(text.replace(old, new))
+          PYCODE
+          nix build .#lgx --accept-flake-config --no-write-lock-file \
+            --override-input logos-delivery "path:$patched" -L
       - name: Collect package
         run: |
           mkdir -p artifacts
