@@ -5,7 +5,10 @@ Apple Silicon macOS. Only the Linux alpha is currently published and verified in
 Basecamp. Cross-platform development is on `codex/desktop-platforms` / PR #3.
 
 - Linux: 22 backend and 24 QML checks pass after portability changes. The MP4
-  regression also passes without a system MIME database.
+  regression also passes without a system MIME database. The development kit
+  also passes installation and actual Basecamp UI/backend loading in an isolated
+  profile (`artifacts/portable-linux-host-check/result.json`), including corruption
+  rejection; this does not constitute a new published release.
 - Intel and Apple Silicon macOS: all 22 backend and 24 QML checks pass.
   MP4 container detection handles Qt's bundled MIME database; explicit Qt Basic
   controls preserve the custom interface across native platforms.

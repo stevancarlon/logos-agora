@@ -57,14 +57,14 @@ def main():
 
     def provide(reference, origin):
         if reference.startswith(('/System/', '/usr/lib/')):
-            return reference
+            return reference, None
         if '.framework/' in reference:
             relative = reference[reference.index('Qt'):]
         else:
             relative = Path(reference).name
         for directory in host_dirs + runtime_dirs:
             if (directory / relative).is_file():
-                return '@rpath/' + relative
+                return '@rpath/' + relative, directory
         source = qt / 'lib' / relative
         if not source.is_file() and reference.startswith('@loader_path/'):
             source = (origin.parent / reference[len('@loader_path/'):]).resolve()
@@ -79,7 +79,7 @@ def main():
             destination = runtime_dirs[1] / relative
             shutil.copy2(source, destination)
         queue.append((source, destination))
-        return '@rpath/' + relative
+        return '@rpath/' + relative, (runtime_dirs[0] if '.framework/' in relative else runtime_dirs[1])
 
     while queue:
         origin, destination = queue.pop(0)
@@ -89,18 +89,22 @@ def main():
         dependencies = [line.strip().split(' (compatibility')[0]
                         for line in run('otool', '-L', origin).splitlines()[1:]]
         identifiers = run('otool', '-D', origin).splitlines()[1:]
+        required_paths = set()
         for dependency in dict.fromkeys(dependencies):
             if dependency in identifiers:
                 continue
-            replacement = provide(dependency, origin)
+            replacement, directory = provide(dependency, origin)
+            if directory is not None:
+                required_paths.add(directory)
             if replacement != dependency:
                 run('install_name_tool', '-change', dependency, replacement, destination)
         old_paths = re.findall(r'cmd LC_RPATH\s+cmdsize \d+\s+path (.*?) \(offset',
                                run('otool', '-l', destination))
         for old in dict.fromkeys(old_paths):
             run('install_name_tool', '-delete_rpath', old, destination)
-        for directory in host_dirs + runtime_dirs:
-            run('install_name_tool', '-add_rpath', directory, destination)
+        for directory in sorted(required_paths):
+            relative_path = '@loader_path/' + os.path.relpath(directory, destination.parent)
+            run('install_name_tool', '-add_rpath', relative_path, destination)
         run('codesign', '--force', '--sign', '-', destination)
     launcher = a.launcher.resolve()
     launcher.parent.mkdir(parents=True, exist_ok=True)
