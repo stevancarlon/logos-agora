@@ -28,9 +28,11 @@
                 stage = -1;
                 forum.call({op: "attachmentImport", file: VIDEO_FILE_JSON}, function (r) {
                     if (!r.ok || !r.attachment) { fail(JSON.stringify(r)); return; }
+                    console.log("AGORA_HOST_VIDEO_IMPORTED", r.attachment.mime);
                     fileId = r.attachment.id;
                     forum.savePost("", "building", "[Synthetic acceptance] Inline video", "Disposable host playback test", function (post) {
                         if (!post.ok) { fail(JSON.stringify(post)); return; }
+                        console.log("AGORA_HOST_VIDEO_SAVED", post.id);
                         root.openThread(post.id);
                         stage = 1;
                     }, [fileId]);

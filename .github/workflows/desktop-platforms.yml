@@ -62,9 +62,12 @@ jobs:
           python3 scripts/install-test-delivery.py --profile "$RUNNER_TEMP/agora-profile"
           python3 scripts/prepare-host-video.py --profile "$RUNNER_TEMP/agora-profile"
           python3 scripts/check-macos-host.py --launcher "$RUNNER_TEMP/launch-agora" --profile "$RUNNER_TEMP/agora-profile" --output "$RUNNER_TEMP/agora-host-check" --video
-          cp native/forum/qml/Main.qml "$RUNNER_TEMP/agora-profile/plugins/logos_forum/qml/Main.qml"
-          python3 scripts/prepare-host-video.py --profile "$RUNNER_TEMP/agora-profile" --video-file design/agora/demo-media/playback-test.webm
-          python3 scripts/check-macos-host.py --launcher "$RUNNER_TEMP/launch-agora" --profile "$RUNNER_TEMP/agora-profile" --output "$RUNNER_TEMP/agora-webm-check" --video
+          mkdir -p "$RUNNER_TEMP/agora-webm-profile"
+          touch "$RUNNER_TEMP/agora-webm-profile/.agora-disposable-profile"
+          python3 scripts/check-desktop-kit-install.py --archive "$kit" --qt "$RUNNER_TEMP/Qt/6.9.2/macos" --app "$app" --profile "$RUNNER_TEMP/agora-webm-profile" --runtime-dir "$RUNNER_TEMP/agora-webm-runtime" --launcher "$RUNNER_TEMP/launch-agora-webm" --output "$RUNNER_TEMP/agora-webm-kit-check"
+          python3 scripts/install-test-delivery.py --profile "$RUNNER_TEMP/agora-webm-profile"
+          python3 scripts/prepare-host-video.py --profile "$RUNNER_TEMP/agora-webm-profile" --video-file design/agora/demo-media/playback-test.webm
+          python3 scripts/check-macos-host.py --launcher "$RUNNER_TEMP/launch-agora-webm" --profile "$RUNNER_TEMP/agora-webm-profile" --output "$RUNNER_TEMP/agora-webm-check" --video
           hdiutil detach "$RUNNER_TEMP/basecamp-volume"
       - uses: actions/upload-artifact@v4
         if: always() && matrix.runner == 'macos-15'
