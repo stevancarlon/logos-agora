@@ -27,7 +27,12 @@ Apple Silicon development builds have passed actual Basecamp host checks. Cross-
   disabled. Actual symbol inspection found missing private QObject constructor
   and Vulkan functions when mixing the official 6.9.2 Multimedia/SQLite plugins
   with Basecamp. The matching Nix/CMake build uses Basecamp's exact package set;
-  its runtime result is pending.
+  its first actual host check now passes with no missing non-system imports.
+  Agora opens in official Basecamp and renders MP4 frames, pauses, seeks, resumes,
+  and stops on navigation. [Windows host check](https://github.com/stevancarlon/logos-agora/actions/runs/38196428403).
+  This first runtime uses Windows Media Foundation; a separate FFmpeg-enabled
+  build and archive installation checks are still running. Audio hardware,
+  WebM playback and cross-machine exchange remain unverified.
 
 Hosted results: [desktop checks at 417277d](https://github.com/stevancarlon/logos-agora/actions/runs/38192205277)
 and [Linux checks](https://github.com/stevancarlon/logos-agora/actions/runs/38192205300).
@@ -43,7 +48,7 @@ Run `python scripts/build-native.py` with `QMAKE` pointing at Qt 6.9.2 and
 requires Basecamp’s matching Windows package set (see `nix/windows-agora.nix`); macOS uses the native CPU
 architecture. These are development commands, not complete end-user packages.
 
-Linux and Apple Silicon have archive installation and actual Basecamp video evidence. Intel Mac and Windows still need those checks. Every platform needs cross-machine network acceptance; successful native unit tests alone do not prove host compatibility.
+Linux and Apple Silicon have archive installation and actual Basecamp video evidence. Windows has actual host/video evidence but still needs archive installation verification. Intel Mac still needs both checks. Every platform needs cross-machine network acceptance; successful native unit tests alone do not prove host compatibility.
 
 The official Basecamp 0.3.2 Mac DMG is Apple Silicon-only. The pinned upstream
 source (`f2fae630737bc56ef8c4bb33ce92ae365ba8abb9`) includes `x86_64-darwin`.

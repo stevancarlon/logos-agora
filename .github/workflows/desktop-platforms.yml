@@ -112,29 +112,3 @@ jobs:
           path: |
             native/forum/*.dll
             build/qt6.9.2-media/qml/
-      - name: Load Agora in official Windows Basecamp
-        run: |
-          Invoke-WebRequest -Uri 'https://github.com/logos-co/logos-basecamp/releases/download/0.3.2/LogosBasecamp-Desktop-v0.3.2-f2fae6-x86_64-setup.exe' -OutFile "$env:RUNNER_TEMP/basecamp-setup.exe"
-          & "$env:ProgramFiles/7-Zip/7z.exe" x "$env:RUNNER_TEMP/basecamp-setup.exe" "-o$env:RUNNER_TEMP/basecamp-extracted" -y
-          if ($LASTEXITCODE -ne 0) { throw 'Installer extraction failed' }
-          New-Item -ItemType Directory -Force "$env:RUNNER_TEMP/agora-profile" | Out-Null
-          New-Item -ItemType File "$env:RUNNER_TEMP/agora-profile/.agora-disposable-profile" | Out-Null
-          python scripts/install-basecamp.py --user-dir "$env:RUNNER_TEMP/agora-profile"
-          if ($LASTEXITCODE -ne 0) { throw 'Agora installation failed' }
-          python scripts/install-test-delivery.py --profile "$env:RUNNER_TEMP/agora-profile"
-          if ($LASTEXITCODE -ne 0) { throw 'Delivery installation failed' }
-          python scripts/prepare-host-video.py --profile "$env:RUNNER_TEMP/agora-profile"
-          if ($LASTEXITCODE -ne 0) { throw 'Video probe installation failed' }
-          python scripts/stage-windows-runtime.py --qt "$env:RUNNER_TEMP/Qt/6.9.2/mingw_64" --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --user-dir "$env:RUNNER_TEMP/agora-profile" --runtime-dir "$env:RUNNER_TEMP/agora-runtime" --launcher "$env:RUNNER_TEMP/Launch-Agora.cmd"
-          if ($LASTEXITCODE -ne 0) { throw 'Dependency staging failed' }
-          python scripts/inspect-pe-symbols.py --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --runtime-dir "$env:RUNNER_TEMP/agora-runtime" --backend "$env:RUNNER_TEMP/agora-profile/plugins/logos_forum/forum_backend.dll" --output "$env:RUNNER_TEMP/agora-runtime/symbols.json"
-          python scripts/check-windows-host.py --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --runtime-dir "$env:RUNNER_TEMP/agora-runtime" --profile "$env:RUNNER_TEMP/agora-profile" --output "$env:RUNNER_TEMP/agora-windows-host-check" --video
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: basecamp-windows-host-check
-          path: |
-            ${{ runner.temp }}/agora-windows-host-check/
-            ${{ runner.temp }}/agora-runtime/dependencies.json
-            ${{ runner.temp }}/agora-runtime/symbols.json
-          if-no-files-found: warn
