@@ -1,0 +1,43 @@
+name: Intel Mac Delivery package
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/delivery-intel.yml
+permissions:
+  contents: read
+concurrency:
+  group: delivery-intel-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  delivery:
+    runs-on: macos-15-intel
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: logos-co/logos-delivery-module
+          ref: c25b7868099949c375e7affdeb1502b354fd92e3
+      - uses: cachix/install-nix-action@b85815f71a6de0ddee80b8a80a98d43f4bcc66c7
+        with:
+          extra_nix_config: |
+            extra-substituters = https://cache.nix.logos.co/public
+            extra-trusted-public-keys = public:l4HrXgL4nw246+LBh2SOJyhz64BoGegOYLheT/iIAPU=
+      - name: Build pinned Delivery 0.3.2 Intel package
+        run: nix build .#lgx --accept-flake-config -L
+      - name: Collect package
+        run: |
+          mkdir -p artifacts
+          if [ -f result ]; then
+            cp -L result artifacts/delivery_module-0.3.2-intel.lgx
+          else
+            package=$(find -L result -name '*.lgx' -type f -print -quit)
+            test -n "$package"
+            cp "$package" artifacts/delivery_module-0.3.2-intel.lgx
+          fi
+          shasum -a 256 artifacts/delivery_module-0.3.2-intel.lgx > artifacts/delivery_module-0.3.2-intel.lgx.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: delivery-0.3.2-darwin-amd64
+          if-no-files-found: error
+          path: artifacts/*
