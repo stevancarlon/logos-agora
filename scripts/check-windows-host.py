@@ -32,10 +32,11 @@ with (a.output / 'basecamp.log').open('w+', encoding='utf-8', errors='replace') 
             time.sleep(.5)
             log.seek(0)
             output = log.read()
-            if all(marker in output for marker in (('FORUM_UI_READY', 'FORUM_STATE_READY') + (('AGORA_HOST_VIDEO_PASS',) if a.video else ()))):
+            if all(marker in output for marker in (('FORUM_UI_READY', 'FORUM_STATE_READY') + (('AGORA_HOST_VIDEO_PASS', 'AGORA_VIDEO_RENDERED_FIRST_FRAME') if a.video else ()))):
                 result['passed'] = True
                 result['videoPlaybackVerified'] = a.video
                 result['audioDeviceVerified'] = False
+                result['videoFramePaintVerified'] = a.video
                 break
             if proc.poll() is not None:
                 result['exitCode'] = proc.returncode

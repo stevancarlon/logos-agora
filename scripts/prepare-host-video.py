@@ -11,12 +11,12 @@ root = Path(__file__).resolve().parents[1]
 if not (a.profile / '.agora-disposable-profile').is_file():
     p.error('Refusing to modify an unmarked profile')
 main = a.profile / 'plugins/logos_forum/qml/Main.qml'
-text = main.read_text()
+text = main.read_text(encoding='utf-8')
 if 'id: hostVideoProbe' in text:
     p.error('Video probe is already installed')
-probe = (root / 'native/tests/host/VideoProbe.qml.inc').read_text()
+probe = (root / 'native/tests/host/VideoProbe.qml.inc').read_text(encoding='utf-8')
 probe = probe.replace('VIDEO_FILE_JSON', json.dumps((root / 'design/agora/demo-media/playback-test.mp4').resolve().as_uri()))
 end = text.rfind('}')
 if end < 0 or text[end:].strip() != '}':
     p.error('Unexpected Main.qml root layout')
-main.write_text(text[:end] + probe + text[end:])
+main.write_text(text[:end] + probe + text[end:], encoding='utf-8')
