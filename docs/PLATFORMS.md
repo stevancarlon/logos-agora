@@ -6,11 +6,20 @@ Basecamp. Cross-platform development is on `codex/desktop-platforms` / PR #3.
 
 - Linux: 22 backend and 24 QML checks pass after portability changes. The MP4
   regression also passes without a system MIME database.
-- Intel and Apple Silicon macOS: first builds compile successfully, but their
-  video-import test exposed Qt's bundled MIME database identifying MP4 as
-  QuickTime. The container-brand fix passes all 22 backend checks on Apple Silicon. UI checks exposed native-style customization restrictions; components now explicitly use Qt Basic controls, awaiting hosted UI verification.
-- Windows: OpenSSL dependency compilation completed; application checks are in
-  progress. The initial MSVC build does not match Basecamp's MinGW ABI and will not be packaged. The workflow now uses Qt MinGW and the matching GCC toolchain.
+- Intel and Apple Silicon macOS: all 22 backend and 24 QML checks pass.
+  MP4 container detection handles Qt's bundled MIME database; explicit Qt Basic
+  controls preserve the custom interface across native platforms.
+- Windows x86_64: all 22 backend and 24 QML checks pass using Qt MinGW.
+  The initial MSVC build was replaced to align with Basecamp's MinGW toolchain;
+  actual host ABI compatibility still requires verification.
+
+Hosted results: [desktop checks at 417277d](https://github.com/stevancarlon/logos-agora/actions/runs/38192205277)
+and [Linux checks](https://github.com/stevancarlon/logos-agora/actions/runs/38192205300).
+
+The LGX packager accepts each target variant and checks the backend binary's
+architecture before packaging. Package structure validation does not establish
+runtime compatibility. Mac build artifacts still reference Homebrew OpenSSL and
+Qt frameworks; dependency deployment and Basecamp loading remain open.
 
 Run `python scripts/build-native.py` with `QMAKE` pointing at Qt 6.9.2 and
 `OPENSSL_ROOT_DIR` pointing at the OpenSSL installation when needed. Windows

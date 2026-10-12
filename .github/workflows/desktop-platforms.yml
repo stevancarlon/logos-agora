@@ -30,6 +30,22 @@ jobs:
           path: |
             native/forum/*.dylib
             build/qt6.9.2-media/qml/
+      - name: Inspect official Apple Silicon Basecamp runtime
+        if: matrix.runner == 'macos-15'
+        run: |
+          curl --fail --location --output "$RUNNER_TEMP/basecamp.dmg" https://github.com/logos-co/logos-basecamp/releases/download/0.3.2/LogosBasecamp-Desktop-v0.3.2-f2fae6-aarch64.dmg
+          mkdir "$RUNNER_TEMP/basecamp-volume"
+          hdiutil attach "$RUNNER_TEMP/basecamp.dmg" -readonly -nobrowse -mountpoint "$RUNNER_TEMP/basecamp-volume"
+          app=$(find "$RUNNER_TEMP/basecamp-volume" -maxdepth 1 -name '*.app' -print -quit)
+          test -n "$app"
+          python3 scripts/inspect-macos-host.py --app "$app" --output "$RUNNER_TEMP/basecamp-runtime.json"
+          hdiutil detach "$RUNNER_TEMP/basecamp-volume"
+      - uses: actions/upload-artifact@v4
+        if: matrix.runner == 'macos-15'
+        with:
+          name: basecamp-arm64-runtime-inspection
+          path: ${{ runner.temp }}/basecamp-runtime.json
+          if-no-files-found: error
   windows:
     runs-on: windows-2022
     timeout-minutes: 40
