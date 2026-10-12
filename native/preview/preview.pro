@@ -4,7 +4,7 @@ TEMPLATE = app
 TARGET = forum-preview
 HEADERS += ../backend/ForumBackend.h
 SOURCES += main.cpp ../backend/ForumBackend.cpp
-LIBS += -lcrypto
+include(../backend/crypto.pri)
 DEFINES += FORUM_QML_PATH=\\\"$$PWD/../forum/qml/Main.qml\\\"
 
 QT += multimedia

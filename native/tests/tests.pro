@@ -5,7 +5,7 @@ TEMPLATE = app
 TARGET = backend_tests
 HEADERS += ../backend/ForumBackend.h
 SOURCES += backend_tests.cpp ../backend/ForumBackend.cpp
-LIBS += -lcrypto
+include(../backend/crypto.pri)
 
 QT += multimedia
 HEADERS += $$PWD/../backend/VideoSession.h

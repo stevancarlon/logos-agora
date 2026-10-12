@@ -41,7 +41,7 @@ Restart Basecamp after installing an update. Installation does not touch user da
 
 `build/qt6.9.2-preview/forum-preview` runs the native interface standalone; Delivery is only available inside Basecamp. For UI development with another Qt version, use `ALLOW_OTHER_QT=1` and do not install that binary in Basecamp. `--screenshot artifacts/forum-desktop.png` uses temporary, clearly labeled examples and never publishes them.
 
-The build script runs backend tests (signatures, tampering, deduplication, separate database exchange, restart recovery, history validation) and QML workflow tests (compose/reply/quote, identities, search, narrow layout, delivery callback races/failures). GitHub Actions is configured, but no remote repository is configured here, so hosted CI is unverified.
+The build script runs backend tests (signatures, tampering, deduplication, separate database exchange, restart recovery, history validation) and QML workflow tests (compose/reply/quote, identities, search, narrow layout, delivery callback races/failures). Hosted [Linux checks](https://github.com/stevancarlon/logos-agora/actions/runs/38192205300) and [Windows/Intel Mac/Apple Silicon checks](https://github.com/stevancarlon/logos-agora/actions/runs/38192205277) pass 22 backend and 24 QML checks per platform. See [desktop platform acceptance](docs/PLATFORMS.md) for the remaining host integration and packaging work.
 
 ## Package
 
@@ -51,7 +51,7 @@ Build the official [logos-package CLI](https://github.com/logos-co/logos-package
 python3 scripts/package-native.py --lgx /absolute/path/to/lgx
 ```
 
-This produces `artifacts/logos_forum-0.3.0-linux-amd64.lgx` and runs `lgx verify`. It is an **unsigned local development package**, not a trusted catalog publication. It includes original-code licenses and an original 256×256 icon. Only Linux x86_64 has been built here. Package CLI revision used locally: `c25a1167578aef5cbd9a9b6f822ffe2ae4fd6a89`.
+This produces `artifacts/logos_forum-0.3.0-linux-amd64.lgx` and runs `lgx verify`. It is an **unsigned local development package**, not a trusted catalog publication. It includes original-code licenses and an original 256×256 icon. Native binaries have also passed tests on Windows x86_64 and both Mac architectures; those end-user packages and Basecamp integration are still under development. Package CLI revision used locally: `c25a1167578aef5cbd9a9b6f822ffe2ae4fd6a89`.
 
 The header profile icon opens **Profile**. You can upload, replace or remove a PNG/JPEG avatar (up to 8 MB and 4096 pixels per side). It is cropped to a square, resized and saved locally for that identity. Avatars are not included in published posts.
 
@@ -80,7 +80,7 @@ The UI bundles Adwaita Sans for consistent typography; its upstream license is i
 
 Threads and replies accept up to four PNG/JPEG images, MP4/WebM videos or PDFs, each at most 64 MB (images at most 24 megapixels). Files are copied into the profile's private `attachments/` directory, with metadata and thumbnail data in SQLite. Back up the whole data directory, not just the database.
 
-Images have inline thumbnails. Video and PDF posters use optional `ffmpeg` and `pdftoppm` helpers to make thumbnails; without these tools they display a file-type placeholder. Videos play directly in the discussion. Compact play/pause, seek and volume controls overlay the picture, fade out while playing, and reappear on hover, pause or keyboard focus. Download is a small overlay icon; video filename/size footers are omitted. PDF/image Open launches the system viewer using `xdg-open`. Download saves a separate copy and does not overwrite existing files. Removed draft attachments remain stored locally for now.
+Images have inline thumbnails. Video and PDF posters use optional `ffmpeg` and `pdftoppm` helpers to make thumbnails; without these tools they display a file-type placeholder. Videos play directly in the discussion. Compact play/pause, seek and volume controls overlay the picture, fade out while playing, and reappear on hover, pause or keyboard focus. Download is a small overlay icon; video filename/size footers are omitted. PDF/image Open launches the system viewer (`xdg-open`, macOS `open`, or Windows Explorer). Download saves a separate copy and does not overwrite existing files. Removed draft attachments remain stored locally for now.
 
 To share new attachments, open Network → Advanced and save your own node's loopback API URL, for example `http://127.0.0.1:8080/api/storage/v1`. Posting uploads files sequentially to Logos Storage; a signed v2 message carries the CID, name, MIME type, exact byte count and SHA-256. Readers choose **Fetch** to retrieve each file through their own local Storage node. The app checks the signed size, hash and MIME before displaying or opening it. Downloads are bounded at 64 MB; redirects and remote HTTP gateways are rejected. Uploads publish the original file bytes, including any embedded metadata.
 

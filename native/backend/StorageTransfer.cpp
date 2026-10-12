@@ -1,3 +1,4 @@
+#include "AttachmentMime.h"
 #include "StorageTransfer.h"
 #include <QCryptographicHash>
 #include <QFileInfo>
@@ -93,7 +94,7 @@ void StorageTransfer::start(const QString &id,const QJsonObject &file,const QStr
           m_failure="Attachment does not match signed size/checksum";
         if(!upload && m_failure.isEmpty()) {
           bytes.seek(0);
-          if(QMimeDatabase().mimeTypeForData(bytes.peek(65536)).name()!=file["mime"].toString()) m_failure="Attachment type does not match signed metadata";
+          if(attachmentMime(bytes.peek(65536))!=file["mime"].toString()) m_failure="Attachment type does not match signed metadata";
           if(file["mime"].toString().startsWith("image/")) {
             QImageReader reader(&bytes);
             const auto size=reader.size();

@@ -1,3 +1,4 @@
+#include "AttachmentMime.h"
 #include "ForumBackend.h"
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -157,8 +158,13 @@ void ForumBackend::initialize() {
   QString root = qEnvironmentVariable("LOGOS_FORUM_DATA_DIR");
   if (root.isEmpty()) {
     root = qEnvironmentVariable("LOGOS_USER_DIR");
-    if (root.isEmpty())
-      root = QDir::homePath() + "/.local/share/Logos/LogosBasecamp";
+    if (root.isEmpty()) {
+#ifdef Q_OS_WIN
+      root = qEnvironmentVariable("APPDATA") + "/Logos/LogosBasecamp";
+#else
+      root = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/Logos/LogosBasecamp";
+#endif
+    }
     root += "/module_data/logos_forum";
   }
   require(QDir().mkpath(root), "Cannot create forum data directory");
@@ -573,7 +579,7 @@ QJsonObject ForumBackend::attachment(const QJsonObject &c) {
     QFile input(url.toLocalFile());
     require(input.open(QIODevice::ReadOnly), "Cannot read attachment");
     require(input.size() > 0 && input.size() <= 64 * 1024 * 1024, "Attachments must be smaller than 64 MB");
-    const auto mime = QMimeDatabase().mimeTypeForData(input.peek(65536)).name();
+    const auto mime = attachmentMime(input.peek(65536));
     const QMap<QString,QString> formats{{"image/png","png"},{"image/jpeg","jpg"},{"application/pdf","pdf"},{"video/mp4","mp4"},{"video/webm","webm"}};
     require(formats.contains(mime), "Choose a PNG, JPEG, MP4, WebM or PDF file");
     QImage preview;
@@ -631,7 +637,13 @@ QJsonObject ForumBackend::attachment(const QJsonObject &c) {
   }
   require(QFileInfo::exists(path),"Attachment file is missing");
   if (op == "attachmentOpen") {
+#ifdef Q_OS_MACOS
+    const QString opener = "/usr/bin/open";
+#elif defined(Q_OS_WIN)
+    const auto opener = QStandardPaths::findExecutable("explorer.exe");
+#else
     const auto opener = QStandardPaths::findExecutable("xdg-open");
+#endif
     require(!opener.isEmpty() && QProcess::startDetached(opener,{path}),"Could not start the system viewer");
     return {};
   }
