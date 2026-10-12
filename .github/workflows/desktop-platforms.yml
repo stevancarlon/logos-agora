@@ -39,12 +39,17 @@ jobs:
           app=$(find "$RUNNER_TEMP/basecamp-volume" -maxdepth 1 -name '*.app' -print -quit)
           test -n "$app"
           python3 scripts/inspect-macos-host.py --app "$app" --output "$RUNNER_TEMP/basecamp-runtime.json"
+          python3 scripts/install-basecamp.py --user-dir "$RUNNER_TEMP/agora-profile"
+          python3 scripts/install-macos-runtime.py --qt "$RUNNER_TEMP/Qt/6.9.2/macos" --app "$app" --user-dir "$RUNNER_TEMP/agora-profile" --runtime-dir "$RUNNER_TEMP/agora-runtime" --launcher "$RUNNER_TEMP/launch-agora"
+          python3 scripts/check-macos-host.py --launcher "$RUNNER_TEMP/launch-agora" --profile "$RUNNER_TEMP/agora-profile" --output "$RUNNER_TEMP/agora-host-check"
           hdiutil detach "$RUNNER_TEMP/basecamp-volume"
       - uses: actions/upload-artifact@v4
-        if: matrix.runner == 'macos-15'
+        if: always() && matrix.runner == 'macos-15'
         with:
           name: basecamp-arm64-runtime-inspection
-          path: ${{ runner.temp }}/basecamp-runtime.json
+          path: |
+            ${{ runner.temp }}/basecamp-runtime.json
+            ${{ runner.temp }}/agora-host-check/
           if-no-files-found: error
   windows:
     runs-on: windows-2022
