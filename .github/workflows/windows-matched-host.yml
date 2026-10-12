@@ -8,7 +8,7 @@ on:
       build_run:
         description: Successful Windows matching Qt build run ID
         required: true
-        default: '38195925423'
+        default: '38196851758'
 permissions:
   contents: read
   actions: read
@@ -20,7 +20,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: agora-windows-matching-qt
-          run-id: ${{ inputs.build_run || '38195925423' }}
+          run-id: ${{ inputs.build_run || '38196851758' }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/matching-download
       - uses: actions/checkout@v4
@@ -60,7 +60,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: agora-windows-matching-qt
-          run-id: ${{ inputs.build_run || '38195925423' }}
+          run-id: ${{ inputs.build_run || '38196851758' }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/matching-download
       - uses: actions/download-artifact@v4
@@ -92,6 +92,17 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Video probe installation failed' }
           python scripts/inspect-pe-symbols.py --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --runtime-dir "$env:RUNNER_TEMP/agora-runtime" --backend "$env:RUNNER_TEMP/agora-profile/plugins/logos_forum/forum_backend.dll" --output "$env:RUNNER_TEMP/agora-runtime/symbols.json"
           python scripts/check-windows-host.py --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --runtime-dir "$env:RUNNER_TEMP/agora-runtime" --profile "$env:RUNNER_TEMP/agora-profile" --output "$env:RUNNER_TEMP/agora-windows-host-check" --video
+          if ($LASTEXITCODE -ne 0) { throw 'MP4 host playback failed' }
+          New-Item -ItemType Directory -Force "$env:RUNNER_TEMP/agora-webm-profile" | Out-Null
+          New-Item -ItemType File "$env:RUNNER_TEMP/agora-webm-profile/.agora-disposable-profile" | Out-Null
+          python scripts/check-desktop-kit-install.py --archive "$kit" --qt "$env:RUNNER_TEMP/windows-matched/qt" --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --profile "$env:RUNNER_TEMP/agora-webm-profile" --runtime-dir "$env:RUNNER_TEMP/agora-webm-runtime" --launcher "$env:RUNNER_TEMP/Launch-Agora-WebM.cmd" --output "$env:RUNNER_TEMP/agora-webm-kit-check"
+          if ($LASTEXITCODE -ne 0) { throw 'WebM profile installation failed' }
+          python scripts/install-test-delivery.py --profile "$env:RUNNER_TEMP/agora-webm-profile"
+          if ($LASTEXITCODE -ne 0) { throw 'WebM Delivery installation failed' }
+          python scripts/prepare-host-video.py --profile "$env:RUNNER_TEMP/agora-webm-profile" --video-file design/agora/demo-media/playback-test.webm
+          if ($LASTEXITCODE -ne 0) { throw 'WebM probe installation failed' }
+          python scripts/check-windows-host.py --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --runtime-dir "$env:RUNNER_TEMP/agora-webm-runtime" --profile "$env:RUNNER_TEMP/agora-webm-profile" --output "$env:RUNNER_TEMP/agora-windows-webm-check" --video
+          if ($LASTEXITCODE -ne 0) { throw 'WebM host playback failed' }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -99,6 +110,8 @@ jobs:
           path: |
             ${{ runner.temp }}/agora-windows-host-check/
             ${{ runner.temp }}/agora-kit-check/
+            ${{ runner.temp }}/agora-windows-webm-check/
+            ${{ runner.temp }}/agora-webm-kit-check/
             ${{ runner.temp }}/agora-runtime/dependencies.json
             ${{ runner.temp }}/agora-runtime/symbols.json
           if-no-files-found: warn
