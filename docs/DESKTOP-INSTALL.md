@@ -24,11 +24,8 @@ its SQLite database or identities. Close Basecamp before updating a kit.
 python -m aqt install-qt mac desktop 6.9.2 clang_64 -O "$HOME/Qt" --modules qtmultimedia --archives qtbase qtdeclarative qtmultimedia
 ```
 
-Windows PowerShell:
-
-```powershell
-python -m aqt install-qt windows desktop 6.9.2 win64_mingw -O "$HOME/Qt" --modules qtmultimedia --archives qtbase qtdeclarative qtmultimedia
-```
+Windows runtime packaging is being corrected to match Basecamp’s pinned Qt
+6.11.1 build. The official Qt 6.9.2 Windows SDK is not a compatible substitute.
 
 ## macOS
 
@@ -49,19 +46,10 @@ or notarization.
 
 ## Windows
 
-Extract the x86_64 kit, enter its directory in PowerShell, then use the actual
-Basecamp `bin` folder:
-
-```powershell
-python scripts/install-release.py --verify-only
-python scripts/install-release.py --qt "$HOME/Qt/6.9.2/mingw_64" --host-bin "C:/path/to/LogosBasecamp/bin"
-```
-
-The launcher is `%LOCALAPPDATA%/Programs/Agora/Launch-Agora.cmd`; it selects the
-separate runtime and starts Basecamp. The Basecamp installation remains unchanged.
-The installer reads native DLL dependencies directly; no compiler or `objdump`
-is needed for that inspection. Windows host startup is still under investigation;
-these commands are not a claim of a completed installation acceptance test.
+Windows kits are not ready for installation. The native test build and host
+runtime used different Qt versions/configurations; the new matching toolchain
+must pass actual Basecamp loading and video checks before commands are published.
+The planned launcher uses a separate runtime and keeps Basecamp unchanged.
 
 ## Profile and runtime locations
 

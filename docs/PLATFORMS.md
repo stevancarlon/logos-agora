@@ -18,7 +18,12 @@ Apple Silicon development builds have passed actual Basecamp host checks. Cross-
   Audio hardware, full desktop installation and cross-machine exchange remain open.
 - Windows x86_64: all 22 backend and 24 QML checks pass using Qt MinGW.
   The initial MSVC build was replaced to align with Basecamp's MinGW toolchain;
-  actual host ABI compatibility still requires verification.
+  These standalone tests used Qt 6.9.2 and do not establish host compatibility.
+  Basecamp's pinned `logos-nix` Windows package set uses Qt 6.11.1 with Vulkan
+  disabled. Actual symbol inspection found missing private QObject constructor
+  and Vulkan functions when mixing the official 6.9.2 Multimedia/SQLite plugins
+  with Basecamp. The matching Nix/CMake build uses Basecamp's exact package set;
+  its runtime result is pending.
 
 Hosted results: [desktop checks at 417277d](https://github.com/stevancarlon/logos-agora/actions/runs/38192205277)
 and [Linux checks](https://github.com/stevancarlon/logos-agora/actions/runs/38192205300).
@@ -31,7 +36,7 @@ The official Basecamp app is unchanged. End-user release kits remain unfinished.
 
 Run `python scripts/build-native.py` with `QMAKE` pointing at Qt 6.9.2 and
 `OPENSSL_ROOT_DIR` pointing at the OpenSSL installation when needed. Windows
-requires the matching MinGW toolchain; macOS uses the native CPU
+requires Basecamp’s matching Windows package set (see `nix/windows-agora.nix`); macOS uses the native CPU
 architecture. These are development commands, not complete end-user packages.
 
 Every platform still needs its appropriate release kit, dependency/runtime
