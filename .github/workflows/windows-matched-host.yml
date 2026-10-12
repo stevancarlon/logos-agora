@@ -1,5 +1,8 @@
 name: Windows matching host check
 on:
+  push:
+    paths:
+      - .github/workflows/windows-matched-host.yml
   workflow_dispatch:
     inputs:
       build_run:
@@ -21,7 +24,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: agora-windows-matching-qt
-          run-id: ${{ inputs.build_run }}
+          run-id: ${{ inputs.build_run || '38195925423' }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/matching-download
       - name: Extract and verify compiled binaries
