@@ -10,10 +10,18 @@ let
     withHeadlessDeps = false;
     withSmallDeps = false;
     withFullDeps = false;
+    buildAvcodec = true;
+    buildAvformat = true;
+    buildAvutil = true;
+    buildSwresample = true;
+    buildSwscale = true;
+    withSafeBitstreamReader = true;
     withGPL = false;
     withVersion3 = false;
   }).overrideAttrs (old: { meta = old.meta // { broken = false; }; });
-  media = pkgs.qt6.qtmultimedia.override { inherit ffmpeg; };
+  media = (pkgs.qt6.qtmultimedia.override { inherit ffmpeg; }).overrideAttrs (old: {
+    cmakeFlags = (old.cmakeFlags or []) ++ [ "-DFEATURE_ffmpeg=ON" ];
+  });
   app = pkgs.stdenv.mkDerivation {
     pname = "agora-windows-native";
     version = "0.3.0";

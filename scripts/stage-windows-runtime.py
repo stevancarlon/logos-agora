@@ -11,6 +11,7 @@ import sys
 p = argparse.ArgumentParser(description=__doc__)
 for name in ('qt', 'host-bin', 'user-dir', 'runtime-dir'):
     p.add_argument('--' + name, type=Path, required=True)
+p.add_argument('--renderer', type=Path, help='Directory containing the matching compiled Agora.Media module')
 p.add_argument('--toolchain', type=Path, help='Optional MinGW runtime DLL directory')
 p.add_argument('--launcher', type=Path, help='Write a Windows launch script')
 a = p.parse_args()
@@ -23,11 +24,16 @@ if not backend.is_file() or not (host / 'LogosBasecamp.exe').is_file():
     p.error('Install the compiled Agora plugin and extract Basecamp first')
 queue = [backend]
 (runtime / 'bin').mkdir(parents=True, exist_ok=True)
-renderer = root / 'build/qt6.9.2-media/qml/Agora/Media'
+renderer = a.renderer or root / 'build/qt6.9.2-media/qml/Agora/Media'
 shutil.copytree(renderer, runtime / 'qml/Agora/Media', dirs_exist_ok=True)
 queue.append(runtime / 'qml/Agora/Media/agoramedia.dll')
 for category, pattern in [('multimedia', '*.dll'), ('sqldrivers', '*sqlite*.dll')]:
-    sources = list((qt / 'plugins' / category).glob(pattern))
+    # Prefer Basecamp's own SQLite plugin. Multimedia is the matching companion.
+    bases = ([host / 'sqldrivers', host / 'plugins/sqldrivers',
+              host.parent / 'plugins/sqldrivers', host.parent / 'lib/qt-6/plugins/sqldrivers']
+             if category == 'sqldrivers' else [])
+    bases += [qt / 'plugins' / category, qt / 'lib/qt-6/plugins' / category]
+    sources = next((list(base.glob(pattern)) for base in bases if list(base.glob(pattern))), [])
     if not sources:
         raise SystemExit(f'Missing Qt {category} plugins')
     for source in sources:
