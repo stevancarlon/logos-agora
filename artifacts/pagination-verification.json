@@ -1,0 +1,13 @@
+{
+  "qt": "6.9.2",
+  "backend_passed": 21,
+  "qml_passed": 24,
+  "failures": 0,
+  "synthetic_archive_roots": 12000,
+  "feed_search_diagnostic_elapsed_ms": 25,
+  "scope": "Local temporary databases; not a sustained performance or network benchmark",
+  "build_command": "QMAKE=/home/cl0ud/.cache/logos-forum-reference/Qt/6.9.2/gcc_64/bin/qmake scripts/build-native.sh",
+  "long_thread_reply_scroll_verified": true,
+  "basecamp_peer_evidence": "artifacts/network-pagination-check/result.json",
+  "release_install_evidence": "artifacts/release-pagination-check/result.json"
+}

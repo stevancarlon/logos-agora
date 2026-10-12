@@ -1,7 +1,7 @@
 {
   "name": "logos_forum",
   "display_name": "Agora",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "ui_qml",
   "category": "social",
   "description": "Public discussions, local drafts and deliberate identity choices.",

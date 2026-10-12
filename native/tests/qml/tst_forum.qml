@@ -17,10 +17,73 @@ TestCase {
         }
     }
     property var app
+    Component { id: stateSpyComponent; SignalSpy { signalName: "stateChanged" } }
+    function test_networkBurstRefreshesOnce() {
+        var c = app.controller;
+        tryCompare(c, "refreshing", false);
+        var spy = createTemporaryObject(stateSpyComponent, testCase, {target: c});
+        for (var n = 0; n < 100; ++n) c.scheduleRefresh();
+        tryCompare(spy, "count", 1);
+        wait(150);
+        compare(spy.count, 1);
+        c.connection = "online";
+        c.pendingReceives = 32;
+        c.event("messageReceived", ["test", c.contentTopic, ""]);
+        compare(c.pendingReceives, 32);
+        verify(c.notice.indexOf("Recover missed posts") >= 0);
+        c.pendingReceives = 0;
+        c.disconnect();
+    }
+    Component {
+        id: remoteAttachmentComponent
+        Forum.AttachmentCard { }
+    }
     function init() {
         app = createTemporaryObject(appComponent, testCase);
         verify(app !== null);
         tryCompare(app.controller, "ready", true);
+    }
+    function test_longThreadShowsSubmittedReply() {
+        var rootId = "", lastId = "";
+        app.controller.call({op: "post", board: "general", title: "Long reply test", body: "Opening"}, function(r) { rootId = r.id; });
+        verify(rootId.length > 0);
+        for (var n = 0; n < 55; ++n)
+            app.controller.call({op: "post", board: "general", thread: rootId, body: "Earlier reply " + n});
+        app.openThread(rootId);
+        tryVerify(function () { return !app.controller.loading && app.replies(rootId).length === 50; });
+        app.controller.savePost(rootId, "general", "", "New visible reply", function(r) {
+            lastId = r.id;
+            app.showPostedReply(rootId, r.id);
+        });
+        tryVerify(function () { return lastId.length > 0 && !app.controller.loading && app.findPost(lastId) !== null; });
+        tryCompare(app, "pendingReplyScroll", "");
+        var list = findChild(app, "postsView");
+        tryVerify(function () { return list.atYEnd; });
+        verify(app.replyHistory.length > 0);
+        app.previousPage();
+        tryVerify(function () { return !app.controller.loading && app.replyCursor === ""; });
+    }
+    function test_paginationNavigation() {
+        app.searchText = "pagination fixture";
+        for (var n = 0; n < 31; ++n) {
+            app.controller.call({op: "post", board: "general", title: "pagination fixture " + n, body: "Temporary test discussion"});
+        }
+        app.controller.refresh();
+        tryVerify(function () { return !app.controller.loading && app.visibleThreads.length === 30; });
+        verify(app.controller.state.hasMore);
+        app.nextPage();
+        tryVerify(function () { return !app.controller.loading && app.visibleThreads.length === 1; });
+        verify(!app.controller.state.hasMore);
+        compare(app.feedHistory.length, 1);
+        app.previousPage();
+        tryVerify(function () { return !app.controller.loading && app.visibleThreads.length === 30; });
+        compare(app.feedHistory.length, 0);
+        app.nextPage();
+        tryVerify(function () { return !app.controller.loading && app.visibleThreads.length === 1; });
+        app.searchText = "no such pagination fixture";
+        tryVerify(function () { return !app.controller.loading && app.visibleThreads.length === 0; });
+        compare(app.feedCursor, "");
+        compare(app.feedHistory.length, 0);
     }
     function test_headerNavigation() {
         var saved = findChild(app, "savedTab"), discussions = findChild(app, "discussionsTab");
@@ -194,6 +257,27 @@ TestCase {
         compare(current.id, "");
         compare(current.playing, false);
     }
+    function test_remoteAttachmentRequiresExplicitFetch() {
+        var calls = [];
+        var controller = {
+            transferBusy: false,
+            transferState: {},
+            call: function (request, done) { calls.push(request.op); },
+            transferFile: function (id, operation, done) { calls.push(operation + ":" + id); }
+        };
+        var card = createTemporaryObject(remoteAttachmentComponent, testCase, {
+            attachment: {id: "remote-video", name: "shared.mp4", mime: "video/mp4", bytes: 556240, available: false},
+            controller: controller
+        });
+        verify(card !== null);
+        verify(waitForRendering(card));
+        compare(calls.length, 0);
+        var button = findChild(card, "fetchAttachment");
+        verify(button.visible);
+        mouseClick(button, button.width / 2, button.height / 2);
+        compare(calls.length, 1);
+        compare(calls[0], "attachmentFetch:remote-video");
+    }
     function test_profileAvatar() {
         var button = findChild(app, "profileButton");
         verify(waitForRendering(button));
@@ -302,7 +386,7 @@ TestCase {
     }
     function test_emptySearchAndBoardNavigation() {
         app.searchText = "does-not-match-any-real-post-7846";
-        compare(app.visibleThreads.length, 0);
+        tryVerify(function () { return app.visibleThreads.length === 0; });
         app.goBoard("privacy");
         compare(app.selected, "");
         compare(app.board, "privacy");
@@ -342,11 +426,20 @@ TestCase {
         QtObject {
             property var controller
             property bool reject: false
+            property var nodeConfig: null
             signal moduleEventReceived(string moduleName, string eventName, var data)
             function onModuleEvent(module, event) {
             }
             function callModuleAsync(module, method, args, done, timeout) {
-                if (method === "send") {
+                if (method === "createNode") {
+                    nodeConfig = JSON.parse(args[0]);
+                    var supported = ["", "twn", "logos.dev", "logos.test", "status.prod"];
+                    done(JSON.stringify({success: supported.indexOf(nodeConfig.preset) >= 0,
+                                         value: true, error: supported.indexOf(nodeConfig.preset) >= 0 ? "" : "Unsupported preset"}));
+                } else if (method === "start") {
+                    done(JSON.stringify({success: true, value: true}));
+                    controller.event("nodeStarted", [true, ""]);
+                } else if (method === "send") {
                     controller.event(reject ? "messageError" : "messageSent", ["early-ack", "", "peer refused"]);
                     done(JSON.stringify({
                         success: true,
@@ -359,6 +452,26 @@ TestCase {
                     }));
             }
         }
+    }
+    function test_startDeliveryNode() {
+        var c = app.controller, b = createTemporaryObject(fakeBridgeComponent, testCase, {controller: c});
+        c.bridge = b;
+        c.startNode();
+        compare(c.error, "");
+        compare(c.connection, "online");
+        compare(b.nodeConfig.messagingOverrides.anonymityLevel, "Required");
+        compare(b.nodeConfig.messagingOverrides.backfillEnabled, true);
+    }
+    function test_partialConnectivityKeepsSubscription() {
+        var c = app.controller, b = createTemporaryObject(fakeBridgeComponent, testCase, {controller: c});
+        c.bridge = b;
+        c.connectNetwork();
+        c.event("connectionStateChanged", ["PartiallyConnected"]);
+        compare(c.connection, "online");
+        compare(c.connectionDetail, "PartiallyConnected");
+        c.disconnect();
+        c.event("connectionStateChanged", ["PartiallyConnected"]);
+        compare(c.connection, "offline");
     }
     function test_earlyDeliveryAcknowledgement() {
         var c = app.controller, b = createTemporaryObject(fakeBridgeComponent, testCase, {

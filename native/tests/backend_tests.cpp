@@ -2,6 +2,12 @@
 #include <QJsonDocument>
 #include <QImage>
 #include <QUrl>
+#include <QTcpServer>
+#include <QSqlDatabase>
+#include <QSqlQuery>
+#include <QElapsedTimer>
+#include <QTcpSocket>
+#include <QCryptographicHash>
 #include <QTemporaryDir>
 #include <QtTest>
 #include <memory>
@@ -32,6 +38,79 @@ private slots:
     QVERIFY(backend->lastError().isEmpty());
   }
   void cleanup() { backend.reset(); }
+  void largeArchiveKeepsPagesBounded() {
+    // Synthetic database fixture only: these rows are never sent over Delivery.
+    const QString connection="archive-fixture";
+    {
+      auto db=QSqlDatabase::addDatabase("QSQLITE",connection);
+      db.setDatabaseName(qEnvironmentVariable("LOGOS_FORUM_DATA_DIR")+"/forum.sqlite");
+      QVERIFY(db.open()); QVERIFY(db.transaction());
+      QSqlQuery insert(db);
+      QVERIFY(insert.prepare("INSERT INTO posts(id,thread,board,title,body,author,mode,pub,created,received,wire,status,search_text) VALUES(?,'','general',?,'fixture','test','anonymous','',?,?,'','local',?)"));
+      for(int i=0;i<12000;++i) {
+        const auto title=i==0?QString("oldest archive needle"):QString("fixture %1").arg(i);
+        insert.bindValue(0,QString::number(i+1,16).rightJustified(64,'0'));
+        insert.bindValue(1,title); insert.bindValue(2,i); insert.bindValue(3,i); insert.bindValue(4,title);
+        QVERIFY(insert.exec());
+      }
+      QVERIFY(db.commit()); db.close();
+    }
+    QSqlDatabase::removeDatabase(connection);
+    QElapsedTimer timer; timer.start();
+    auto page=call({{"op","snapshot"},{"view","feed"}});
+    QVERIFY(page["ok"].toBool()); QCOMPARE(page["posts"].toArray().size(),30);
+    QVERIFY(page["hasMore"].toBool());
+    auto result=call({{"op","snapshot"},{"view","feed"},{"search","oldest archive needle"}});
+    QCOMPARE(result["posts"].toArray().size(),1);
+    QCOMPARE(call({{"op","snapshot"}})["posts"].toArray().size(),200);
+    qInfo()<<"12,000-root archive: feed, full-archive search and bounded diagnostic snapshot in"<<timer.elapsed()<<"ms";
+  }
+  void paginatesThreadsAndSearchesUnloadedReplies() {
+    const auto root=post("Opening")["id"].toString();
+    QSet<QString> expected;
+    for(int i=0;i<115;++i) {
+      auto reply=post(i==0 ? "Needle CAFÉ 100%" : QString("Reply %1").arg(i),root);
+      QVERIFY(reply["ok"].toBool()); expected.insert(reply["id"].toString());
+    }
+    QVERIFY(post("Second root")["ok"].toBool());
+    QVERIFY(post("Third root")["ok"].toBool());
+    QJsonObject request{{"op","snapshot"},{"view","thread"},{"thread",root},{"limit",50}};
+    QSet<QString> seen; int pages=0;
+    do {
+      auto page=call(request); QVERIFY2(page["ok"].toBool(),qPrintable(QJsonDocument(page).toJson()));
+      auto records=page["posts"].toArray(); QVERIFY(records.size()<=51);
+      QCOMPARE(records.first().toObject()["replyCount"].toInt(),115);
+      for(int i=1;i<records.size();++i) {
+        auto id=records[i].toObject()["id"].toString(); QVERIFY(!seen.contains(id)); seen.insert(id);
+      }
+      ++pages; request["cursor"]=page["nextCursor"];
+      if(!page["hasMore"].toBool()) break;
+      QVERIFY(pages<4);
+    } while(true);
+    QCOMPARE(pages,3); QCOMPARE(seen,expected);
+    auto search=call({{"op","snapshot"},{"view","feed"},{"search","café 100%"}});
+    QCOMPARE(search["posts"].toArray().size(),2);
+    QCOMPARE(search["posts"].toArray().first().toObject()["id"].toString(),root);
+    QJsonObject feed{{"op","snapshot"},{"view","feed"},{"limit",1},{"sort","replies"}};
+    auto first=call(feed); QCOMPARE(first["posts"].toArray().first().toObject()["replyCount"].toInt(),115);
+    feed["cursor"]=first["nextCursor"]; feed["search"]="different";
+    QVERIFY(!call(feed)["ok"].toBool()); feed.remove("search");
+    QSet<QString> roots{root};
+    for(int i=0;i<2;++i) {
+      auto page=call(feed); QVERIFY(page["ok"].toBool());
+      auto id=page["posts"].toArray().first().toObject()["id"].toString();
+      QVERIFY(!roots.contains(id)); roots.insert(id); feed["cursor"]=page["nextCursor"];
+      QCOMPARE(page["hasMore"].toBool(),i==0);
+    }
+    auto newest=post("Newly submitted reply",root)["id"].toString();
+    auto anchored=call({{"op","replyPage"},{"id",newest}});
+    QVERIFY(anchored["ok"].toBool());
+    request["cursor"]=anchored["pageCursor"];
+    auto selected=call(request); QVERIFY(selected["ok"].toBool());
+    bool found=false;
+    for(auto record:selected["posts"].toArray()) if(record.toObject()["id"].toString()==newest) found=true;
+    QVERIFY(found);
+  }
   void avatarPersistsAndStaysWithIdentity() {
     const auto firstId=call({{"op","snapshot"}})["active"].toString();
     const auto file=dir.path()+"/avatar.png";
@@ -103,6 +182,89 @@ private slots:
     call({{"op","attachmentVideo"},{"action","stop"},{"id",aid}});
     QVERIFY(state()["id"].toString().isEmpty());
     QVERIFY(state()["frame"].toString().isEmpty());
+  }
+  void sharedAttachmentsRoundTripAndVerifyContent() {
+    QTcpServer server;
+    QVERIFY(server.listen(QHostAddress::LocalHost,0));
+    const auto endpoint="http://127.0.0.1:"+QString::number(server.serverPort())+"/api/storage/v1";
+    const auto source=dir.path()+"/shared.png";
+    QImage image(16,16,QImage::Format_RGB32); image.fill(Qt::green); QVERIFY(image.save(source));
+    QFile input(source); QVERIFY(input.open(QIODevice::ReadOnly)); const auto original=input.readAll();
+    QByteArray stored, downloaded=original;
+    const auto cid=QByteArray("bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabcd234567abcdef");
+    connect(&server,&QTcpServer::newConnection,&server,[&]{
+      auto socket=server.nextPendingConnection();
+      auto request=std::make_shared<QByteArray>();
+      connect(socket,&QTcpSocket::disconnected,socket,&QObject::deleteLater);
+      connect(socket,&QTcpSocket::readyRead,socket,[&,socket,request]{
+        *request+=socket->readAll();
+        const auto split=request->indexOf("\r\n\r\n"); if(split<0) return;
+        qint64 length=0;
+        for(const auto &line:request->left(split).split('\n'))
+          if(line.toLower().startsWith("content-length:")) length=line.mid(15).trimmed().toLongLong();
+        if(request->size()<split+4+length) return;
+        const bool upload=request->startsWith("POST ");
+        if(upload) stored=request->mid(split+4,length);
+        const auto body=upload?cid:downloaded;
+        socket->write("HTTP/1.1 200 OK\r\nContent-Length: "+QByteArray::number(body.size())+"\r\nConnection: close\r\n\r\n"+body);
+        socket->disconnectFromHost();
+      });
+    });
+    QVERIFY(!call({{"op","settings"},{"storageEndpoint","http://example.com:8080/api/storage/v1"}})["ok"].toBool());
+    QVERIFY(call({{"op","settings"},{"storageEndpoint",endpoint}})["ok"].toBool());
+    auto aid=call({{"op","attachmentImport"},{"file",QUrl::fromLocalFile(source).toString()}})["attachment"].toObject()["id"].toString();
+    QVERIFY(!aid.isEmpty());
+    QVERIFY(call({{"op","attachmentUpload"},{"id",aid}})["ok"].toBool());
+    auto transfer=[&]{return call({{"op","attachmentTransfer"}})["transfer"].toObject();};
+    QTRY_COMPARE_WITH_TIMEOUT(transfer()["status"].toString(),QString("complete"),5000);
+    QCOMPARE(stored,original);
+    auto created=call({{"op","post"},{"title","Shared image"},{"body","Signed attachment"},{"board","general"},{"attachments",QJsonArray{aid}}});
+    QVERIFY2(created["ok"].toBool(),qPrintable(created["error"].toString()));
+    QCOMPARE(created["status"].toString(),QString("queued"));
+    const auto wire=call({{"op","wire"},{"id",created["id"]}})["wire"].toString();
+    auto envelope=QJsonDocument::fromJson(wire.toUtf8()).object();
+    QCOMPARE(envelope["payload"].toObject()["v"].toInt(),2);
+    backend.reset(); qputenv("LOGOS_FORUM_DATA_DIR",(dir.path()+"/remote-media").toUtf8()); backend=std::make_unique<ForumBackend>();
+    auto received=call({{"op","receive"},{"wire",wire}});
+    QVERIFY2(received["ok"].toBool(),qPrintable(received["error"].toString()));
+    auto files=call({{"op","snapshot"}})["posts"].toArray()[0].toObject()["attachments"].toArray();
+    QCOMPARE(files.size(),1); QVERIFY(!files[0].toObject()["available"].toBool());
+    const auto remoteId=files[0].toObject()["id"].toString();
+    QVERIFY(call({{"op","settings"},{"storageEndpoint",endpoint}})["ok"].toBool());
+    downloaded=QByteArray(original.size(),'x');
+    QVERIFY(call({{"op","attachmentFetch"},{"id",remoteId}})["ok"].toBool());
+    QTRY_COMPARE_WITH_TIMEOUT(transfer()["status"].toString(),QString("failed"),5000);
+    QVERIFY(transfer()["error"].toString().contains("checksum"));
+    QVERIFY(!call({{"op","attachmentExport"},{"id",remoteId},{"file",QUrl::fromLocalFile(dir.path()+"/bad.png").toString()}})["ok"].toBool());
+    downloaded=original;
+    QVERIFY(call({{"op","attachmentFetch"},{"id",remoteId}})["ok"].toBool());
+    QTRY_COMPARE_WITH_TIMEOUT(transfer()["status"].toString(),QString("complete"),5000);
+    const auto destination=dir.path()+"/downloaded.png";
+    QVERIFY(call({{"op","attachmentExport"},{"id",remoteId},{"file",QUrl::fromLocalFile(destination).toString()}})["ok"].toBool());
+    QFile exported(destination); QVERIFY(exported.open(QIODevice::ReadOnly)); QCOMPARE(exported.readAll(),original);
+    QVERIFY(call({{"op","receive"},{"wire",wire}})["duplicate"].toBool());
+    backend.reset(); backend=std::make_unique<ForumBackend>();
+    files=call({{"op","snapshot"}})["posts"].toArray()[0].toObject()["attachments"].toArray();
+    QVERIFY(files[0].toObject()["available"].toBool());
+    auto changed=envelope["payload"].toObject(); auto manifest=changed["attachments"].toArray();
+    auto altered=manifest[0].toObject(); altered["cid"]="../outside"; manifest[0]=altered; changed["attachments"]=manifest; envelope["payload"]=changed;
+    QVERIFY(!call({{"op","receive"},{"wire",QString::fromUtf8(QJsonDocument(envelope).toJson(QJsonDocument::Compact))}})["ok"].toBool());
+    // Rehash anonymous envelopes so validation must reject the metadata itself,
+    // rather than failing earlier on the altered signature/content ID.
+    changed["mode"]="anonymous"; changed["author"]=""; changed["pub"]="";
+    const QList<QPair<QString,QJsonValue>> invalid{
+      {"name","../outside.png"},{"bytes",64*1024*1024+1},{"bytes",1.5},
+      {"mime","text/html"},{"sha256","wrong"},{"cid","http://example.com/file"}};
+    for(const auto &entry:invalid) {
+      auto bad=files[0].toObject();
+      bad[entry.first]=entry.second;
+      changed["attachments"]=QJsonArray{bad};
+      const auto payload=QJsonDocument(changed).toJson(QJsonDocument::Compact);
+      QJsonObject message{{"id",QString::fromLatin1(QCryptographicHash::hash(payload,QCryptographicHash::Sha256).toHex())},
+                          {"payload",changed},{"signature",""}};
+      QVERIFY(!call({{"op","receive"},{"wire",QString::fromUtf8(QJsonDocument(message).toJson(QJsonDocument::Compact))}})["ok"].toBool());
+    }
+    QCOMPARE(call({{"op","snapshot"}})["posts"].toArray().size(),1);
   }
   void themeDefaultsDarkAndPersists() {
     QCOMPARE(call({{"op","snapshot"}})["theme"].toString(), QString("dark"));
@@ -216,6 +378,34 @@ private slots:
     backend = std::make_unique<ForumBackend>();
     auto s = call({{"op", "snapshot"}});
     QCOMPARE(s["posts"].toArray()[0].toObject()["status"].toString(), "queued");
+  }
+  void liveBurstIsBoundedAndHistoryStillRecovers() {
+    auto original=post();
+    const auto wire=call({{"op","wire"},{"id",original["id"]}})["wire"].toString();
+    backend.reset();
+    qputenv("LOGOS_FORUM_DATA_DIR",(dir.path()+"/rate-limited-reader").toUtf8());
+    backend=std::make_unique<ForumBackend>();
+    auto live=[&](const QByteArray &bytes) {return QJsonDocument::fromJson(backend->receiveBytes(bytes).toUtf8()).object();};
+    QVERIFY(!live(QByteArray(65537,'x'))["ok"].toBool());
+    QJsonObject limited;
+    int attempts=0;
+    for(;attempts<1000;++attempts) {
+      limited=live("not JSON");
+      if(limited["rateLimited"].toBool()) break;
+    }
+    QVERIFY(attempts>=240 && attempts<500);
+    QVERIFY(limited["retryAfterMs"].toInt()>0 && limited["retryAfterMs"].toInt()<=250);
+    QCOMPARE(call({{"op","snapshot"}})["posts"].toArray().size(),0);
+    QJsonObject message{{"contentTopic","/logos-forum/1/commons/json"},{"payload",QString::fromLatin1(wire.toUtf8().toBase64())}};
+    QJsonObject page{{"statusCode",200},{"paginationCursor","after-burst"},{"messages",QJsonArray{QJsonObject{{"message",message}}}}};
+    auto recovered=call({{"op","historyPage"},{"peer","/private-test-peer"},{"page",page}});
+    QVERIFY(recovered["ok"].toBool());
+    QCOMPARE(recovered["accepted"].toInt(),1);
+    QCOMPARE(call({{"op","snapshot"}})["historyCursor"].toString(),QString("after-burst"));
+    QTest::qWait(300);
+    auto retry=live(wire.toUtf8());
+    QVERIFY(retry["ok"].toBool());
+    QVERIFY(retry["duplicate"].toBool());
   }
   void boundsAndRejectsInvalidInput() {
     QVERIFY(!post("   ")["ok"].toBool());

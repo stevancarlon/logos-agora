@@ -1,4 +1,4 @@
-# Native integration and protocol v1
+# Native integration and protocols v1/v2
 
 ## Host contract
 
@@ -6,7 +6,7 @@
 
 Dependencies: `delivery_module >=0.3.0`. Tested host: Basecamp 0.3.2, Qt 6.9.2, Linux x86_64. Calls use `logos.callModuleAsync` with a 15-second timeout. The response wrapper `{success,value,error}` is checked before using the value. Events arrive through `moduleEventReceived(moduleName,eventName,data)` after registering `onModuleEvent`.
 
-The adapter uses `getConnectionStatus`, `subscribe(contentTopic)`, `send(contentTopic,QByteArray)` and `storeQuery(queryJSON,peer,timeoutMs)`. Starting a node is a deliberate UI action using Core mode, logos.test preset, required anonymity routing and backfill. Connecting to a shared node does not reconfigure or stop it. Local disconnect stops forum sends/ingestion, not the shared node.
+The adapter uses `getConnectionStatus`, `subscribe(contentTopic)`, `send(contentTopic,QByteArray)` and `storeQuery(queryJSON,peer,timeoutMs)`. Starting a node is a deliberate UI action using Core mode, logos.test preset, required anonymity routing and backfill. Connecting to a shared node does not reconfigure or stop it. Local disconnect stops forum sends/ingestion, not the shared node. Connected and PartiallyConnected transport states retain the subscription; partial connectivity may still require delivery retries and is not proof of receipt.
 
 ## Wire envelope
 
@@ -24,7 +24,7 @@ UID authors use the public key's SHA-256 fingerprint. Alias authors have arbitra
 
 A successful compose transaction inserts the complete signed envelope and deletes its draft. Status starts queued. The pump attempts one item per five-second tick, with only one in flight. A matching messageSent request ID marks sent; errors or a 60-second missing acknowledgement mark failed. Early acknowledgements are buffered until the send result supplies the request ID. Retry retains the exact envelope/ID. Backoff grows exponentially to one hour; a user can explicitly retry failures. On restart, sending entries become queued. Incoming duplicate IDs do not add another post.
 
-A transport acknowledgement is not an application-level receipt from all subscribers. No flood control or Sybil resistance is claimed for hostile incoming peers. The current snapshot displays up to 10,000 stored posts; full database retention is independent. Large-history pagination/moderation needs additional work before public deployment.
+A transport acknowledgement is not an application-level receipt from all subscribers. Live intake is bounded before signature work: a 240-message burst budget refills at four messages per second using monotonic time. Payloads over 64 KiB are rejected before UTF-8 conversion. The QML bridge permits at most 32 outstanding receive requests, coalesces network-triggered snapshots over 100 ms, and permits only one snapshot request in flight. Deferred live messages are not marked received; the user is directed to recover them through bounded Store pages. Recovery pages do not consume the live budget, so a burst does not strand the saved history cursor. These controls limit local processing, not network traffic or Sybil identities. The UI requests database pages: 30 thread roots plus one latest-reply preview each, or one root plus 50 replies. Counts and search cover the full stored archive. Cursors include the filter context and deterministic timestamp/ID tie breakers. Changing filters resets paging. With activity sorting, new replies can move threads between pages; refreshing from the first page includes those changes. The diagnostic snapshot without a view is bounded to 200 recent records. Full database retention is independent; sustained resource measurements and stronger moderation remain acceptance work.
 
 ## Store recovery
 
@@ -32,7 +32,7 @@ Requests include one content topic, includeData, forward pagination, limit 50 an
 
 ## Backend operations
 
-`dispatch` accepts `snapshot`, `post`, `receive`, `identity`, `avatar`, `settings`, `draft`, `bookmark`, `next`, `delivery`, `retry`, `wire`, `historyPage`. All results contain `ok`; failures contain `error`. Private keys never appear in snapshots or wire output. SQLite is the local authority for drafts and pending sends; network transport is replaceable without changing the stored envelopes.
+`dispatch` accepts `snapshot`, `postInfo`, `replyPage`, `post`, `receive`, `identity`, `avatar`, `settings`, `draft`, `bookmark`, `next`, `delivery`, `retry`, `wire`, `historyPage`. All results contain `ok`; failures contain `error`. Private keys never appear in snapshots or wire output. SQLite is the local authority for drafts and pending sends; network transport is replaceable without changing the stored envelopes.
 
 ## Pinned API reference
 
@@ -42,8 +42,35 @@ Local avatars are stored per identity in SQLite settings as a resized PNG. The a
 
 ## Local attachment operations
 
-`attachmentImport`, `attachmentPreview`, `attachmentOpen`, and `attachmentExport` manage device-local files. `post.attachments` accepts up to four staged attachment IDs. Association is transactional; missing, duplicate or already-used IDs reject the post. Snapshot posts include only attachment ID, name, MIME and byte count. Thumbnails are requested separately. Attached posts and replies under local-only roots use status `local`; next/delivery/wire exclude them. The signed v1 network envelope has no attachment fields and no media transfer support.
+`attachmentImport`, `attachmentPreview`, `attachmentOpen`, and `attachmentExport` manage device-local files. `post.attachments` accepts up to four staged attachment IDs. Association is transactional; missing, duplicate or already-used IDs reject the post. Snapshot posts include only attachment ID, name, MIME and byte count. Thumbnails are requested separately. Without an uploaded CID, attached posts and replies under local-only roots use status `local`; next/delivery/wire exclude them. With uploaded CIDs for every attachment, new posts use protocol v2 and enter the normal Delivery queue. Existing local-only posts never change IDs or become published automatically.
 
 ### Device-local video session
 
 `attachmentVideo` accepts `action` (play/pause/seek/volume/mute/state/stop), an attachment `id`, and the last received frame `generation`. Play resolves only stored video IDs and checks canonical containment within private attachment storage. Controls from a stale attachment ID cannot affect the active video. State returns time, duration, playing/seekable, volume/mute, errors and generation; a changed generation includes a bounded RGBA frame packet. No media file URL or signing material is sent to the renderer. Frames travel over the existing backend bridge, not Delivery. Decoder output is reduced to a maximum 640 x 640 pixels.
+
+## Shared attachments (v2)
+
+The content topic stays `/logos-forum/1/commons/json`. A v2 payload adds a signed
+`attachments` array (one to four entries). Each entry contains `name`, `mime`,
+`bytes`, `cid`, and lowercase SHA-256 `sha256`. All fields participate in the
+canonical hash and signature. V1 remains text-only; older clients reject v2.
+Supported types are PNG, JPEG, MP4, WebM and PDF, at most 64 MiB per file. Received
+metadata and post insertion are transactional, with attachment IDs derived from
+post ID and array index. Duplicate envelopes do not duplicate metadata.
+
+`attachmentUpload` stages an unattached local file in Logos Storage;
+`attachmentFetch` explicitly retrieves a remote reference. `attachmentTransfer`
+returns running/complete/failed, byte progress and error; `attachmentCancel` aborts.
+One transfer runs at a time. The endpoint is a user-configured literal loopback
+HTTP URL ending `/api/storage/v1`, with an explicit port and no credentials,
+query or fragment. No remote gateway or central application server is used.
+Uploads POST `/data`; downloads GET `/data/{cid}/network/stream?advertise=false`.
+The node, rather than Agora, performs peer discovery and content availability.
+
+Downloads enforce signed byte count while streaming, then SHA-256 and sniffed MIME
+before copying into attachment storage. Images are bounded to 24 megapixels. File
+names never select filesystem paths. Redirects are refused; requests have a
+30-second inactivity timeout and a 180-second total deadline. Failed downloads
+are deleted; failed uploads retain the staged original. Original upload metadata
+is preserved. Content retention depends on Storage providers remaining available;
+upload success is not a permanent-availability promise or anonymity guarantee.
