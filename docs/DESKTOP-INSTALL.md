@@ -16,7 +16,7 @@ its SQLite database or identities. Close Basecamp before updating a kit.
 - Python 3.12 or newer to run the installer.
 - On macOS, Apple Command Line Tools providing `install_name_tool` and `codesign`
   for dependency relocation and local signatures. Agora itself is not compiled.
-- The matching Qt 6.9.2 distribution with Multimedia. This is currently a separate
+- On macOS, the matching Qt 6.9.2 distribution with Multimedia. This is currently a separate
   download; the kit does not include Qt. For example, install `aqtinstall==3.3.0`
   in a Python virtual environment, then use the corresponding command:
 
@@ -24,8 +24,7 @@ its SQLite database or identities. Close Basecamp before updating a kit.
 python -m aqt install-qt mac desktop 6.9.2 clang_64 -O "$HOME/Qt" --modules qtmultimedia --archives qtbase qtdeclarative qtmultimedia
 ```
 
-Windows runtime packaging is being corrected to match Basecamp’s pinned Qt
-6.11.1 build. The official Qt 6.9.2 Windows SDK is not a compatible substitute.
+Windows requires the matching Qt 6.11.1 companion artifact built by `windows-matched.yml`. The official Qt 6.9.2 Windows SDK is not a compatible substitute.
 
 ## macOS
 
@@ -46,10 +45,27 @@ or notarization.
 
 ## Windows
 
-Windows kits are not ready for installation. The native test build and host
-runtime used different Qt versions/configurations; the new matching toolchain
-must pass actual Basecamp loading and video checks before commands are published.
-The planned launcher uses a separate runtime and keeps Basecamp unchanged.
+The development archive has passed installation, corruption rejection and actual
+Basecamp MP4 playback on a Windows runner ([verified run](https://github.com/stevancarlon/logos-agora/actions/runs/38196560504)).
+It is not yet a published release. That runtime uses Windows Media Foundation;
+WebM, audio hardware and cross-machine exchange have not yet been verified.
+
+Download the `agora-kit-windows-amd64-development` artifact from that run and the
+`agora-windows-matching-qt` artifact from its pinned [runtime build](https://github.com/stevancarlon/logos-agora/actions/runs/38195925423).
+Extract both ZIP files and their `.tar.gz` archives. Keep the runtime's
+`windows-matched/qt-version.txt` beside its `qt` directory. With official
+Basecamp 0.3.2 and Delivery installed, run from the extracted Agora kit in PowerShell:
+
+```powershell
+python scripts/install-release.py --verify-only
+python scripts/install-release.py --qt "C:\path\to\windows-matched\qt" --host-bin "C:\path\to\Basecamp\bin"
+```
+
+Replace both paths with the actual extracted runtime and installed Basecamp paths.
+The installer stages missing DLLs separately and leaves Basecamp's files unchanged.
+Launch `%LOCALAPPDATA%\Programs\Agora\Launch-Agora.cmd`, then open Agora.
+Keep the same matching runtime and archive together when sharing this development
+candidate; using an arbitrary Qt download can produce loader errors.
 
 ## Profile and runtime locations
 

@@ -5,6 +5,7 @@
         repeat: true
         running: true
         property int stage: 0
+        onStageChanged: console.log("AGORA_HOST_VIDEO_STAGE", stage)
         property string fileId: ""
         property var player: null
         property int frames: 0
@@ -22,6 +23,7 @@
             stop();
         }
         onTriggered: {
+            if (player && stage >= 2 && player.failure) { fail(player.failure); return; }
             if (stage === 0 && forum.ready) {
                 stage = -1;
                 forum.call({op: "attachmentImport", file: VIDEO_FILE_JSON}, function (r) {
