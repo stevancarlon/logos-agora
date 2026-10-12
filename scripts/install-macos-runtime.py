@@ -89,7 +89,7 @@ def main():
         dependencies = [line.strip().split(' (compatibility')[0]
                         for line in run('otool', '-L', origin).splitlines()[1:]]
         identifiers = run('otool', '-D', origin).splitlines()[1:]
-        for dependency in dependencies:
+        for dependency in dict.fromkeys(dependencies):
             if dependency in identifiers:
                 continue
             replacement = provide(dependency, origin)
@@ -97,7 +97,7 @@ def main():
                 run('install_name_tool', '-change', dependency, replacement, destination)
         old_paths = re.findall(r'cmd LC_RPATH\s+cmdsize \d+\s+path (.*?) \(offset',
                                run('otool', '-l', destination))
-        for old in old_paths:
+        for old in dict.fromkeys(old_paths):
             run('install_name_tool', '-delete_rpath', old, destination)
         for directory in host_dirs + runtime_dirs:
             run('install_name_tool', '-add_rpath', directory, destination)

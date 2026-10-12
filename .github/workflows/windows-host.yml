@@ -1,0 +1,31 @@
+name: Windows Basecamp runtime inspection
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/windows-host.yml
+      - scripts/inspect-windows-host.py
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install aqtinstall==3.3.0
+      - run: python -m aqt install-tool windows desktop tools_mingw1310 qt.tools.win64_mingw1310 -O "$env:RUNNER_TEMP/Qt"
+      - name: Extract and inspect the official host
+        run: |
+          Invoke-WebRequest -Uri 'https://github.com/logos-co/logos-basecamp/releases/download/0.3.2/LogosBasecamp-Desktop-v0.3.2-f2fae6-x86_64-setup.exe' -OutFile "$env:RUNNER_TEMP/basecamp-setup.exe"
+          & "$env:ProgramFiles/7-Zip/7z.exe" x "$env:RUNNER_TEMP/basecamp-setup.exe" "-o$env:RUNNER_TEMP/basecamp-extracted" -y
+          if ($LASTEXITCODE -ne 0) { throw 'Installer extraction failed' }
+          python scripts/inspect-windows-host.py --directory "$env:RUNNER_TEMP/basecamp-extracted" --objdump "$env:RUNNER_TEMP/Qt/Tools/mingw1310_64/bin/objdump.exe" --output "$env:RUNNER_TEMP/basecamp-windows-runtime.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: basecamp-windows-runtime-inspection
+          path: ${{ runner.temp }}/basecamp-windows-runtime.json
+          if-no-files-found: error
