@@ -47,10 +47,10 @@ def main():
                 return str(candidate)
         raise FileNotFoundError(f'Build did not produce {name} in {directory}')
 
-    subprocess.run([executable('tests', 'backend_tests'), '-nocrashhandler'],
+    subprocess.run([executable('tests', 'backend_tests'), '-nocrashhandler', '-o', '-,txt'],
                    cwd=ROOT, env=env, check=True)
     subprocess.run([executable('ui-tests', 'forum-ui-tests'), '-input',
-                    'native/tests/qml', '-nocrashhandler'], cwd=ROOT, env=env, check=True)
+                    'native/tests/qml', '-nocrashhandler', '-o', '-,txt'], cwd=ROOT, env=env, check=True)
 
 
 if __name__ == '__main__':

@@ -8,13 +8,13 @@ Basecamp. Cross-platform development is on `codex/desktop-platforms` / PR #3.
   regression also passes without a system MIME database.
 - Intel and Apple Silicon macOS: first builds compile successfully, but their
   video-import test exposed Qt's bundled MIME database identifying MP4 as
-  QuickTime. The container-brand fix is awaiting hosted verification.
+  QuickTime. The container-brand fix passes all 22 backend checks on Apple Silicon. UI checks exposed native-style customization restrictions; components now explicitly use Qt Basic controls, awaiting hosted UI verification.
 - Windows: OpenSSL dependency compilation completed; application checks are in
-  progress. MSVC is required to match the host's Qt build.
+  progress. The initial MSVC build does not match Basecamp's MinGW ABI and will not be packaged. The workflow now uses Qt MinGW and the matching GCC toolchain.
 
 Run `python scripts/build-native.py` with `QMAKE` pointing at Qt 6.9.2 and
 `OPENSSL_ROOT_DIR` pointing at the OpenSSL installation when needed. Windows
-requires the Visual Studio developer environment; macOS uses the native CPU
+requires the matching MinGW toolchain; macOS uses the native CPU
 architecture. These are development commands, not complete end-user packages.
 
 Every platform still needs its appropriate release kit, dependency/runtime

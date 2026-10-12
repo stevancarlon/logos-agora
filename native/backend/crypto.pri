@@ -4,6 +4,6 @@ OPENSSL_PREFIX = $$(OPENSSL_ROOT_DIR)
     INCLUDEPATH += $$quote($$OPENSSL_PREFIX/include)
     LIBS += -L$$quote($$OPENSSL_PREFIX/lib)
 }
-win32: LIBS += -llibcrypto
+win32-msvc: LIBS += -llibcrypto
 else: LIBS += -lcrypto
 macx: CONFIG -= app_bundle

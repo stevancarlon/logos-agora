@@ -4,7 +4,7 @@ permissions:
   contents: read
 concurrency:
   group: desktop-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   macos:
     strategy:
@@ -38,27 +38,22 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - uses: ilammy/msvc-dev-cmd@v1
       - run: pip install aqtinstall==3.3.0
-      - run: python -m aqt install-qt windows desktop 6.9.2 win64_msvc2022_64 -O "$env:RUNNER_TEMP/Qt" --modules qtmultimedia --archives qtbase qtdeclarative qtmultimedia
-      - name: Identify OpenSSL dependency revision
-        run: |
-          $revision = git -C "$env:VCPKG_INSTALLATION_ROOT" rev-parse HEAD
-          "VCPKG_REV=$revision" >> $env:GITHUB_ENV
-      - uses: actions/cache@v4
-        id: openssl-cache
+      - run: python -m aqt install-qt windows desktop 6.9.2 win64_mingw -O "$env:RUNNER_TEMP/Qt" --modules qtmultimedia --archives qtbase qtdeclarative qtmultimedia
+      - run: python -m aqt install-tool windows desktop tools_mingw1310 qt.tools.win64_mingw1310 -O "$env:RUNNER_TEMP/Qt"
+      - uses: msys2/setup-msys2@v2
+        id: msys2
         with:
-          path: ${{ runner.temp }}/agora-openssl
-          key: openssl-windows2022-x64-${{ env.VCPKG_REV }}
-      - name: Install OpenSSL development library
-        if: steps.openssl-cache.outputs.cache-hit != 'true'
-        run: |
-          & "$env:VCPKG_INSTALLATION_ROOT/vcpkg.exe" install openssl:x64-windows "--x-install-root=$env:RUNNER_TEMP/agora-openssl"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          msystem: MINGW64
+          update: true
+          install: mingw-w64-x86_64-openssl
       - name: Build and test native application
+        env:
+          OPENSSL_ROOT_DIR: ${{ steps.msys2.outputs.msys2-location }}/mingw64
         run: |
-          $env:QMAKE = "$env:RUNNER_TEMP/Qt/6.9.2/msvc2022_64/bin/qmake.exe"
-          $env:OPENSSL_ROOT_DIR = "$env:RUNNER_TEMP/agora-openssl/x64-windows"
+          $env:QMAKE = "$env:RUNNER_TEMP/Qt/6.9.2/mingw_64/bin/qmake.exe"
+          $env:MAKE = "$env:RUNNER_TEMP/Qt/Tools/mingw1310_64/bin/mingw32-make.exe"
+          $env:PATH = "$env:RUNNER_TEMP/Qt/Tools/mingw1310_64/bin;$env:PATH"
           python scripts/build-native.py
       - uses: actions/upload-artifact@v4
         with:
