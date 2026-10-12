@@ -22,6 +22,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     for name in ('qt', 'app', 'user-dir', 'runtime-dir', 'launcher'):
         p.add_argument('--' + name, type=Path, required=True)
+    p.add_argument('--test-offscreen', action='store_true', help='Stage the Qt offscreen platform plugin for CI')
     a = p.parse_args()
     if sys.platform != 'darwin':
         p.error('This installer must run on macOS')
@@ -41,7 +42,10 @@ def main():
     for directory in runtime_dirs:
         directory.mkdir(parents=True, exist_ok=True)
     queue = []
-    for category, pattern in [('multimedia', '*.dylib'), ('sqldrivers', '*sqlite*.dylib')]:
+    categories = [('multimedia', '*.dylib'), ('sqldrivers', '*sqlite*.dylib')]
+    if a.test_offscreen:
+        categories.append(('platforms', 'libqoffscreen.dylib'))
+    for category, pattern in categories:
         sources = list((qt / 'plugins' / category).glob(pattern))
         if not sources:
             p.error(f'Missing Qt {category} plugins')
@@ -106,12 +110,16 @@ def main():
             relative_path = '@loader_path/' + os.path.relpath(directory, destination.parent)
             run('install_name_tool', '-add_rpath', relative_path, destination)
         run('codesign', '--force', '--sign', '-', destination)
+    host_plugins = sorted({str(x.parent.parent) for x in contents.rglob('libqcocoa.dylib')})
+    host_qml = sorted({str(x.parent.parent) for x in contents.rglob('qmldir') if x.parent.name == 'QtQuick'})
+    if not host_plugins or not host_qml:
+        raise RuntimeError('Cannot locate Basecamp Qt platform/QML directories')
     launcher = a.launcher.resolve()
     launcher.parent.mkdir(parents=True, exist_ok=True)
     launcher.write_text('#!/bin/sh\nset -eu\n' +
         'export LOGOS_NO_SCHEME_REGISTER=1\n' +
-        'export QML_IMPORT_PATH=' + shlex.quote(str(runtime / 'qml')) + '${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}\n' +
-        'export QT_PLUGIN_PATH=' + shlex.quote(str(runtime / 'plugins')) + '${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}\n' +
+        'export QML_IMPORT_PATH=' + shlex.quote(':'.join([str(runtime / 'qml')] + host_qml)) + '${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}\n' +
+        'export QT_PLUGIN_PATH=' + shlex.quote(':'.join([str(runtime / 'plugins')] + host_plugins)) + '${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}\n' +
         'exec ' + shlex.quote(str(executable)) + ' "$@"\n')
     launcher.chmod(0o755)
     print(f'Staged {len(processed)} native libraries; launcher: {launcher}')

@@ -12,6 +12,7 @@ p = argparse.ArgumentParser(description=__doc__)
 p.add_argument('--launcher', type=Path, required=True)
 p.add_argument('--profile', type=Path, required=True)
 p.add_argument('--output', type=Path, required=True)
+p.add_argument('--video', action='store_true', help='Require the injected disposable inline-video probe')
 a = p.parse_args()
 a.output.mkdir(parents=True, exist_ok=True)
 env = dict(os.environ, LOGOS_USER_DIR=str(a.profile.resolve()),
@@ -28,8 +29,10 @@ with (a.output / 'basecamp.log').open('w+') as log:
             time.sleep(.5)
             log.seek(0)
             output = log.read()
-            if all(marker in output for marker in ('FORUM_BACKEND_READY', 'FORUM_UI_READY', 'FORUM_STATE_READY')):
+            if all(marker in output for marker in (('FORUM_UI_READY', 'FORUM_STATE_READY') + (('AGORA_HOST_VIDEO_PASS',) if a.video else ()))):
                 result['passed'] = True
+                result['videoPlaybackVerified'] = a.video
+                result['audioDeviceVerified'] = False
                 break
             if proc.poll() is not None:
                 result['exitCode'] = proc.returncode

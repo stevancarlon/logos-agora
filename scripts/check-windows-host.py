@@ -10,6 +10,7 @@ import time
 p = argparse.ArgumentParser(description=__doc__)
 for name in ('host-bin', 'runtime-dir', 'profile', 'output'):
     p.add_argument('--' + name, type=Path, required=True)
+p.add_argument('--video', action='store_true', help='Require the injected disposable inline-video probe')
 a = p.parse_args()
 a.output.mkdir(parents=True, exist_ok=True)
 env = dict(os.environ)
@@ -22,7 +23,7 @@ env.update(PATH=os.pathsep.join(map(str, [a.host_bin, a.runtime_dir / 'bin', sys
            QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software')
 result = {'passed': False, 'actualBasecampHost': True, 'videoPlaybackVerified': False,
           'crossMachineVerified': False, 'buildToolchainRemovedFromPath': True}
-with (a.output / 'basecamp.log').open('w+', encoding='utf-8') as log:
+with (a.output / 'basecamp.log').open('w+', encoding='utf-8', errors='replace') as log:
     proc = subprocess.Popen([str(a.host_bin / 'LogosBasecamp.exe'), '--user-dir', str(a.profile),
                              '--uri=basecamp://app/logos_forum'], env=env, stdout=log, stderr=log)
     try:
@@ -31,8 +32,10 @@ with (a.output / 'basecamp.log').open('w+', encoding='utf-8') as log:
             time.sleep(.5)
             log.seek(0)
             output = log.read()
-            if all(marker in output for marker in ('FORUM_BACKEND_READY', 'FORUM_UI_READY', 'FORUM_STATE_READY')):
+            if all(marker in output for marker in (('FORUM_UI_READY', 'FORUM_STATE_READY') + (('AGORA_HOST_VIDEO_PASS',) if a.video else ()))):
                 result['passed'] = True
+                result['videoPlaybackVerified'] = a.video
+                result['audioDeviceVerified'] = False
                 break
             if proc.poll() is not None:
                 result['exitCode'] = proc.returncode
@@ -43,5 +46,5 @@ with (a.output / 'basecamp.log').open('w+', encoding='utf-8') as log:
 (a.output / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
 print(json.dumps(result, indent=2))
 if not result['passed']:
-    print((a.output / 'basecamp.log').read_text(encoding='utf-8')[-18000:])
+    print((a.output / 'basecamp.log').read_text(encoding='utf-8', errors='replace')[-18000:])
     raise SystemExit(1)

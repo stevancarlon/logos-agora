@@ -1,5 +1,8 @@
 name: Desktop platform checks
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
 permissions:
   contents: read
 concurrency:
@@ -39,9 +42,13 @@ jobs:
           app=$(find "$RUNNER_TEMP/basecamp-volume" -maxdepth 1 -name '*.app' -print -quit)
           test -n "$app"
           python3 scripts/inspect-macos-host.py --app "$app" --output "$RUNNER_TEMP/basecamp-runtime.json"
+          mkdir -p "$RUNNER_TEMP/agora-profile"
+          touch "$RUNNER_TEMP/agora-profile/.agora-disposable-profile"
           python3 scripts/install-basecamp.py --user-dir "$RUNNER_TEMP/agora-profile"
-          python3 scripts/install-macos-runtime.py --qt "$RUNNER_TEMP/Qt/6.9.2/macos" --app "$app" --user-dir "$RUNNER_TEMP/agora-profile" --runtime-dir "$RUNNER_TEMP/agora-runtime" --launcher "$RUNNER_TEMP/launch-agora"
-          python3 scripts/check-macos-host.py --launcher "$RUNNER_TEMP/launch-agora" --profile "$RUNNER_TEMP/agora-profile" --output "$RUNNER_TEMP/agora-host-check"
+          python3 scripts/install-test-delivery.py --profile "$RUNNER_TEMP/agora-profile"
+          python3 scripts/prepare-host-video.py --profile "$RUNNER_TEMP/agora-profile"
+          python3 scripts/install-macos-runtime.py --qt "$RUNNER_TEMP/Qt/6.9.2/macos" --app "$app" --user-dir "$RUNNER_TEMP/agora-profile" --runtime-dir "$RUNNER_TEMP/agora-runtime" --launcher "$RUNNER_TEMP/launch-agora" --test-offscreen
+          python3 scripts/check-macos-host.py --launcher "$RUNNER_TEMP/launch-agora" --profile "$RUNNER_TEMP/agora-profile" --output "$RUNNER_TEMP/agora-host-check" --video
           hdiutil detach "$RUNNER_TEMP/basecamp-volume"
       - uses: actions/upload-artifact@v4
         if: always() && matrix.runner == 'macos-15'
@@ -88,11 +95,17 @@ jobs:
           Invoke-WebRequest -Uri 'https://github.com/logos-co/logos-basecamp/releases/download/0.3.2/LogosBasecamp-Desktop-v0.3.2-f2fae6-x86_64-setup.exe' -OutFile "$env:RUNNER_TEMP/basecamp-setup.exe"
           & "$env:ProgramFiles/7-Zip/7z.exe" x "$env:RUNNER_TEMP/basecamp-setup.exe" "-o$env:RUNNER_TEMP/basecamp-extracted" -y
           if ($LASTEXITCODE -ne 0) { throw 'Installer extraction failed' }
+          New-Item -ItemType Directory -Force "$env:RUNNER_TEMP/agora-profile" | Out-Null
+          New-Item -ItemType File "$env:RUNNER_TEMP/agora-profile/.agora-disposable-profile" | Out-Null
           python scripts/install-basecamp.py --user-dir "$env:RUNNER_TEMP/agora-profile"
           if ($LASTEXITCODE -ne 0) { throw 'Agora installation failed' }
+          python scripts/install-test-delivery.py --profile "$env:RUNNER_TEMP/agora-profile"
+          if ($LASTEXITCODE -ne 0) { throw 'Delivery installation failed' }
+          python scripts/prepare-host-video.py --profile "$env:RUNNER_TEMP/agora-profile"
+          if ($LASTEXITCODE -ne 0) { throw 'Video probe installation failed' }
           python scripts/stage-windows-runtime.py --qt "$env:RUNNER_TEMP/Qt/6.9.2/mingw_64" --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --user-dir "$env:RUNNER_TEMP/agora-profile" --runtime-dir "$env:RUNNER_TEMP/agora-runtime" --objdump "$env:RUNNER_TEMP/Qt/Tools/mingw1310_64/bin/objdump.exe"
           if ($LASTEXITCODE -ne 0) { throw 'Dependency staging failed' }
-          python scripts/check-windows-host.py --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --runtime-dir "$env:RUNNER_TEMP/agora-runtime" --profile "$env:RUNNER_TEMP/agora-profile" --output "$env:RUNNER_TEMP/agora-windows-host-check"
+          python scripts/check-windows-host.py --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --runtime-dir "$env:RUNNER_TEMP/agora-runtime" --profile "$env:RUNNER_TEMP/agora-profile" --output "$env:RUNNER_TEMP/agora-windows-host-check" --video
       - uses: actions/upload-artifact@v4
         if: always()
         with:
