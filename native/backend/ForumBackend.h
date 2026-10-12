@@ -3,7 +3,9 @@
 #include <QJsonObject>
 #include <QObject>
 #include <QSqlDatabase>
+#include <QElapsedTimer>
 #include "VideoSession.h"
+#include "StorageTransfer.h"
 
 class ForumBackend : public QObject {
   Q_OBJECT
@@ -24,11 +26,18 @@ signals:
 private:
   QSqlDatabase m_db;
   VideoSession *m_video = nullptr;
+  StorageTransfer *m_transfer = nullptr;
   QByteArray m_outbound;
   QString m_error;
+  QElapsedTimer m_intakeClock;
+  qint64 m_intakeLastNs = 0;
+  double m_intakeTokens = 240;
+  qint64 m_rateLimited = 0;
   void initialize();
   QJsonObject execute(const QJsonObject &cmd);
-  QJsonObject snapshot();
+  QJsonObject snapshot(const QJsonObject &options = {});
+  QJsonObject browse(const QJsonObject &options);
+  QJsonObject postRecord(const QString &id);
   QJsonObject attachment(const QJsonObject &cmd);
   QJsonObject post(const QJsonObject &cmd);
   QJsonObject receive(const QString &wire);

@@ -14,3 +14,5 @@ QMAKE_LFLAGS_RPATH =
 QT += multimedia
 HEADERS += $$PWD/VideoSession.h
 SOURCES += $$PWD/VideoSession.cpp
+
+include(storage.pri)

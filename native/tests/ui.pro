@@ -9,3 +9,5 @@ LIBS += -lcrypto
 QT += multimedia
 HEADERS += $$PWD/../backend/VideoSession.h
 SOURCES += $$PWD/../backend/VideoSession.cpp
+
+include(../backend/storage.pri)

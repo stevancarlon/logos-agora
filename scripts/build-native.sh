@@ -7,13 +7,14 @@ if [[ "$($QMAKE -query QT_VERSION)" != "6.9.2" && "${ALLOW_OTHER_QT:-0}" != 1 ]]
   exit 1
 fi
 qt_version=$($QMAKE -query QT_VERSION)
-for target in media backend preview tests ui-tests; do
+for target in media backend preview tests ui-tests storage-probe; do
   case "$target" in
     media) project=media-renderer/media.pro;;
     backend) project=backend/forum.pro;;
     preview) project=preview/preview.pro;;
     tests) project=tests/tests.pro;;
     ui-tests) project=tests/ui.pro;;
+    storage-probe) project=tests/storage.pro;;
   esac
   mkdir -p "build/qt$qt_version-$target"
   (cd "build/qt$qt_version-$target"; "$QMAKE" "../../native/$project"; make -j"${JOBS:-4}")

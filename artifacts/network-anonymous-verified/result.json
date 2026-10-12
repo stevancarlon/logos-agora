@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "transport": "private loopback relay",
+  "crossMachineVerified": false,
+  "mixRoutingVerified": false,
+  "storeRecoveryVerified": true,
+  "offlineRestartVerified": true,
+  "topic": "/logos-forum/1/commons/json",
+  "identityMode": "anonymous",
+  "receivedThread": "412f29d52a2f998e03728b6c483f69f99e0a1e2ad69da0fd1247dd9f1990d13d",
+  "receivedReply": "809a1965894c7866f199cff20b8f1804b15cda7587c37a1fe757d069deb71659",
+  "independentDatabasesVerified": true,
+  "identityModeVerified": true
+}

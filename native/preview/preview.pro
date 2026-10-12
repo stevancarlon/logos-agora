@@ -10,3 +10,5 @@ DEFINES += FORUM_QML_PATH=\\\"$$PWD/../forum/qml/Main.qml\\\"
 QT += multimedia
 HEADERS += $$PWD/../backend/VideoSession.h
 SOURCES += $$PWD/../backend/VideoSession.cpp
+
+include(../backend/storage.pri)

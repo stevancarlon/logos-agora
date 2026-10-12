@@ -133,8 +133,9 @@ int main(int argc, char **argv) {
   if (args.contains("--screenshot")) {
     if (args.contains("--identity") || args.contains("--network")) {
       const auto name = args.contains("--identity") ? QString("identityDialog") : QString("networkDialog");
-      QTimer::singleShot(300, &app, [&view, name]() {
+      QTimer::singleShot(300, &app, [&view, name, advanced=args.contains("--network-advanced")]() {
         auto dialog = view.rootObject()->findChild<QObject *>(name);
+        if (dialog && advanced) dialog->setProperty("advanced", true);
         if (dialog) QMetaObject::invokeMethod(dialog, "open");
       });
     }

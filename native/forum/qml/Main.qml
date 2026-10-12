@@ -54,6 +54,7 @@ Pane {
     property alias controller: forum
     property string board: "all"
     property string selected: ""
+    property string pendingReplyScroll: ""
     property string searchText: ""
     property string sorting: "activity"
     property bool replyExpanded: false
@@ -95,9 +96,43 @@ Pane {
     property bool narrow: width < 850
     readonly property real uiScale: narrow ? 1 : Math.max(0.82, Math.min(1, width / 1402))
     property string newBoard: board === "all" ? "general" : board
+    property string feedCursor: ""
+    property string replyCursor: ""
+    property var feedHistory: []
+    property var replyHistory: []
+    onBoardChanged: resetFeedPages()
+    onSearchTextChanged: resetFeedPages()
+    onSortingChanged: resetFeedPages()
+    onShowingSavedChanged: resetFeedPages()
+    onSelectedChanged: { pendingReplyScroll = ""; replyCursor = ""; replyHistory = []; }
+    function resetFeedPages() { feedCursor = ""; feedHistory = []; }
+    function nextPage() {
+        if (!forum.state.hasMore || forum.loading) return;
+        if (selected) { replyHistory = replyHistory.concat([replyCursor]); replyCursor = forum.state.nextCursor; }
+        else { feedHistory = feedHistory.concat([feedCursor]); feedCursor = forum.state.nextCursor; }
+        threadListView.positionViewAtBeginning(); postsView.positionViewAtBeginning();
+    }
+    function previousPage() {
+        var history = (selected ? replyHistory : feedHistory).slice();
+        if (!history.length || forum.loading) return;
+        var cursor = history.pop();
+        if (selected) { replyHistory = history; replyCursor = cursor; }
+        else { feedHistory = history; feedCursor = cursor; }
+        threadListView.positionViewAtBeginning(); postsView.positionViewAtBeginning();
+    }
     property var visibleThreads: threadList()
     ForumController {
         id: forum
+        onLoadingChanged: {
+            if (!loading && root.pendingReplyScroll && root.findPost(root.pendingReplyScroll)) {
+                root.pendingReplyScroll = "";
+                Qt.callLater(function () { postsView.positionViewAtEnd(); });
+            }
+        }
+        browseQuery: ({view: root.selected ? "thread" : "feed", thread: root.selected,
+            board: root.selected ? "all" : root.board, search: root.selected ? "" : root.searchText,
+            sort: root.selected ? "activity" : root.sorting, saved: root.selected ? false : root.showingSaved,
+            cursor: root.selected ? root.replyCursor : root.feedCursor, limit: root.selected ? 50 : 30})
     }
     function findPost(pid) {
         for (var i = 0; i < forum.state.posts.length; i++)
@@ -136,29 +171,7 @@ Pane {
         return status === "sent" ? "Network confirmed" : status === "received" ? "Received" : status === "sending" ? "Sending…" : status === "failed" ? "Retry pending" : "Saved locally · queued";
     }
     function threadList() {
-        var all = forum.state.posts, q = searchText.toLowerCase().trim();
-        var list = all.filter(function (p) {
-            if (p.thread)
-                return false;
-            if (board !== "all" && p.board !== board)
-                return false;
-            if (showingSaved && forum.state.saved.indexOf(p.id) < 0)
-                return false;
-            var rr = replies(p.id);
-            return !q || (p.title + " " + p.body + " " + rr.map(function (x) {
-                    return x.body;
-                }).join(" ")).toLowerCase().indexOf(q) >= 0;
-        });
-        list.sort(function (a, b) {
-            var ar = replies(a.id), br = replies(b.id);
-            if (sorting === "replies")
-                return br.length - ar.length || b.created - a.created;
-            if (sorting === "newest")
-                return b.created - a.created;
-            var at = ar.length ? ar[ar.length - 1].created : a.created, bt = br.length ? br[br.length - 1].created : b.created;
-            return bt - at;
-        });
-        return list;
+        return forum.state.posts.filter(function (p) { return !p.thread; });
     }
     function saveReplyDraft() {
         replyDraftTimer.stop();
@@ -176,6 +189,7 @@ Pane {
     }
     function goBoard(id) {
         leaveThread();
+        resetFeedPages();
         board = id;
         showingSaved = false;
     }
@@ -191,6 +205,16 @@ Pane {
         }
         replyExpanded = false;
         postsView.positionViewAtBeginning();
+    }
+    function showPostedReply(threadId, replyId) {
+        forum.call({op: "replyPage", id: replyId}, function (page) {
+            if (root.selected !== threadId) return;
+            root.pendingReplyScroll = replyId;
+            if (root.replyCursor !== page.pageCursor) {
+                root.replyHistory = root.replyHistory.concat([root.replyCursor]);
+                root.replyCursor = page.pageCursor;
+            } else forum.refresh();
+        });
     }
     function beginReply() {
         replyExpanded = true;
@@ -294,6 +318,7 @@ Pane {
                 }
                 ForumField {
                     id: headerSearch
+                    maximumLength: 200
                     objectName: "headerSearch"
                     visible: !root.narrow
                     Layout.fillWidth: true
@@ -517,6 +542,7 @@ Pane {
                 }
                 ForumField {
                     id: compactSearch
+                    maximumLength: 200
                     visible: root.narrow && root.selected === ""
                     Layout.fillWidth: true
                     Layout.topMargin: 12
@@ -663,7 +689,7 @@ Pane {
                                         Layout.topMargin: 10
                                         spacing: 6
                                         Text {
-                                            text: root.replies(row.modelData.id).length + (root.replies(row.modelData.id).length === 1 ? " reply" : " replies")
+                                            text: row.modelData.replyCount + (row.modelData.replyCount === 1 ? " reply" : " replies")
                                             color: theme.text
                                             font.family: "Adwaita Sans"
                                             font.pixelSize: 14 * root.uiScale
@@ -675,8 +701,7 @@ Pane {
                                             font.pixelSize: 14 * root.uiScale
                                         }
                                         Text {
-                                            property var rr: root.replies(row.modelData.id)
-                                            text: root.activityAge(rr.length ? rr[rr.length - 1].created : row.modelData.created)
+                                            text: root.activityAge(row.modelData.lastActivity || row.modelData.created)
                                             color: theme.muted
                                             font.family: "Adwaita Sans"
                                             font.pixelSize: 14 * root.uiScale
@@ -751,7 +776,7 @@ Pane {
                                     id: threadTitle
                                     font.family: "Liberation Serif"
                                     Layout.fillWidth: true
-                                    text: root.current ? root.current.title : "Thread not found"
+                                    text: root.current ? root.current.title : forum.refreshing ? "Loading discussion…" : "Thread not found"
                                     wrapMode: Text.Wrap
                                     font.pixelSize: root.narrow ? 25 : 34
                                     font.weight: Font.DemiBold
@@ -776,7 +801,7 @@ Pane {
                             spacing: 6
                             boundsBehavior: Flickable.StopAtBounds
                             ScrollBar.vertical: ScrollBar {}
-                            model: root.current ? [root.current].concat(root.replies(root.selected)) : []
+                            model: root.current && forum.state.view === "thread" && forum.state.threadId === root.selected ? [root.current].concat(root.replies(root.selected)) : []
                             delegate: Rectangle {
                                 id: post
                                 required property var modelData
@@ -960,19 +985,20 @@ Pane {
                                     Text {
                                         font.family: "Adwaita Sans"
                                         Layout.fillWidth: true
-                                        text: root.replyAttachments.length || (root.current && root.current.status === "local") ? "Local only · not published" : "Saved locally · public when sent"
+                                        text: (root.replyAttachments.length && !forum.state.storageEndpoint) || (root.current && root.current.status === "local") ? "Local only · not published" : "Saved locally · public when sent"
                                         font.pixelSize: 10
                                         color: theme.muted
                                         wrapMode: Text.Wrap
                                     }
                                     ForumButton {
-                                        text: root.replyAttachments.length || (root.current && root.current.status === "local") ? "Save reply" : forum.connection === "online" ? "Post reply →" : "Queue reply →"
+                                        text: forum.posting ? "Uploading…" : (root.replyAttachments.length && !forum.state.storageEndpoint) || (root.current && root.current.status === "local") ? "Save reply" : forum.connection === "online" ? "Post reply →" : "Queue reply →"
                                         primary: true
-                                        enabled: forum.ready && replyInput.text.trim().length > 0 && replyInput.text.length <= 12000
+                                        enabled: forum.ready && !forum.posting && replyInput.text.trim().length > 0 && replyInput.text.length <= 12000
                                         onClicked: {
                                             replyDraftTimer.stop();
                                             var threadId = root.selected;
-                                            forum.savePost(threadId, root.current.board, "", replyInput.text, function () {
+                                            if (forum.posting) return;
+                                            forum.savePost(threadId, root.current.board, "", replyInput.text, function (result) {
                                                 root.replyDraftCache[threadId] = "";
                                                 root.replyAttachmentCache[threadId] = [];
                                                 forum.draft("files/" + threadId, "[]");
@@ -981,7 +1007,7 @@ Pane {
                                                     root.replyAttachments = [];
                                                     replyDraftTimer.stop();
                                                     root.replyExpanded = false;
-                                                    postsView.positionViewAtEnd();
+                                                    root.showPostedReply(threadId, result.id);
                                                 }
                                             }, root.replyAttachments.map(function (f) {
                                                 return f.id;
@@ -991,6 +1017,25 @@ Pane {
                                 }
                             }
                         }
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: forum.state.hasMore || (root.selected ? root.replyHistory.length : root.feedHistory.length) > 0
+                    ForumButton {
+                        objectName: "previousPage"
+                        text: root.selected ? "Earlier replies" : "Newer discussions"
+                        flat: true
+                        enabled: !forum.loading && (root.selected ? root.replyHistory.length : root.feedHistory.length) > 0
+                        onClicked: root.previousPage()
+                    }
+                    Item { Layout.fillWidth: true }
+                    ForumButton {
+                        objectName: "nextPage"
+                        text: root.selected ? "More replies" : "Older discussions"
+                        flat: true
+                        enabled: !forum.loading && forum.state.hasMore
+                        onClicked: root.nextPage()
                     }
                 }
                 RowLayout {
@@ -1158,11 +1203,12 @@ Pane {
                     }
                 }
                 ForumButton {
-                    text: root.newAttachments.length ? "Save locally" : forum.connection === "online" ? "Publish thread" : "Queue thread"
+                    text: forum.posting ? "Uploading…" : root.newAttachments.length && !forum.state.storageEndpoint ? "Save locally" : forum.connection === "online" ? "Publish thread" : "Queue thread"
                     primary: true
-                    enabled: forum.ready && titleInput.text.trim().length > 0 && bodyInput.text.trim().length > 0 && bodyInput.length <= 12000
+                    enabled: forum.ready && !forum.posting && titleInput.text.trim().length > 0 && bodyInput.text.trim().length > 0 && bodyInput.length <= 12000
                     onClicked: {
                         newDraftTimer.stop();
+                        if (forum.posting) return;
                         forum.savePost("", root.newBoard, titleInput.text, bodyInput.text, function (r) {
                             composeDialog.submitted = true;
                             composeDialog.close();
@@ -1409,6 +1455,28 @@ Pane {
                 color: theme.muted
             }
             ForumField {
+                id: storageEndpoint
+                objectName: "storageEndpoint"
+                visible: networkDialog.advanced
+                Layout.fillWidth: true
+                placeholderText: "Local Logos Storage URL (optional)"
+                text: forum.state.storageEndpoint || ""
+                Accessible.name: "Local Logos Storage endpoint"
+            }
+            ForumButton {
+                visible: networkDialog.advanced
+                text: "Save media connection"
+                onClicked: forum.mutate({op: "settings", storageEndpoint: storageEndpoint.text})
+            }
+            Text {
+                visible: networkDialog.advanced
+                Layout.fillWidth: true
+                text: "Use http://127.0.0.1:PORT/api/storage/v1 for your own Storage node. New attachments are published when you post. Without this connection, attachments stay local."
+                wrapMode: Text.Wrap
+                color: theme.muted
+                font.pixelSize: 11
+            }
+            ForumField {
                 id: storePeer
                 visible: networkDialog.advanced
                 Layout.fillWidth: true
@@ -1458,7 +1526,7 @@ Pane {
                 }
                 ForumButton {
                     Layout.fillWidth: true
-                    text: networkDialog.advanced ? "Hide history options" : "History options"
+                    text: networkDialog.advanced ? "Hide advanced settings" : "Advanced"
                     onClicked: networkDialog.advanced = !networkDialog.advanced
                 }
             }

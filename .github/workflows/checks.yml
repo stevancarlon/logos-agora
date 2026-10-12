@@ -10,11 +10,26 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: sudo apt-get update && sudo apt-get install -y build-essential libssl-dev libgl1-mesa-dev libxkbcommon-dev libxcb-cursor0
+      - run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config libssl-dev libgl1-mesa-dev libxkbcommon-dev libxcb-cursor0 libpulse0 libasound2t64 libharfbuzz0b zlib1g-dev libsodium-dev libicu-dev nlohmann-json3-dev
       - run: pip install aqtinstall==3.3.0
       - run: python -m aqt install-qt linux desktop 6.9.2 linux_gcc_64 -O "$RUNNER_TEMP/Qt" --modules qtremoteobjects qtmultimedia --archives qtbase qtdeclarative qtremoteobjects qtmultimedia icu
       - run: QMAKE="$RUNNER_TEMP/Qt/6.9.2/gcc_64/bin/qmake" scripts/build-native.sh
+      - uses: actions/checkout@v4
+        with:
+          repository: logos-co/logos-package
+          ref: c25a1167578aef5cbd9a9b6f822ffe2ae4fd6a89
+          path: .tools/logos-package
+      - name: Build pinned official package validator
+        run: |
+          cmake -S .tools/logos-package -B "$RUNNER_TEMP/lgx" -DCMAKE_BUILD_TYPE=Release
+          cmake --build "$RUNNER_TEMP/lgx" --target lgx --parallel 2
+      - name: Build and verify precompiled release kit
+        run: python3 scripts/build-release.py --lgx "$RUNNER_TEMP/lgx/lgx"
       - uses: actions/upload-artifact@v4
         with:
           name: forum-native-linux-amd64
-          path: native/forum/
+          if-no-files-found: error
+          path: |
+            artifacts/agora-*-linux-amd64.tar.gz
+            artifacts/agora-*-linux-amd64.tar.gz.sha256
+            artifacts/logos_forum-*-linux-amd64.lgx

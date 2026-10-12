@@ -1,15 +1,35 @@
-# FURPS self-assessment — native 0.2.0
+# FURPS self-assessment — native 0.3.0
 
 | Area | Evidence | Remaining acceptance work |
 | --- | --- | --- |
-| Functionality | Native threads/replies/quotes, boards/search/bookmarks, signed alias/UID and anonymous posts, identity rotation, Delivery adapter, paged Store ingestion | Live cross-machine Delivery and Store validation; authentic community discussions |
+| Functionality | Native threads/replies/quotes, boards/search/bookmarks, signed alias/UID and anonymous posts, identity rotation, Delivery adapter, paged Store ingestion, signed v2 attachment references and Logos Storage transfer | Live cross-machine Delivery and Store validation; authentic community discussions |
 | Usability | Compact native QML UI, persistent composers, plain text selection, keyboard-accessible controls, narrow layout tests | User usability feedback and assistive technology validation |
 | Reliability | SQLite WAL/transactions, crash recovery, durable outbox, signature rejection, deduplication, early-ack and failure tests | Long-running loss/reconnect tests against real peers; backup/restore UI |
-| Performance | Single in-flight send, five-second pacing, exponential retry, 50-message history pages, 64 KiB envelopes | Large-history UI pagination, incoming abuse controls, sustained resource measurements |
-| Supportability | C++17/QML source, build/install scripts, CI definition, verified local unsigned LGX, dual license, actual Basecamp load | Hosted green CI, signed catalog release, Windows/macOS builds, narrated demo |
+| Performance | Single in-flight send, five-second pacing, exponential retry, 50-message history pages, 64 KiB envelopes, live intake budget, coalesced snapshots and database-backed feed/reply pages | Sustained resource measurements, stronger moderation |
+| Supportability | C++17/QML source, build/install scripts, CI definition, verified local unsigned LGX and precompiled install kit, dual license, actual Basecamp load | Hosted green CI, signed catalog release, Windows/macOS builds, narrated demo |
 
-Local verification: Basecamp 0.3.2 on Linux x86_64 loads the native module and its SQLite state through Qt Remote Objects. Tests execute on Qt 6.9.2 and system Qt 6.11.2. Separate test databases exchange genuine signed envelopes in-process; this is not proof of real network delivery. Synthetic screenshot discussions are visibly labeled and isolated in a temporary database.
+Local verification: Basecamp 0.3.2 on Linux x86_64 loads the native module and its SQLite state through Qt Remote Objects. Tests execute on Qt 6.9.2 and system Qt 6.11.2. Three independent Basecamp processes now exchange signed envelopes over an isolated loopback relay and recover them through a real Store query; this is not cross-machine or public mix-routing evidence. Synthetic screenshot discussions are visibly labeled and isolated in a temporary database.
 
 This is a native integration build, not a claim that every LP-0026 acceptance criterion has been met. No real community adoption, public catalog submission, hosted CI result or live Store recovery is fabricated.
 
-Attachment/video verification: 17 backend tests and 18 QML tests cover attachment transactions, restart persistence/export, local-only delivery, delayed callbacks after card destruction, video frames, pause, seek, volume/mute, stale controls, and stopping playback on navigation. Basecamp itself rendered 32 video frames with an advancing position during the native smoke test, with no sandbox changes or blocked URL accesses in this path. The separate Qt 6.9.2 runtime includes a pixel-only renderer; decoding/audio remain in the backend. Inline playback is currently capped at 640 pixels and 25 frame polls/second. Live network media transfer remains unimplemented.
+Attachment/video verification: 17 backend tests and 18 QML tests cover attachment transactions, restart persistence/export, local-only delivery, delayed callbacks after card destruction, video frames, pause, seek, volume/mute, stale controls, and stopping playback on navigation. Basecamp itself rendered 32 video frames with an advancing position during the native smoke test, with no sandbox changes or blocked URL accesses in this path. The separate Qt 6.9.2 runtime includes a pixel-only renderer; decoding/audio remain in the backend. Inline playback is currently capped at 640 pixels and 25 frame polls/second. Superseded by the v0.3 media acceptance results below.
+
+2026-10-11 acceptance update: 17 backend and 20 QML checks pass. The private Basecamp relay test verifies queued-post persistence across shutdown/restart, thread/reply receipt, Store recovery without subscription, and identical nonduplicated message IDs in three separate databases. Evidence: `artifacts/network-restart/result.json`. A checksummed precompiled release kit and isolated installer check are available; catalog publication, hosted CI and clean-OS installation remain unverified.
+
+2026-10-11 media acceptance: 18 backend and 21 QML tests pass. Two actual Logos
+Storage v0.5.3 nodes exchange PNG, MP4 and PDF with exact byte/hash verification.
+The actual Basecamp bridge uploads an MP4 before offline queuing, delivers its v2
+reference after restart, fetches and validates the bytes on the recipient, and
+recovers the reference through Store on a third profile. Evidence:
+`artifacts/storage-release-candidate/result.json`. Nodes are isolated on one host;
+public-network retention, cross-machine connectivity and automatic Storage setup
+remain unverified or unfinished. Local originals and older local conversations
+are never silently published.
+
+Live-intake hardening: 19 backend and 22 QML checks pass. Tests exhaust the live
+budget with invalid traffic, recover a valid message through Store despite that
+budget, verify cursor persistence and deduplication after refill, and coalesce a
+100-request UI refresh burst into one snapshot. These are local processing limits,
+not Sybil resistance or proof of acceptable performance with a large archive.
+
+Pagination verification: 21 backend and 24 QML checks pass on Qt 6.9.2. A temporary 12,000-root archive returns bounded pages and finds its oldest record; feed, search and diagnostic snapshot took 25 ms together on this host. A 115-reply test covers page traversal without duplicates, complete counts, unloaded-reply search and locating newly submitted replies. UI checks exercise next/previous navigation, filter resets, and scrolling to a submitted reply beyond the first page. The updated build also passes private Basecamp relay/restart/Store recovery and isolated release installation (`artifacts/network-pagination-check/result.json`, `artifacts/release-pagination-check/result.json`). This is not a sustained memory or network benchmark. Evidence: `artifacts/pagination-verification.json`.

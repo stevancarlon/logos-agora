@@ -7,6 +7,7 @@ Rectangle {
     objectName: "attachment-" + attachment.id
     required property var attachment
     required property var controller
+    readonly property bool available: attachment.available !== false
     property var preview: null
     property color ink: "#e6e8df"
     property color muted: "#a7b2a9"
@@ -26,14 +27,16 @@ Rectangle {
             id: attachment.id
         });
     }
-    Component.onCompleted: controller.call({
+    function loadPreview() { if (!available) return; controller.call({
         op: "attachmentPreview",
         id: attachment.id
     }, function (r) {
         // Basecamp replies asynchronously; the list may have destroyed this card.
         if (card)
             card.preview = r.image;
-    })
+    }); }
+    Component.onCompleted: loadPreview()
+    onAvailableChanged: loadPreview()
     ColumnLayout {
         id: content
         anchors.left: parent.left
@@ -76,7 +79,7 @@ Rectangle {
             }
             Text {
                 anchors.centerIn: parent
-                visible: !card.preview && !card.video
+                visible: !card.preview && !card.video && card.available
                 text: card.pdf ? "PDF" : card.video ? "VIDEO" : "IMAGE"
                 color: card.muted
                 font.pixelSize: 22
@@ -84,20 +87,32 @@ Rectangle {
             MouseArea {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
-                enabled: !card.video
+                enabled: !card.video && card.available
                 onClicked: card.openFile()
             }
             Loader {
                 id: videoLoader
                 anchors.fill: parent
-                active: card.video
-                Component.onCompleted: if (active)
+                active: card.video && card.available
+                function loadVideo() { if (active && String(source) === "")
                     setSource("InlineVideo.qml", {
                         attachmentId: card.attachment.id,
                         controller: card.controller,
                         ink: card.ink,
                         muted: card.muted
-                    })
+                    }); }
+                onActiveChanged: loadVideo()
+                Component.onCompleted: loadVideo()
+            }
+            ForumButton {
+                objectName: "fetchAttachment"
+                implicitHeight: 40
+                anchors.centerIn: parent
+                visible: !card.available
+                enabled: !card.controller.transferBusy
+                text: card.controller.transferBusy && card.controller.transferState.id === card.attachment.id ? "Fetching…" : "Fetch " + (card.attachment.bytes >= 1048576 ? (card.attachment.bytes / 1048576).toFixed(1) + " MB" : Math.ceil(card.attachment.bytes / 1024) + " KB")
+                Accessible.name: "Fetch attachment " + card.attachment.name
+                onClicked: card.controller.transferFile(card.attachment.id, "attachmentFetch", function () {})
             }
             Connections {
                 target: videoLoader.item
@@ -127,13 +142,13 @@ Rectangle {
         Text {
             visible: !card.video
             Layout.fillWidth: true
-            text: (card.pdf ? "PDF" : card.video ? "Video" : "Image") + " · " + (card.attachment.bytes >= 1048576 ? (card.attachment.bytes / 1048576).toFixed(1) + " MB" : Math.ceil(card.attachment.bytes / 1024) + " KB") + " · Local file"
+            text: (card.pdf ? "PDF" : card.video ? "Video" : "Image") + " · " + (card.attachment.bytes >= 1048576 ? (card.attachment.bytes / 1048576).toFixed(1) + " MB" : Math.ceil(card.attachment.bytes / 1024) + " KB") + (card.available ? " · On this device" : " · Logos Storage")
             color: card.muted
             font.family: "Adwaita Sans"
             font.pixelSize: 11
         }
         RowLayout {
-            visible: !card.video
+            visible: !card.video && card.available
             Layout.fillWidth: true
             ForumButton {
                 visible: !card.video

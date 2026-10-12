@@ -21,6 +21,7 @@
 #include <memory>
 #include <openssl/evp.h>
 #include <stdexcept>
+#include <cmath>
 
 namespace {
 using Key = std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)>;
@@ -63,6 +64,20 @@ QByteArray canonical(const QJsonObject &o) {
 QString hash(const QByteArray &b) {
   return QString::fromLatin1(
       QCryptographicHash::hash(b, QCryptographicHash::Sha256).toHex());
+}
+bool validCid(const QString &cid) {
+  return QRegularExpression("^[a-zA-Z0-9]{20,160}$").match(cid).hasMatch();
+}
+void validateAttachmentManifest(const QJsonObject &file) {
+  const auto name=file["name"].toString(), mime=file["mime"].toString();
+  const auto size=file["bytes"].toDouble(-1);
+  require(!name.isEmpty() && name.size()<=180 && !name.contains('/') && !name.contains('\\') &&
+          !name.contains(QChar(0)) && name != "." && name != "..", "Invalid attachment name");
+  for (const auto ch : name) require(ch.category()!=QChar::Other_Control, "Invalid attachment name");
+  require(QStringList{"image/png","image/jpeg","video/mp4","video/webm","application/pdf"}.contains(mime), "Unsupported attachment type");
+  require(size>0 && size<=64*1024*1024 && size==double(qint64(size)), "Invalid attachment size");
+  require(validCid(file["cid"].toString()), "Invalid Storage content ID");
+  require(QRegularExpression("^[a-f0-9]{64}$").match(file["sha256"].toString()).hasMatch(), "Invalid attachment checksum");
 }
 QPair<QByteArray, QByteArray> keys() {
   EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_ED25519, nullptr);
@@ -131,6 +146,7 @@ ForumBackend::ForumBackend(QObject *parent) : QObject(parent) {
   }
 }
 ForumBackend::~ForumBackend() {
+  delete m_transfer; m_transfer=nullptr;
   if (m_db.isOpen())
     m_db.close();
   auto name = m_db.connectionName();
@@ -174,6 +190,26 @@ void ForumBackend::initialize() {
   query(m_db,
         "CREATE INDEX IF NOT EXISTS post_queue ON posts(status,next_try)");
   query(m_db, "CREATE TABLE IF NOT EXISTS attachments (id TEXT PRIMARY KEY, post TEXT NOT NULL DEFAULT '', name TEXT NOT NULL, mime TEXT NOT NULL, bytes INTEGER NOT NULL, path TEXT NOT NULL, preview BLOB)");
+  QStringList attachmentColumns;
+  auto columns=query(m_db,"PRAGMA table_info(attachments)");
+  while(columns.next()) attachmentColumns.append(columns.value(1).toString());
+  for (const auto &column : QStringList{"cid","sha256"})
+    if (!attachmentColumns.contains(column)) query(m_db,"ALTER TABLE attachments ADD COLUMN "+column+" TEXT NOT NULL DEFAULT ''");
+  query(m_db,"CREATE INDEX IF NOT EXISTS attachment_post ON attachments(post)");
+  QStringList postColumns;
+  auto postInfo=query(m_db,"PRAGMA table_info(posts)");
+  while(postInfo.next()) postColumns.append(postInfo.value(1).toString());
+  if(!postColumns.contains("search_text")) {
+    require(m_db.transaction(),"Cannot begin search migration");
+    try {
+      query(m_db,"ALTER TABLE posts ADD COLUMN search_text TEXT NOT NULL DEFAULT ''");
+      auto oldPosts=query(m_db,"SELECT id,title,body FROM posts");
+      while(oldPosts.next()) query(m_db,"UPDATE posts SET search_text=? WHERE id=?",
+        {(oldPosts.value(1).toString()+" "+oldPosts.value(2).toString()).toCaseFolded(),oldPosts.value(0)});
+      require(m_db.commit(),"Cannot finish search migration");
+    } catch(...) {m_db.rollback();throw;}
+  }
+  query(m_db,"CREATE INDEX IF NOT EXISTS post_page ON posts(thread,created,id)");
   query(m_db, "CREATE TABLE IF NOT EXISTS bookmarks (id TEXT PRIMARY KEY)");
   query(m_db, "CREATE TABLE IF NOT EXISTS drafts (id TEXT PRIMARY KEY, body "
               "TEXT NOT NULL)");
@@ -203,6 +239,21 @@ QJsonObject ForumBackend::identity(const QString &name) {
   return {{"id", uid}, {"alias", alias}};
 }
 QString ForumBackend::receiveBytes(const QByteArray &bytes) {
+  // Limit live intake before parsing, canonicalization or signature work. Store
+  // pages use their separate bounded recovery path so a burst cannot strand the
+  // saved history cursor beyond messages we temporarily declined.
+  if (bytes.size() > 65536)
+    return json({{"ok",false},{"error","Envelope exceeds 64 KiB"}});
+  if (!m_intakeClock.isValid()) m_intakeClock.start();
+  const auto elapsed=m_intakeClock.nsecsElapsed();
+  m_intakeTokens=qMin(240.,m_intakeTokens+(elapsed-m_intakeLastNs)*4./1e9);
+  m_intakeLastNs=elapsed;
+  if(m_intakeTokens<1.) {
+    ++m_rateLimited;
+    return json({{"ok",false},{"rateLimited",true},{"retryAfterMs",int(std::ceil((1.-m_intakeTokens)/0.004))},
+                 {"error","Live message intake limited; recover missed posts from Store"}});
+  }
+  m_intakeTokens-=1.;
   return dispatch(
       json({{"op", "receive"}, {"wire", QString::fromUtf8(bytes)}}));
 }
@@ -217,18 +268,12 @@ QString ForumBackend::dispatch(const QString &request) {
     return json({{"ok", false}, {"error", QString::fromUtf8(e.what())}});
   }
 }
-QJsonObject ForumBackend::snapshot() {
-  QJsonArray identities, posts, saved;
-  QJsonObject drafts;
-  auto q = query(m_db, "SELECT id,alias FROM identities ORDER BY created");
-  while (q.next())
-    identities.append(QJsonObject{{"id", q.value(0).toString()},
-                                  {"alias", q.value(1).toString()}});
-  q = query(
+QJsonObject ForumBackend::postRecord(const QString &pid) {
+  auto q = query(
       m_db,
       "SELECT id,thread,board,title,body,author,mode,pub,created,status,error "
-      "FROM posts ORDER BY created LIMIT 10000");
-  while (q.next()) {
+      "FROM posts WHERE id=?", {pid});
+  if (q.next()) {
     QJsonObject p;
     QStringList names = {"id",      "thread", "board", "title",
                          "body",    "author", "mode",  "pub",
@@ -238,11 +283,107 @@ QJsonObject ForumBackend::snapshot() {
                            : QJsonValue(q.value(i).toString());
     p["authorId"] = p["pub"].toString().isEmpty() ? QString() : hash(QByteArray::fromBase64(p["pub"].toString().toLatin1()));
     QJsonArray files;
-    auto aq = query(m_db, "SELECT id,name,mime,bytes FROM attachments WHERE post=? ORDER BY rowid", {p["id"].toString()});
-    while (aq.next()) files.append(QJsonObject{{"id",aq.value(0).toString()},{"name",aq.value(1).toString()},{"mime",aq.value(2).toString()},{"bytes",aq.value(3).toDouble()}});
+    auto aq = query(m_db, "SELECT id,name,mime,bytes,cid,sha256,path FROM attachments WHERE post=? ORDER BY rowid", {p["id"].toString()});
+    while (aq.next()) files.append(QJsonObject{{"id",aq.value(0).toString()},{"name",aq.value(1).toString()},{"mime",aq.value(2).toString()},{"bytes",aq.value(3).toDouble()},{"cid",aq.value(4).toString()},{"sha256",aq.value(5).toString()},{"available",QFileInfo::exists(aq.value(6).toString())}});
     p["attachments"] = files;
-    posts.append(p);
+    return p;
   }
+  return {};
+}
+QJsonObject ForumBackend::browse(const QJsonObject &options) {
+  const auto view=options["view"].toString("recent");
+  const auto thread=options["thread"].toString();
+  const auto board=options["board"].toString("all");
+  const auto search=options["search"].toString().trimmed().toCaseFolded();
+  const auto sorting=options["sort"].toString("activity");
+  require(QStringList{"recent","feed","thread"}.contains(view),"Unknown browsing view");
+  require(board=="all" || boards.contains(board),"Unknown board");
+  require(search.size()<=200,"Search is limited to 200 characters");
+  require(QStringList{"activity","newest","replies"}.contains(sorting),"Unknown sort order");
+  const int limit=qBound(1,options["limit"].toInt(view=="thread"?50:30),100);
+  const auto context=hash(canonical({{"view",view},{"thread",thread},{"board",board},
+    {"search",search},{"sort",sorting},{"saved",options["saved"].toBool()}}));
+  const auto cursor=options["cursor"].toString();
+  QJsonObject after;
+  if(!cursor.isEmpty()) {
+    require(cursor.size()<=1024,"Invalid page cursor");
+    after=object(QString::fromUtf8(QByteArray::fromBase64(cursor.toLatin1(),QByteArray::Base64UrlEncoding|QByteArray::AbortOnBase64DecodingErrors)));
+    require(after["context"].toString()==context && after["score"].toDouble(-1)>=0 && after["score"].toDouble()>-1 && after["score"].toDouble()<=9e15 &&
+      after["created"].toDouble(-1)>=0 && after["created"].toDouble()<=9e15 &&
+      QRegularExpression("^[a-f0-9]{64}$").match(after["id"].toString()).hasMatch(),"Cursor does not match this view");
+  }
+  QJsonArray posts;
+  QJsonObject last;
+  bool more=false;
+  if(view=="recent") {
+    auto rows=query(m_db,"SELECT id FROM (SELECT id,rowid FROM posts ORDER BY rowid DESC LIMIT 200) ORDER BY rowid");
+    while(rows.next()) posts.append(postRecord(rows.value(0).toString()));
+  } else if(view=="thread") {
+    require(QRegularExpression("^[a-f0-9]{64}$").match(thread).hasMatch(),"Invalid thread ID");
+    auto root=postRecord(thread);
+    if(!root.isEmpty() && root["thread"].toString().isEmpty()) {
+      auto stats=query(m_db,"SELECT COUNT(*),MAX(created) FROM posts WHERE thread=? AND board=?",{thread,root["board"].toString()});
+      stats.next();root["replyCount"]=stats.value(0).toInt();
+      root["lastActivity"]=qMax(root["created"].toDouble(),stats.value(1).toDouble());posts.append(root);
+      if(options.contains("anchor")) {
+        auto target=query(m_db,"SELECT created,id FROM posts WHERE id=? AND thread=? AND board=?",{options["anchor"].toString(),thread,root["board"].toString()});
+        require(target.next(),"Reply is not part of this thread");
+        auto before=query(m_db,"SELECT id,created FROM posts WHERE thread=? AND board=? AND (created<? OR (created=? AND id<=?)) ORDER BY created DESC,id DESC LIMIT 1 OFFSET ?",{thread,root["board"].toString(),target.value(0),target.value(0),target.value(1),limit});
+        if(before.next()) after={{"id",before.value(0).toString()},{"created",before.value(1).toDouble()},{"score",before.value(1).toDouble()},{"context",context}};
+      }
+      QString sql="SELECT id,created FROM posts WHERE thread=? AND board=?";
+      QVariantList values{thread,root["board"].toString()};
+      if(!after.isEmpty()) {sql+=" AND (created>? OR (created=? AND id>?))";values<<after["created"].toDouble()<<after["created"].toDouble()<<after["id"].toString();}
+      sql+=" ORDER BY created,id LIMIT ?";values<<limit+1;
+      auto rows=query(m_db,sql,values);int count=0;
+      while(rows.next()) {
+        if(count++==limit) {more=true;break;}
+        posts.append(postRecord(rows.value(0).toString()));
+        last={{"created",rows.value(1).toDouble()},{"score",rows.value(1).toDouble()},{"id",rows.value(0).toString()}};
+      }
+    }
+  } else {
+    QString where="p.thread=''";
+    QVariantList values;
+    if(board!="all") {where+=" AND p.board=?";values<<board;}
+    if(options["saved"].toBool()) where+=" AND EXISTS(SELECT 1 FROM bookmarks b WHERE b.id=p.id)";
+    if(!search.isEmpty()) {
+      where+=" AND (instr(p.search_text,?)>0 OR EXISTS(SELECT 1 FROM posts r WHERE r.thread=p.id AND r.board=p.board AND instr(r.search_text,?)>0))";
+      values<<search<<search;
+    }
+    const auto count="(SELECT COUNT(*) FROM posts r WHERE r.thread=p.id AND r.board=p.board)";
+    const auto activity="MAX(p.created,COALESCE((SELECT MAX(created) FROM posts r WHERE r.thread=p.id AND r.board=p.board),p.created))";
+    const QString score=sorting=="replies"?count:sorting=="newest"?"p.created":activity;
+    QString sql="WITH ranked AS (SELECT p.id,p.created,"+QString(count)+" AS replyCount,"+activity+" AS activity,"+score+" AS score FROM posts p WHERE "+where+") SELECT * FROM ranked";
+    if(!after.isEmpty()) {
+      sql+=" WHERE (score<? OR (score=? AND (created<? OR (created=? AND id<?))))";
+      values<<after["score"].toDouble()<<after["score"].toDouble()<<after["created"].toDouble()<<after["created"].toDouble()<<after["id"].toString();
+    }
+    sql+=" ORDER BY score DESC,created DESC,id DESC LIMIT ?";values<<limit+1;
+    auto rows=query(m_db,sql,values);int n=0;
+    while(rows.next()) {
+      if(n++==limit) {more=true;break;}
+      auto root=postRecord(rows.value(0).toString());
+      root["replyCount"]=rows.value(2).toInt(); root["lastActivity"]=rows.value(3).toDouble();posts.append(root);
+      auto latest=query(m_db,"SELECT id FROM posts WHERE thread=? AND board=? ORDER BY created DESC,id DESC LIMIT 1",{root["id"].toString(),root["board"].toString()});
+      if(latest.next()) posts.append(postRecord(latest.value(0).toString()));
+      last={{"created",rows.value(1).toDouble()},{"score",rows.value(4).toDouble()},{"id",rows.value(0).toString()}};
+    }
+  }
+  QString next;
+  if(more) {last["context"]=context;next=QString::fromLatin1(canonical(last).toBase64(QByteArray::Base64UrlEncoding|QByteArray::OmitTrailingEquals));}
+  const auto pageCursor=after.isEmpty()?QString():QString::fromLatin1(canonical(after).toBase64(QByteArray::Base64UrlEncoding|QByteArray::OmitTrailingEquals));
+  return {{"pageCursor",pageCursor},{"posts",posts},{"view",view},{"threadId",thread},{"hasMore",more},{"nextCursor",next}};
+}
+QJsonObject ForumBackend::snapshot(const QJsonObject &options) {
+  auto listing=browse(options);
+  QJsonArray identities, saved;
+  const auto posts=listing["posts"].toArray();
+  QJsonObject drafts;
+  auto q = query(m_db, "SELECT id,alias FROM identities ORDER BY created");
+  while (q.next())
+    identities.append(QJsonObject{{"id", q.value(0).toString()},
+                                  {"alias", q.value(1).toString()}});
   q = query(m_db, "SELECT id FROM bookmarks");
   while (q.next())
     saved.append(q.value(0).toString());
@@ -259,7 +400,8 @@ QJsonObject ForumBackend::snapshot() {
       avatarValue = QJsonObject{{"size",64},{"pixels",pixels}};
     }
   }
-  return {{"posts", posts},
+  return {{"posts", posts},{"view",listing["view"]},{"threadId",listing["threadId"]},{"hasMore",listing["hasMore"]},{"nextCursor",listing["nextCursor"]},
+          {"liveMessagesDeferred",double(m_rateLimited)},
           {"identities", identities},
           {"saved", saved},
           {"drafts", drafts},
@@ -268,6 +410,7 @@ QJsonObject ForumBackend::snapshot() {
           {"theme", setting("theme", "dark")},
           {"avatar", avatarValue},
           {"rotate", setting("rotate", "false") == "true"},
+          {"storageEndpoint",setting("storageEndpoint")},
           {"historyPeer", setting("historyPeer")},
           {"historyCursor", setting("historyCursor")}};
 }
@@ -307,19 +450,31 @@ QJsonObject ForumBackend::post(const QJsonObject &cmd) {
       {"title", title},   {"body", body},
       {"mode", mode},     {"author", author},
       {"pub", pub},       {"created", static_cast<double>(now())}};
-  QByteArray bytes = canonical(envelope);
-  QString pid = hash(bytes);
-  QJsonObject wire{
-      {"id", pid},
-      {"payload", envelope},
-      {"signature", mode == "anonymous" ? QString() : sign(bytes, secret)}};
   auto attachments = cmd["attachments"].toArray();
   require(attachments.size() <= 4, "Attach at most four files per post");
-  bool localOnly = !attachments.isEmpty();
+  QJsonArray manifests;
+  bool localOnly = false;
+  for (const auto &value : attachments) {
+    auto file=query(m_db,"SELECT name,mime,bytes,cid,sha256 FROM attachments WHERE id=? AND post=''",{value.toString()});
+    require(file.next(),"Attachment is unavailable or already used");
+    if (file.value(3).toString().isEmpty()) localOnly=true;
+    else {
+      QJsonObject manifest{{"name",file.value(0).toString()},{"mime",file.value(1).toString()},
+        {"bytes",file.value(2).toDouble()},{"cid",file.value(3).toString()},{"sha256",file.value(4).toString()}};
+      validateAttachmentManifest(manifest); manifests.append(manifest);
+    }
+  }
   if (!thread.isEmpty()) {
     auto parent = query(m_db, "SELECT status FROM posts WHERE id=?", {thread});
     if (parent.next() && parent.value(0).toString() == "local") localOnly = true;
   }
+  if (!attachments.isEmpty() && !localOnly) {
+    envelope["v"]=2; envelope["attachments"]=manifests;
+  }
+  QByteArray bytes = canonical(envelope);
+  QString pid = hash(bytes);
+  QJsonObject wire{{"id",pid},{"payload",envelope},
+    {"signature",mode == "anonymous" ? QString() : sign(bytes,secret)}};
   require(m_db.transaction(), "Cannot begin transaction");
   try {
     for (const auto &value : attachments) {
@@ -333,6 +488,7 @@ QJsonObject ForumBackend::post(const QJsonObject &cmd) {
           "status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
           {pid, thread, board, title, body, author, mode, pub, now(), now(),
            json(wire), localOnly ? "local" : "queued"});
+    query(m_db,"UPDATE posts SET search_text=? WHERE id=?",{(title+" "+body).toCaseFolded(),pid});
     query(m_db, "DELETE FROM drafts WHERE id=?",
           {thread.isEmpty() ? QString("new") : thread});
     if (setting("rotate", "false") == "true" && thread.isEmpty() &&
@@ -348,6 +504,55 @@ QJsonObject ForumBackend::post(const QJsonObject &cmd) {
 }
 QJsonObject ForumBackend::attachment(const QJsonObject &c) {
   const auto op = c["op"].toString();
+  if (op == "attachmentTransfer")
+    return {{"transfer",m_transfer ? m_transfer->state() : QJsonObject()}};
+  if (op == "attachmentCancel") { if(m_transfer) m_transfer->cancel(); return {}; }
+  if (op == "attachmentUpload" || op == "attachmentFetch") {
+    const bool upload=op=="attachmentUpload";
+    auto q=query(m_db,"SELECT name,mime,bytes,path,cid,sha256,post FROM attachments WHERE id=?",{c["id"].toString()});
+    require(q.next(),"Attachment not found");
+    require(!upload || q.value(6).toString().isEmpty(),"Only unattached files can be uploaded");
+    if(upload && !q.value(4).toString().isEmpty()) return {{"alreadyAvailable",true}};
+    if(!upload && QFileInfo::exists(q.value(3).toString())) return {{"alreadyAvailable",true}};
+    QJsonObject file{{"name",q.value(0).toString()},{"mime",q.value(1).toString()},
+      {"bytes",q.value(2).toDouble()},{"cid",q.value(4).toString()},{"sha256",q.value(5).toString()}};
+    auto path=q.value(3).toString();
+    const auto directory=QFileInfo(m_db.databaseName()).absolutePath()+"/attachments";
+    if(upload) require(QFileInfo(path).isFile() && QFileInfo(path).canonicalFilePath().startsWith(QFileInfo(directory).canonicalFilePath()+"/"),"File is outside attachment storage");
+    else {
+      require(QDir().mkpath(directory),"Cannot create attachment directory");
+      QFile::setPermissions(directory,QFile::ReadOwner|QFile::WriteOwner|QFile::ExeOwner);
+      path=directory+"/transfer-"+id();
+    }
+    if(!m_transfer) {
+      m_transfer=new StorageTransfer(this);
+      connect(m_transfer,&StorageTransfer::completed,this,[this](const QJsonObject &result){
+        if(!result["error"].toString().isEmpty()) return;
+        const bool upload=result["action"].toString()=="upload";
+        const auto path=result["path"].toString();
+        try {
+          if(upload) query(m_db,"UPDATE attachments SET cid=?,sha256=? WHERE id=? AND post=''",
+            {result["cid"].toString(),result["sha256"].toString(),result["id"].toString()});
+          else {
+            const auto imported=attachment({{"op","attachmentImport"},{"file",QUrl::fromLocalFile(path).toString()}})["attachment"].toObject()["id"].toString();
+            require(m_db.transaction(),"Cannot save attachment download");
+            try {
+              query(m_db,"UPDATE attachments SET path=(SELECT path FROM attachments WHERE id=?),preview=(SELECT preview FROM attachments WHERE id=?) WHERE id=?",{imported,imported,result["id"].toString()});
+              query(m_db,"DELETE FROM attachments WHERE id=?",{imported});
+              require(m_db.commit(),"Cannot commit attachment download");
+            } catch(...) {m_db.rollback();throw;}
+            QFile::remove(path);
+          }
+          emit changed();
+        } catch(const std::exception &e) {
+          if(!upload) QFile::remove(path);
+          m_transfer->failCompletion(QString::fromUtf8(e.what()));
+        }
+      });
+    }
+    m_transfer->start(c["id"].toString(),file,setting("storageEndpoint"),path,upload);
+    return {{"transfer",m_transfer->state()}};
+  }
   if (op == "attachmentVideo") {
     const auto action = c["action"].toString();
     require(QStringList{"play","pause","stop","seek","volume","mute","state"}.contains(action),"Unknown video action");
@@ -410,7 +615,7 @@ QJsonObject ForumBackend::attachment(const QJsonObject &c) {
       QBuffer buffer(&png); buffer.open(QIODevice::WriteOnly); preview.save(&buffer,"PNG");
     }
     const auto name = QFileInfo(url.toLocalFile()).fileName().left(180);
-    try { query(m_db,"INSERT INTO attachments (id,name,mime,bytes,path,preview) VALUES (?,?,?,?,?,?)",{aid,name,mime,bytes.size(),path,png}); }
+    try { query(m_db,"INSERT INTO attachments (id,name,mime,bytes,path,preview,sha256) VALUES (?,?,?,?,?,?,?)",{aid,name,mime,bytes.size(),path,png,hash(bytes)}); }
     catch (...) { QFile::remove(path); throw; }
     return {{"attachment",QJsonObject{{"id",aid},{"name",name},{"mime",mime},{"bytes",bytes.size()}}}};
   }
@@ -445,7 +650,7 @@ QJsonObject ForumBackend::receive(const QString &wire) {
   auto w = object(wire), p = w["payload"].toObject();
   auto bytes = canonical(p);
   auto pid = w["id"].toString();
-  require(pid == hash(bytes) && p["v"].toInt() == 1,
+  require(pid == hash(bytes) && (p["v"].toInt() == 1 || p["v"].toInt() == 2),
           "Invalid version or content hash");
   QString body = p["body"].toString(), thread = p["thread"].toString(),
           board = p["board"].toString(), title = p["title"].toString(),
@@ -483,23 +688,46 @@ QJsonObject ForumBackend::receive(const QString &wire) {
       require(parent.value(0).toString() == board,
               "Reply board does not match thread");
   }
+  const auto files=p.value("attachments").toArray();
+  if (p["v"].toInt()==2) {
+    require(p["attachments"].isArray() && !files.isEmpty() && files.size()<=4,"Invalid attachment list");
+    for (const auto &file : files) validateAttachmentManifest(file.toObject());
+  } else require(!p.contains("attachments"),"Attachments require protocol v2");
   auto exists = query(m_db, "SELECT id FROM posts WHERE id=?", {pid});
   if (exists.next())
     return {{"duplicate", true}};
+  require(m_db.transaction(),"Cannot begin received-post transaction");
+  try {
   query(m_db,
         "INSERT INTO posts "
         "(id,thread,board,title,body,author,mode,pub,created,received,wire,"
         "status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
         {pid, thread, board, title, body, author, mode, pub, created, now(),
          wire, "received"});
+    query(m_db,"UPDATE posts SET search_text=? WHERE id=?",{(title+" "+body).toCaseFolded(),pid});
+    for(int index=0;index<files.size();++index) {
+      auto file=files[index].toObject();
+      query(m_db,"INSERT INTO attachments (id,post,name,mime,bytes,path,cid,sha256) VALUES (?,?,?,?,?,'',?,?)",
+        {pid+"-"+QString::number(index),pid,file["name"].toString(),file["mime"].toString(),
+         file["bytes"].toDouble(),file["cid"].toString(),file["sha256"].toString()});
+    }
+    require(m_db.commit(),"Cannot commit received post");
+  } catch (...) { m_db.rollback(); throw; }
+
   emit changed();
   return {{"id", pid}, {"duplicate", false}};
 }
 QJsonObject ForumBackend::execute(const QJsonObject &c) {
   auto op = c["op"].toString();
+  if(op=="postInfo") return {{"post",postRecord(c["id"].toString())}};
+  if(op=="replyPage") {
+    const auto reply=postRecord(c["id"].toString());
+    require(!reply.isEmpty() && !reply["thread"].toString().isEmpty(),"Reply not found");
+    return browse({{"view","thread"},{"thread",reply["thread"]},{"anchor",reply["id"]},{"limit",50}});
+  }
   if (op.startsWith("attachment")) return attachment(c);
   if (op == "snapshot")
-    return snapshot();
+    return snapshot(c);
   if (op == "avatar") {
     const auto key = "avatar/" + setting("active");
     if (c["remove"].toBool()) {
@@ -577,6 +805,12 @@ QJsonObject ForumBackend::execute(const QJsonObject &c) {
     return out;
   }
   if (op == "settings") {
+    if(c.contains("storageEndpoint")) {
+      const auto endpoint=c["storageEndpoint"].toString().trimmed();
+      require(endpoint.isEmpty() || StorageTransfer::validEndpoint(endpoint),"Use your local node URL: http://127.0.0.1:PORT/api/storage/v1");
+      setSetting("storageEndpoint",endpoint);
+    }
+
     if (c.contains("active")) {
       auto q = query(m_db, "SELECT id FROM identities WHERE id=?",
                      {c["active"].toString()});
