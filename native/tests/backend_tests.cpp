@@ -48,6 +48,15 @@ private slots:
     QVERIFY(attachmentMime(quicktime)!=QString("video/mp4"));
     QVERIFY(attachmentMime(QByteArray("not a movie.mp4"))!=QString("video/mp4"));
   }
+  void importsWebmContentAcrossPlatforms() {
+    const auto path=QFINDTESTDATA("../../design/agora/demo-media/playback-test.webm");
+    QFile sample(path);
+    QVERIFY(sample.open(QIODevice::ReadOnly));
+    const auto detected=QMimeDatabase().mimeTypeForData(sample.peek(65536)).name();
+    const auto imported=call({{"op","attachmentImport"},{"file",QUrl::fromLocalFile(path).toString()}});
+    QVERIFY2(imported["ok"].toBool(), qPrintable(QString::fromUtf8(QJsonDocument(imported).toJson())+" detected="+detected));
+    QCOMPARE(imported["attachment"].toObject()["mime"].toString(), QString("video/webm"));
+  }
   void largeArchiveKeepsPagesBounded() {
     // Synthetic database fixture only: these rows are never sent over Delivery.
     const QString connection="archive-fixture";

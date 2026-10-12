@@ -23,6 +23,7 @@
             stop();
         }
         onTriggered: {
+            if (forum.error) { fail(forum.error); return; }
             if (player && stage >= 2 && player.failure) { fail(player.failure); return; }
             if (stage === 0 && forum.ready) {
                 stage = -1;
