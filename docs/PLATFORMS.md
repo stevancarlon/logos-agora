@@ -64,5 +64,11 @@ Intel-compatible host or claim this host build is an official upstream binary.
 The official Delivery 0.3.2 LGX also lacks an Intel Mac variant. A separate pinned
 source build initially failed because the Nim C linker omitted Darwin's C++
 runtime despite linking BoringSSL/Leopard C++ objects. The Intel workflow now
-adds `-lc++` to a copied, pinned source input. Its [build passed](https://github.com/stevancarlon/logos-agora/actions/runs/38196226650);
-loading it together with Agora in Intel Basecamp remains unverified.
+adds `-lc++` to a copied, pinned source input. Its [development build passed](https://github.com/stevancarlon/logos-agora/actions/runs/38196226650),
+but artifact inspection found a `darwin-amd64-dev` variant with Nix store
+library dependencies. That package is not suitable for distribution. The
+workflow now builds `lgx-portable` and checks the portable variant, each dylib's
+Intel architecture and absence of Nix store load paths. Actual installation
+and MP4/WebM checks are prepared in `intel-host-check.yml`; they require
+successful portable Basecamp and Delivery run IDs. Loading these together
+remains unverified.
