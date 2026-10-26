@@ -1,9 +1,8 @@
 name: Intel Mac Delivery package
+# Pinned upstream dependency builds are dispatched deliberately. Tag pushes
+# ignore path filters and previously rebuilt both dependencies on every release.
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - .github/workflows/delivery-intel.yml
 permissions:
   contents: read
 concurrency:
