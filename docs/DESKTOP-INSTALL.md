@@ -1,9 +1,6 @@
-# Desktop installation kits — development status
+# Desktop installation kits — 0.3.1 alpha
 
-Only the Linux alpha is currently published. Mac and Windows kits are development
-artifacts, not a supported public release. See [PLATFORMS.md](PLATFORMS.md) for
-actual host results. Intel Mac additionally needs verified native Basecamp and
-Delivery builds; the official ARM downloads cannot be used as Intel binaries.
+The [0.3.1 alpha release](https://github.com/stevancarlon/logos-agora/releases/tag/v0.3.1-alpha.1) includes Linux, Mac and Windows kits. See [PLATFORMS.md](PLATFORMS.md) for the verified scope and remaining limits. For Intel Mac use the release's INTEL-MAC-QUICKSTART.txt and included Intel Basecamp/Delivery packages; official ARM downloads cannot be substituted.
 
 Each kit contains the compiled Agora backend, renderer, QML interface and
 installation scripts. Installation does not compile Agora and does not replace
@@ -11,8 +8,9 @@ its SQLite database or identities. Close Basecamp before updating a kit.
 
 ## Prerequisites
 
-- Basecamp 0.3.2 and the official Delivery 0.3.2 module installed through its package
-  manager. The companion runtime does not supply Delivery.
+- Basecamp 0.3.2 and Delivery installed through its package manager. Intel Mac uses
+  the release's pinned Intel builds; other platforms use official packages.
+  The companion runtime does not supply Delivery.
 - Python 3.12 or newer to run the installer.
 - On macOS, Apple Command Line Tools providing `install_name_tool` and `codesign`
   for dependency relocation and local signatures. Agora itself is not compiled.
@@ -47,13 +45,10 @@ or notarization.
 
 The development archive has passed installation, corruption rejection and actual
 Basecamp MP4 and WebM playback on a Windows runner ([verified run](https://github.com/stevancarlon/logos-agora/actions/runs/40334755297)).
-It is not yet a published release. The matching runtime includes FFmpeg;
+The current release includes the verified Windows kit and matching FFmpeg runtime;
 audio hardware and cross-machine exchange have not yet been verified.
 
-Download the `agora-kit-windows-amd64-development` artifact from that run and the
-`agora-windows-matching-qt` artifact from its pinned [runtime build](https://github.com/stevancarlon/logos-agora/actions/runs/40332849297).
-Extract both ZIP files and their `.tar.gz` archives. Keep the runtime's
-`windows-matched/qt-version.txt` beside its `qt` directory. With official
+Download `agora-0.3.1-windows-amd64.tar.gz`, `agora-windows-matching-qt.tar.gz` and `agora-windows-runtime-sources.tar.gz` from the 0.3.1 release. Verify them against SHA256SUMS and extract the kit/runtime archives. Keep the runtime's `windows-matched/qt-version.txt` beside its `qt` directory. The source companion carries upstream sources, notices and build references. With official
 Basecamp 0.3.2 and Delivery installed, run from the extracted Agora kit in PowerShell:
 
 ```powershell

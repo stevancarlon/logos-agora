@@ -1,4 +1,4 @@
-# FURPS self-assessment — native 0.3.1 candidate
+# FURPS self-assessment — native 0.3.1 alpha
 
 | Area | Evidence | Remaining acceptance work |
 | --- | --- | --- |
@@ -6,9 +6,9 @@
 | Usability | Compact native QML UI, persistent composers, plain text selection, keyboard-accessible controls, narrow layout tests | User usability feedback and assistive technology validation |
 | Reliability | SQLite WAL/transactions, crash recovery, durable outbox, signature rejection, deduplication, early-ack and failure tests | Long-running loss/reconnect tests against real peers; backup/restore UI |
 | Performance | Single in-flight send, five-second pacing, exponential retry, 50-message history pages, 64 KiB envelopes, live intake budget, coalesced snapshots and database-backed feed/reply pages | Sustained resource measurements, stronger moderation |
-| Supportability | C++17/QML source, build/install scripts, green default-branch CI, published unsigned Linux alpha/catalog, dual license, verified Linux/Windows/Apple Silicon Basecamp loading and media | Intel Mac host integration, published desktop kits, full narrated demo |
+| Supportability | C++17/QML source, build/install scripts, green default-branch CI, published unsigned desktop alpha/catalog, dual license, verified Linux/Windows/Apple Silicon Basecamp loading and media | Full narrated demo and cross-machine acceptance |
 
-Current evidence (26 October 2026): [default-branch Linux checks](https://github.com/stevancarlon/logos-agora/actions/runs/40337478339) and [desktop checks](https://github.com/stevancarlon/logos-agora/actions/runs/40337478401) pass 23 backend and 24 QML tests per target. Windows and Apple Silicon archives additionally pass actual Basecamp MP4/WebM playback; see [platform evidence and limits](PLATFORMS.md). Intel host integration, cross-machine exchange and authentic adoption remain open. The published release remains the unsigned Linux alpha, not the newer development archives. Its community-catalog GUI installation and actual UI/backend load also passed in a disposable Ubuntu/Xvfb desktop with the companion runtime; see [installation scope](../INSTALL.md).
+Current evidence (26 October 2026): [default-branch Linux checks](https://github.com/stevancarlon/logos-agora/actions/runs/40337478339) and [desktop checks](https://github.com/stevancarlon/logos-agora/actions/runs/40337478401) pass 23 backend and 24 QML tests per target. Windows and Apple Silicon archives additionally pass actual Basecamp MP4/WebM playback; see [platform evidence and limits](PLATFORMS.md). Intel host integration has now passed, and the 0.3.1 alpha publishes all four desktop kits. Cross-machine exchange and authentic adoption remain open. Its community-catalog GUI installation and actual UI/backend load also passed in a disposable Ubuntu/Xvfb desktop with the companion runtime; see [installation scope](../INSTALL.md).
 
 The dated results below are a verification history; earlier test counts and pending states are superseded by this current summary. Publisher signing, backup/restore UI, assistive-technology testing and sustained benchmarks are additional quality work, not claimed as explicit prize requirements. The required narrated end-to-end demo and authentic conversations are still incomplete.
 
