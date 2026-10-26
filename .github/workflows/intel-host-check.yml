@@ -1,0 +1,100 @@
+name: Intel Mac host check
+'on':
+  push:
+    paths:
+    - .github/workflows/intel-host-check.yml
+  workflow_dispatch:
+    inputs:
+      host_run:
+        description: Successful portable host build run ID
+        required: true
+      delivery_run:
+        description: Successful portable delivery build run ID
+        required: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  host:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: macos-15-intel
+    timeout-minutes: 40
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - run: brew install openssl@3
+    - run: pip install aqtinstall==3.3.0
+    - run: python -m aqt install-qt mac desktop 6.9.2 clang_64 -O "$RUNNER_TEMP/Qt" --modules qtmultimedia --archives qtbase qtdeclarative
+        qtmultimedia
+    - name: Build and test native application
+      run: OPENSSL_ROOT_DIR="$(brew --prefix openssl@3)" QMAKE="$RUNNER_TEMP/Qt/6.9.2/macos/bin/qmake" python3 scripts/build-native.py
+    - uses: actions/checkout@v4
+      with:
+        repository: logos-co/logos-package
+        ref: c25a1167578aef5cbd9a9b6f822ffe2ae4fd6a89
+        path: .tools/logos-package
+    - name: Build official validator and Intel installation kit
+      run: |
+        brew install libsodium icu4c nlohmann-json pkg-config
+        cmake -S .tools/logos-package -B "$RUNNER_TEMP/lgx" -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXE_LINKER_FLAGS="-L$(brew --prefix libsodium)/lib"
+        cmake --build "$RUNNER_TEMP/lgx" --target lgx --parallel 3
+        python3 scripts/build-release.py --variant darwin-amd64 --lgx "$RUNNER_TEMP/lgx/lgx"
+    - uses: actions/download-artifact@v4
+      with:
+        name: basecamp-0.3.2-darwin-amd64
+        run-id: ${{ inputs.host_run }}
+        github-token: ${{ github.token }}
+        path: ${{ runner.temp }}/host-download
+    - uses: actions/download-artifact@v4
+      with:
+        name: delivery-0.3.2-darwin-amd64
+        run-id: ${{ inputs.delivery_run }}
+        github-token: ${{ github.token }}
+        path: ${{ runner.temp }}/delivery-download
+    - name: Verify dependency archives and load Intel Agora
+      run: |
+        python3 - <<'PYCODE'
+        import hashlib, pathlib, tarfile, os
+        root = pathlib.Path(os.environ['RUNNER_TEMP'])
+        for folder, filename in [('host', 'logos-basecamp-0.3.2-intel-unsigned.app.tar.gz'), ('delivery', 'delivery_module-0.3.2-intel.lgx')]:
+            archive = root / (folder + '-download') / filename
+            expected = pathlib.Path(str(archive) + '.sha256').read_text().split()[0]
+            with archive.open('rb') as stream:
+                assert hashlib.file_digest(stream, 'sha256').hexdigest() == expected, 'Archive checksum mismatch'
+            if folder == 'host':
+                with tarfile.open(archive) as bundle:
+                    bundle.extractall(root / 'intel-host', filter='data')
+        PYCODE
+        app=$(find "$RUNNER_TEMP/intel-host" -maxdepth 1 -name '*.app' -print -quit)
+        test -n "$app"
+        python3 scripts/inspect-macos-host.py --app "$app" --output "$RUNNER_TEMP/basecamp-runtime.json"
+        kit=$(find artifacts -maxdepth 1 -name 'agora-*-darwin-amd64.tar.gz' -print -quit)
+        delivery="$RUNNER_TEMP/delivery-download/delivery_module-0.3.2-intel.lgx"
+        delivery_hash=$(cut -d ' ' -f1 "$delivery.sha256")
+        for format in mp4 webm; do
+          profile="$RUNNER_TEMP/agora-$format-profile"
+          mkdir -p "$profile"
+          touch "$profile/.agora-disposable-profile"
+          python3 scripts/check-desktop-kit-install.py --archive "$kit" --qt "$RUNNER_TEMP/Qt/6.9.2/macos" --app "$app" --profile "$profile" --runtime-dir "$RUNNER_TEMP/agora-$format-runtime" --launcher "$RUNNER_TEMP/launch-agora-$format" --output "$RUNNER_TEMP/agora-$format-kit-check"
+          python3 scripts/install-test-delivery.py --profile "$profile" --archive "$delivery" --expected-sha256 "$delivery_hash"
+          python3 scripts/prepare-host-video.py --profile "$profile" --video-file "design/agora/demo-media/playback-test.$format"
+          python3 scripts/check-macos-host.py --launcher "$RUNNER_TEMP/launch-agora-$format" --profile "$profile" --output "$RUNNER_TEMP/agora-$format-host-check" --video
+        done
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: basecamp-intel-host-check
+        if-no-files-found: warn
+        path: |-
+          ${{ runner.temp }}/basecamp-runtime.json
+          ${{ runner.temp }}/agora-*-kit-check/
+          ${{ runner.temp }}/agora-*-host-check/
+    - uses: actions/upload-artifact@v4
+      with:
+        name: agora-kit-darwin-amd64-development
+        if-no-files-found: error
+        path: |-
+          artifacts/agora-*-darwin-amd64.tar.gz*
+          artifacts/logos_forum-*-darwin-amd64.lgx
