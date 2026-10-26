@@ -41,7 +41,7 @@ jobs:
           assert text.count(old) == 1, "Pinned Darwin linker patch no longer matches"
           p.write_text(text.replace(old, new))
           PYCODE
-          nix build .#lgx --accept-flake-config --no-write-lock-file \
+          nix build .#lgx-portable --accept-flake-config --no-write-lock-file \
             --override-input logos-delivery "path:$patched" -L
       - name: Collect package
         run: |
@@ -53,6 +53,25 @@ jobs:
             test -n "$package"
             cp "$package" artifacts/delivery_module-0.3.2-intel.lgx
           fi
+          # A successful development LGX build is not a relocatable package.
+          python3 - <<'PYCODE'
+          import json, pathlib, subprocess, tarfile, tempfile
+          archive = pathlib.Path('artifacts/delivery_module-0.3.2-intel.lgx')
+          with tempfile.TemporaryDirectory() as temp:
+              root = pathlib.Path(temp)
+              with tarfile.open(archive) as bundle:
+                  bundle.extractall(root, filter='data')
+              manifest = json.loads((root / 'manifest.json').read_text())
+              assert 'darwin-amd64' in manifest['main'], 'Missing portable Intel variant'
+              libraries = list((root / 'variants/darwin-amd64').rglob('*.dylib'))
+              assert libraries, 'Empty Intel library set'
+              for library in libraries:
+                  arch = subprocess.check_output(['lipo', '-archs', str(library)], text=True)
+                  assert 'x86_64' in arch.split(), f'Wrong CPU: {library}'
+                  deps = subprocess.check_output(['otool', '-L', str(library)], text=True)
+                  assert '/nix/store/' not in deps, f'Build-machine dependency: {library}\n{deps}'
+              print(f'Portable Intel Delivery package: {len(libraries)} libraries checked')
+          PYCODE
           shasum -a 256 artifacts/delivery_module-0.3.2-intel.lgx > artifacts/delivery_module-0.3.2-intel.lgx.sha256
       - uses: actions/upload-artifact@v4
         with:
