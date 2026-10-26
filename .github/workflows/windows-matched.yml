@@ -33,6 +33,8 @@ jobs:
           mkdir -p artifacts/windows-matched/native artifacts/windows-matched/qt
           cp -RL result-native/. artifacts/windows-matched/native/
           cp -RL result-media/. artifacts/windows-matched/qt/
+          # Nix outputs are read-only; make only the staged copy writable.
+          chmod -R u+w artifacts/windows-matched/qt
           cp -L result-codecs/bin/*.dll artifacts/windows-matched/qt/bin/
           nix eval --impure --raw --file nix/windows-agora.nix qtVersion > artifacts/windows-matched/qt-version.txt
           tar -czf artifacts/agora-windows-matching-qt.tar.gz -C artifacts windows-matched
