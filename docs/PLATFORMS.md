@@ -30,10 +30,13 @@ Apple Silicon development builds have passed actual Basecamp host checks. Cross-
   its first actual host check now passes with no missing non-system imports.
   Agora opens in official Basecamp and renders MP4 frames, pauses, seeks, resumes,
   and stops on navigation. [Windows host check](https://github.com/stevancarlon/logos-agora/actions/runs/38196428403).
-  This first runtime uses Windows Media Foundation; a separate FFmpeg-enabled
-  build remains under verification. Archive installation and corruption rejection
-  passed in [run 38196560504](https://github.com/stevancarlon/logos-agora/actions/runs/38196560504). Audio hardware,
-  Windows WebM playback and cross-machine exchange remain unverified.
+  The matching FFmpeg runtime and precompiled archive now pass checksum validation,
+  corruption rejection, installation and actual Basecamp MP4 and WebM playback,
+  including pause, seek, resume and navigation-stop, in separate disposable profiles.
+  [Verified Windows media run](https://github.com/stevancarlon/logos-agora/actions/runs/40334755297),
+  using [runtime build 40332849297](https://github.com/stevancarlon/logos-agora/actions/runs/40332849297).
+  This is hosted-runner evidence; audio hardware, interactive clean-desktop
+  installation and cross-machine exchange remain unverified.
 
 Hosted results: [desktop checks at 7c95957](https://github.com/stevancarlon/logos-agora/actions/runs/40330508080)
 pass 23 backend and 24 QML tests per platform. Apple Silicon also passes
@@ -51,7 +54,7 @@ Run `python scripts/build-native.py` with `QMAKE` pointing at Qt 6.9.2 and
 requires Basecamp’s matching Windows package set (see `nix/windows-agora.nix`); macOS uses the native CPU
 architecture. These are development commands, not complete end-user packages.
 
-Linux and Apple Silicon have archive installation and actual Basecamp video evidence. Windows has actual host/MP4 and archive installation evidence; its FFmpeg/WebM runtime remains under verification. Intel Mac still needs both checks. Every platform needs cross-machine network acceptance; successful native unit tests alone do not prove host compatibility.
+Linux and Apple Silicon have archive installation and actual Basecamp video evidence. Windows has archive installation and actual host MP4/WebM evidence with the matching FFmpeg runtime. Intel Mac still needs both checks. Every platform needs cross-machine network acceptance; successful native unit tests alone do not prove host compatibility.
 
 The official Basecamp 0.3.2 Mac DMG is Apple Silicon-only. The pinned upstream
 source (`f2fae630737bc56ef8c4bb33ce92ae365ba8abb9`) includes `x86_64-darwin`.

@@ -46,12 +46,12 @@ or notarization.
 ## Windows
 
 The development archive has passed installation, corruption rejection and actual
-Basecamp MP4 playback on a Windows runner ([verified run](https://github.com/stevancarlon/logos-agora/actions/runs/38196560504)).
-It is not yet a published release. That runtime uses Windows Media Foundation;
-WebM, audio hardware and cross-machine exchange have not yet been verified.
+Basecamp MP4 and WebM playback on a Windows runner ([verified run](https://github.com/stevancarlon/logos-agora/actions/runs/40334755297)).
+It is not yet a published release. The matching runtime includes FFmpeg;
+audio hardware and cross-machine exchange have not yet been verified.
 
 Download the `agora-kit-windows-amd64-development` artifact from that run and the
-`agora-windows-matching-qt` artifact from its pinned [runtime build](https://github.com/stevancarlon/logos-agora/actions/runs/38195925423).
+`agora-windows-matching-qt` artifact from its pinned [runtime build](https://github.com/stevancarlon/logos-agora/actions/runs/40332849297).
 Extract both ZIP files and their `.tar.gz` archives. Keep the runtime's
 `windows-matched/qt-version.txt` beside its `qt` directory. With official
 Basecamp 0.3.2 and Delivery installed, run from the extracted Agora kit in PowerShell:
