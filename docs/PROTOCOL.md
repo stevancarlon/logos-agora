@@ -74,3 +74,14 @@ names never select filesystem paths. Redirects are refused; requests have a
 are deleted; failed uploads retain the staged original. Original upload metadata
 is preserved. Content retention depends on Storage providers remaining available;
 upload success is not a permanent-availability promise or anonymity guarantee.
+
+## Delivery 0.4.0 compatibility check
+
+On 26 October 2026 the current development build also passed the private
+Basecamp relay test against the official catalog Delivery 0.4.0 package. Signed
+alias and anonymous envelopes each passed thread/reply receipt, offline-post
+restart, Store recovery and independent-database deduplication checks. The
+0.4.0 LGX was obtained through Basecamp's catalog installer; this check does not
+claim that the source tag or the published Agora alpha was tested. Public
+mix routing and cross-machine connectivity remain unverified. The pinned 0.3.2
+contract above remains the reproducible source reference.

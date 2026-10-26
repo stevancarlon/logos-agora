@@ -18,8 +18,12 @@ This path passed on 26 October 2026 in a disposable Ubuntu 24.04/Xvfb desktop
 running the official Basecamp 0.3.2 AppImage with the companion runtime. The GUI
 installed the published 0.3.0 package, and Agora's UI and SQLite backend loaded.
 The current official catalog selected Delivery 0.4.0 plus its optional modules;
-network interoperability with that version is not established by this installation
-check. The existing network acceptance evidence uses pinned Delivery 0.3.2.
+this installation check alone does not establish network interoperability. A
+separate test of the current Agora development build with Delivery 0.4.0 passes
+signed and anonymous thread/reply exchange, offline restart and Store recovery
+between independent Basecamp processes over a private loopback relay. This does
+not verify cross-machine connectivity or the published alpha's network behavior
+with 0.4.0. Earlier network evidence uses pinned Delivery 0.3.2.
 
 
 ## Verification and limits
