@@ -1,4 +1,4 @@
-# FURPS self-assessment — native 0.3.0
+# FURPS self-assessment — native 0.3.1 candidate
 
 | Area | Evidence | Remaining acceptance work |
 | --- | --- | --- |
