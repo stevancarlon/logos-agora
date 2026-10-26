@@ -4,7 +4,7 @@ TEMPLATE = app
 TARGET = forum-ui-tests
 HEADERS += ../backend/ForumBackend.h
 SOURCES += ui_main.cpp ../backend/ForumBackend.cpp
-LIBS += -lcrypto
+include(../backend/crypto.pri)
 
 QT += multimedia
 HEADERS += $$PWD/../backend/VideoSession.h

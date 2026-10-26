@@ -1,0 +1,122 @@
+name: Windows matching host check
+on:
+  workflow_dispatch:
+    inputs:
+      build_run:
+        description: Successful Windows matching Qt build run ID
+        required: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: agora-windows-matching-qt
+          run-id: ${{ inputs.build_run }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/matching-download
+      - uses: actions/checkout@v4
+        with:
+          repository: logos-co/logos-package
+          ref: c25a1167578aef5cbd9a9b6f822ffe2ae4fd6a89
+          path: .tools/logos-package
+      - name: Build official validator and Windows installation archive
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake pkg-config zlib1g-dev libsodium-dev libicu-dev nlohmann-json3-dev
+          cmake -S .tools/logos-package -B "$RUNNER_TEMP/lgx" -DCMAKE_BUILD_TYPE=Release
+          cmake --build "$RUNNER_TEMP/lgx" --target lgx --parallel 2
+          cd "$RUNNER_TEMP/matching-download"
+          expected=$(cut -d " " -f1 agora-windows-matching-qt.tar.gz.sha256)
+          actual=$(sha256sum agora-windows-matching-qt.tar.gz | cut -d " " -f1)
+          test "$expected" = "$actual"
+          tar -xzf agora-windows-matching-qt.tar.gz
+          cd "$GITHUB_WORKSPACE"
+          python3 scripts/build-release.py --variant windows-amd64 --lgx "$RUNNER_TEMP/lgx/lgx" --backend "$RUNNER_TEMP/matching-download/windows-matched/native/native/forum/forum_backend.dll" --renderer "$RUNNER_TEMP/matching-download/windows-matched/native/build/qt6.11.1-media/qml/Agora/Media"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agora-kit-windows-amd64-development
+          if-no-files-found: error
+          path: |
+            artifacts/agora-*-windows-amd64.tar.gz*
+            artifacts/logos_forum-*-windows-amd64.lgx
+  host:
+    needs: package
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: agora-windows-matching-qt
+          run-id: ${{ inputs.build_run }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/matching-download
+      - uses: actions/download-artifact@v4
+        with:
+          name: agora-kit-windows-amd64-development
+          path: ${{ runner.temp }}/kit-download
+      - name: Extract and verify compiled binaries
+        run: |
+          $archive = "$env:RUNNER_TEMP/matching-download/agora-windows-matching-qt.tar.gz"
+          $expected = ((Get-Content "$archive.sha256") -split '\s+')[0]
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLower() -ne $expected) { throw 'Archive hash mismatch' }
+          tar -xzf $archive -C "$env:RUNNER_TEMP"
+          if ($LASTEXITCODE -ne 0) { throw 'Artifact extraction failed' }
+          if ((Get-Content "$env:RUNNER_TEMP/windows-matched/qt-version.txt") -ne '6.11.1') { throw 'Wrong Qt version' }
+          Copy-Item "$env:RUNNER_TEMP/windows-matched/native/native/forum/forum_backend.dll" native/forum/
+      - name: Load Agora in official Windows Basecamp
+        run: |
+          Invoke-WebRequest -Uri 'https://github.com/logos-co/logos-basecamp/releases/download/0.3.2/LogosBasecamp-Desktop-v0.3.2-f2fae6-x86_64-setup.exe' -OutFile "$env:RUNNER_TEMP/basecamp-setup.exe"
+          & "$env:ProgramFiles/7-Zip/7z.exe" x "$env:RUNNER_TEMP/basecamp-setup.exe" "-o$env:RUNNER_TEMP/basecamp-extracted" -y
+          if ($LASTEXITCODE -ne 0) { throw 'Installer extraction failed' }
+          New-Item -ItemType Directory -Force "$env:RUNNER_TEMP/agora-profile" | Out-Null
+          New-Item -ItemType File "$env:RUNNER_TEMP/agora-profile/.agora-disposable-profile" | Out-Null
+          $kit = (Get-ChildItem "$env:RUNNER_TEMP/kit-download/agora-*-windows-amd64.tar.gz").FullName
+          python scripts/check-desktop-kit-install.py --archive "$kit" --qt "$env:RUNNER_TEMP/windows-matched/qt" --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --profile "$env:RUNNER_TEMP/agora-profile" --runtime-dir "$env:RUNNER_TEMP/agora-runtime" --launcher "$env:RUNNER_TEMP/Launch-Agora.cmd" --output "$env:RUNNER_TEMP/agora-kit-check"
+          if ($LASTEXITCODE -ne 0) { throw 'Agora installation failed' }
+          # Exercise updating an existing runtime, not only fresh installation.
+          $codec = "$env:RUNNER_TEMP/agora-runtime/bin/avcodec-62.dll"
+          $expectedCodec = (Get-FileHash "$env:RUNNER_TEMP/windows-matched/qt/bin/avcodec-62.dll" -Algorithm SHA256).Hash
+          Set-Content -Path $codec -Value 'stale-runtime-fixture'
+          python scripts/check-desktop-kit-install.py --archive "$kit" --qt "$env:RUNNER_TEMP/windows-matched/qt" --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --profile "$env:RUNNER_TEMP/agora-profile" --runtime-dir "$env:RUNNER_TEMP/agora-runtime" --launcher "$env:RUNNER_TEMP/Launch-Agora.cmd" --output "$env:RUNNER_TEMP/agora-kit-check"
+          if ($LASTEXITCODE -ne 0) { throw 'Runtime upgrade installation failed' }
+          if ((Get-FileHash $codec -Algorithm SHA256).Hash -ne $expectedCodec) { throw 'Runtime upgrade retained stale codec' }
+          @{ staleCodecReplaced = $true; expectedSHA256 = $expectedCodec } | ConvertTo-Json | Set-Content "$env:RUNNER_TEMP/agora-kit-check/upgrade-result.json"
+          python scripts/install-test-delivery.py --profile "$env:RUNNER_TEMP/agora-profile"
+          if ($LASTEXITCODE -ne 0) { throw 'Delivery installation failed' }
+          python scripts/prepare-host-video.py --profile "$env:RUNNER_TEMP/agora-profile"
+          if ($LASTEXITCODE -ne 0) { throw 'Video probe installation failed' }
+          python scripts/inspect-pe-symbols.py --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --runtime-dir "$env:RUNNER_TEMP/agora-runtime" --backend "$env:RUNNER_TEMP/agora-profile/plugins/logos_forum/forum_backend.dll" --output "$env:RUNNER_TEMP/agora-runtime/symbols.json"
+          if ($LASTEXITCODE -ne 0) { throw 'Windows dependency validation failed' }
+          python scripts/check-windows-host.py --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --runtime-dir "$env:RUNNER_TEMP/agora-runtime" --profile "$env:RUNNER_TEMP/agora-profile" --output "$env:RUNNER_TEMP/agora-windows-host-check" --video
+          if ($LASTEXITCODE -ne 0) { throw 'MP4 host playback failed' }
+          New-Item -ItemType Directory -Force "$env:RUNNER_TEMP/agora-webm-profile" | Out-Null
+          New-Item -ItemType File "$env:RUNNER_TEMP/agora-webm-profile/.agora-disposable-profile" | Out-Null
+          python scripts/check-desktop-kit-install.py --archive "$kit" --qt "$env:RUNNER_TEMP/windows-matched/qt" --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --profile "$env:RUNNER_TEMP/agora-webm-profile" --runtime-dir "$env:RUNNER_TEMP/agora-webm-runtime" --launcher "$env:RUNNER_TEMP/Launch-Agora-WebM.cmd" --output "$env:RUNNER_TEMP/agora-webm-kit-check"
+          if ($LASTEXITCODE -ne 0) { throw 'WebM profile installation failed' }
+          python scripts/install-test-delivery.py --profile "$env:RUNNER_TEMP/agora-webm-profile"
+          if ($LASTEXITCODE -ne 0) { throw 'WebM Delivery installation failed' }
+          python scripts/prepare-host-video.py --profile "$env:RUNNER_TEMP/agora-webm-profile" --video-file design/agora/demo-media/playback-test.webm
+          if ($LASTEXITCODE -ne 0) { throw 'WebM probe installation failed' }
+          python scripts/check-windows-host.py --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --runtime-dir "$env:RUNNER_TEMP/agora-webm-runtime" --profile "$env:RUNNER_TEMP/agora-webm-profile" --output "$env:RUNNER_TEMP/agora-windows-webm-check" --video
+          if ($LASTEXITCODE -ne 0) { throw 'WebM host playback failed' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: basecamp-windows-host-check
+          path: |
+            ${{ runner.temp }}/agora-windows-host-check/
+            ${{ runner.temp }}/agora-kit-check/
+            ${{ runner.temp }}/agora-windows-webm-check/
+            ${{ runner.temp }}/agora-webm-kit-check/
+            ${{ runner.temp }}/agora-runtime/dependencies.json
+            ${{ runner.temp }}/agora-runtime/symbols.json
+          if-no-files-found: warn

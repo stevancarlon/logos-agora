@@ -4,5 +4,5 @@ TEMPLATE = app
 TARGET = storage-probe
 HEADERS += ../backend/ForumBackend.h ../backend/VideoSession.h
 SOURCES += storage_probe.cpp ../backend/ForumBackend.cpp ../backend/VideoSession.cpp
-LIBS += -lcrypto
+include(../backend/crypto.pri)
 include(../backend/storage.pri)

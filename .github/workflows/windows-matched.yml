@@ -1,0 +1,46 @@
+name: Windows matching Qt build
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/windows-matched.yml
+      - nix/windows-agora.nix
+      - 'native/**'
+permissions:
+  contents: read
+concurrency:
+  group: windows-matched-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@b85815f71a6de0ddee80b8a80a98d43f4bcc66c7
+        with:
+          extra_nix_config: |
+            extra-substituters = https://cache.nix.logos.co/public
+            extra-trusted-public-keys = public:l4HrXgL4nw246+LBh2SOJyhz64BoGegOYLheT/iIAPU=
+      - name: Build against Basecamp's locked Windows Qt
+        run: |
+          nix eval --impure --raw --file nix/windows-agora.nix qtVersion
+          nix build --impure --file nix/windows-agora.nix multimedia --out-link result-media -L
+          nix build --impure --file nix/windows-agora.nix native --out-link result-native -L
+          nix build --impure --file nix/windows-agora.nix codecs --out-link result-codecs -L
+      - name: Collect native binaries and media runtime
+        run: |
+          mkdir -p artifacts/windows-matched/native artifacts/windows-matched/qt
+          cp -RL result-native/. artifacts/windows-matched/native/
+          cp -RL result-media/. artifacts/windows-matched/qt/
+          # Nix outputs are read-only; make only the staged copy writable.
+          chmod -R u+w artifacts/windows-matched/qt
+          cp -L result-codecs/bin/*.dll artifacts/windows-matched/qt/bin/
+          nix eval --impure --raw --file nix/windows-agora.nix qtVersion > artifacts/windows-matched/qt-version.txt
+          tar -czf artifacts/agora-windows-matching-qt.tar.gz -C artifacts windows-matched
+          sha256sum artifacts/agora-windows-matching-qt.tar.gz > artifacts/agora-windows-matching-qt.tar.gz.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agora-windows-matching-qt
+          if-no-files-found: error
+          path: artifacts/agora-windows-matching-qt.tar.gz*
