@@ -41,7 +41,7 @@ Restart Basecamp after installing an update. Installation does not touch user da
 
 `build/qt6.9.2-preview/forum-preview` runs the native interface standalone; Delivery is only available inside Basecamp. For UI development with another Qt version, use `ALLOW_OTHER_QT=1` and do not install that binary in Basecamp. `--screenshot artifacts/forum-desktop.png` uses temporary, clearly labeled examples and never publishes them.
 
-The build script runs backend tests (signatures, tampering, deduplication, separate database exchange, restart recovery, history validation) and QML workflow tests (compose/reply/quote, identities, search, narrow layout, delivery callback races/failures). Hosted [Linux checks](https://github.com/stevancarlon/logos-agora/actions/runs/38192205300) and [Windows/Intel Mac/Apple Silicon checks](https://github.com/stevancarlon/logos-agora/actions/runs/38192205277) pass 22 backend and 24 QML checks per platform. See [desktop platform acceptance](docs/PLATFORMS.md) for the remaining host integration and packaging work.
+The build script runs backend tests (signatures, tampering, deduplication, separate database exchange, restart recovery, history validation) and QML workflow tests (compose/reply/quote, identities, search, narrow layout, delivery callback races/failures). Hosted [Linux checks](https://github.com/stevancarlon/logos-agora/actions/runs/40337478339) and [Windows/Intel Mac/Apple Silicon checks](https://github.com/stevancarlon/logos-agora/actions/runs/40337478401) pass 23 backend and 24 QML checks per platform. See [desktop platform acceptance](docs/PLATFORMS.md) for the remaining host integration and packaging work.
 
 ## Package
 
@@ -51,7 +51,7 @@ Build the official [logos-package CLI](https://github.com/logos-co/logos-package
 python3 scripts/package-native.py --lgx /absolute/path/to/lgx
 ```
 
-This produces `artifacts/logos_forum-0.3.0-linux-amd64.lgx` and runs `lgx verify`. It is an **unsigned local development package**, not a trusted catalog publication. It includes original-code licenses and an original 256×256 icon. Native binaries have also passed tests on Windows x86_64 and both Mac architectures; those end-user packages and Basecamp integration are still under development. Package CLI revision used locally: `c25a1167578aef5cbd9a9b6f822ffe2ae4fd6a89`.
+This produces `artifacts/logos_forum-0.3.1-linux-amd64.lgx` and runs `lgx verify`. It is an **unsigned local development package**, not a trusted catalog publication. It includes original-code licenses and an original 256×256 icon. Windows x86_64 and Apple Silicon development archives also pass installation and actual Basecamp MP4/WebM playback checks. Intel Mac native tests pass, but its Basecamp integration remains unverified. Only the Linux alpha is published; see [platform evidence](docs/PLATFORMS.md) before choosing a package. Package CLI revision used locally: `c25a1167578aef5cbd9a9b6f822ffe2ae4fd6a89`.
 
 The header profile icon opens **Profile**. You can upload, replace or remove a PNG/JPEG avatar (up to 8 MB and 4096 pixels per side). It is cropped to a square, resized and saved locally for that identity. Avatars are not included in published posts.
 

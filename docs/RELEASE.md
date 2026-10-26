@@ -3,7 +3,7 @@
 The release kit supplies compiled Agora code, the pixel renderer and a verified
 unsigned LGX. It does not contain a user database, signing keys, or sample posts.
 This is currently a companion-runtime installation, not an LGX-only installation
-on stock Basecamp. The unsigned alpha is served by the community catalog. Publisher signing and catalog UI installation acceptance remain open.
+on stock Basecamp. The unsigned alpha is served by the community catalog. Catalog GUI installation and actual UI/backend loading have passed in an isolated Linux desktop with the companion runtime; see [installation scope](../INSTALL.md). Publisher signing remains unimplemented.
 
 Requirements: Linux x86_64, Python 3 with venv support, OpenSSL 3, a working
 Basecamp 0.3.2 AppImage, and Qt 6.9.2 with Multimedia. Install Delivery 0.3.2 in

@@ -2,7 +2,7 @@
 
 The supported-platform target is Linux x86_64, Windows x86_64, Intel macOS and
 Apple Silicon macOS. Only the Linux alpha is currently published. Linux, Windows and
-Apple Silicon development builds have passed actual Basecamp host checks. Cross-platform development is on `codex/desktop-platforms` / PR #3.
+Apple Silicon development builds have passed actual Basecamp host checks. The desktop changes were merged in [PR #3](https://github.com/stevancarlon/logos-agora/pull/3); Intel host packaging remains separate.
 
 - Linux: 23 backend and 24 QML checks pass after portability changes. The MP4
   regression also passes without a system MIME database. The development kit
@@ -47,7 +47,7 @@ The LGX packager accepts each target variant and checks the backend binary's
 architecture before packaging. Package structure validation does not establish
 runtime compatibility. Raw Mac binaries reference Homebrew OpenSSL; the development runtime installer
 relocates their dependencies to Basecamp and separately staged media libraries.
-The official Basecamp app is unchanged. The Apple Silicon development kit is verified on a hosted runner; it is not yet a published end-user release. Intel Mac and Windows kits remain unfinished.
+The official Basecamp app is unchanged. The Apple Silicon development kit is verified on a hosted runner; it is not yet a published end-user release. The Windows development archive is also verified on a hosted runner. Intel Mac host packaging remains unfinished.
 
 Run `python scripts/build-native.py` with `QMAKE` pointing at Qt 6.9.2 and
 `OPENSSL_ROOT_DIR` pointing at the OpenSSL installation when needed. Windows
@@ -75,3 +75,5 @@ Intel architecture and absence of Nix store load paths. Actual installation
 and MP4/WebM checks are prepared in `intel-host-check.yml`; they require
 successful portable Basecamp and Delivery run IDs. Loading these together
 remains unverified.
+
+The merged default branch at `841d229` passes [Linux checks](https://github.com/stevancarlon/logos-agora/actions/runs/40337478339) and [desktop checks](https://github.com/stevancarlon/logos-agora/actions/runs/40337478401). A separate [Windows upgrade check](https://github.com/stevancarlon/logos-agora/actions/runs/40335644246) deliberately replaces a staged codec with stale bytes, reinstalls the runtime, verifies its restored hash, and repeats actual Basecamp MP4/WebM playback. This verifies replacement of existing runtime dependencies as well as fresh installation.
