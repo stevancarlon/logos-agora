@@ -82,6 +82,14 @@ jobs:
           $kit = (Get-ChildItem "$env:RUNNER_TEMP/kit-download/agora-*-windows-amd64.tar.gz").FullName
           python scripts/check-desktop-kit-install.py --archive "$kit" --qt "$env:RUNNER_TEMP/windows-matched/qt" --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --profile "$env:RUNNER_TEMP/agora-profile" --runtime-dir "$env:RUNNER_TEMP/agora-runtime" --launcher "$env:RUNNER_TEMP/Launch-Agora.cmd" --output "$env:RUNNER_TEMP/agora-kit-check"
           if ($LASTEXITCODE -ne 0) { throw 'Agora installation failed' }
+          # Exercise updating an existing runtime, not only fresh installation.
+          $codec = "$env:RUNNER_TEMP/agora-runtime/bin/avcodec-62.dll"
+          $expectedCodec = (Get-FileHash "$env:RUNNER_TEMP/windows-matched/qt/bin/avcodec-62.dll" -Algorithm SHA256).Hash
+          Set-Content -Path $codec -Value 'stale-runtime-fixture'
+          python scripts/check-desktop-kit-install.py --archive "$kit" --qt "$env:RUNNER_TEMP/windows-matched/qt" --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --profile "$env:RUNNER_TEMP/agora-profile" --runtime-dir "$env:RUNNER_TEMP/agora-runtime" --launcher "$env:RUNNER_TEMP/Launch-Agora.cmd" --output "$env:RUNNER_TEMP/agora-kit-check"
+          if ($LASTEXITCODE -ne 0) { throw 'Runtime upgrade installation failed' }
+          if ((Get-FileHash $codec -Algorithm SHA256).Hash -ne $expectedCodec) { throw 'Runtime upgrade retained stale codec' }
+          @{ staleCodecReplaced = $true; expectedSHA256 = $expectedCodec } | ConvertTo-Json | Set-Content "$env:RUNNER_TEMP/agora-kit-check/upgrade-result.json"
           python scripts/install-test-delivery.py --profile "$env:RUNNER_TEMP/agora-profile"
           if ($LASTEXITCODE -ne 0) { throw 'Delivery installation failed' }
           python scripts/prepare-host-video.py --profile "$env:RUNNER_TEMP/agora-profile"

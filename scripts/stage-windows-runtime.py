@@ -48,6 +48,7 @@ for directory in [qt / 'bin', toolchain, host]:
         lookup[path.name.lower()] = path
 system = Path(os.environ['SystemRoot']) / 'System32'
 processed = set()
+staged = set()
 records = []
 while queue:
     binary = queue.pop(0)
@@ -67,8 +68,10 @@ while queue:
         if source.parent == host:
             continue
         dest = runtime / 'bin' / name
-        if not dest.exists():
+        if dest not in staged:
+            # Updating a kit must replace old runtime DLLs and recheck their closure.
             shutil.copy2(source, dest)
+            staged.add(dest)
             queue.append(dest)
 (runtime / 'dependencies.json').write_text(json.dumps(records, indent=2) + '\n')
 print(f'Staged and checked {len(processed)} Agora libraries; Basecamp libraries unchanged')
