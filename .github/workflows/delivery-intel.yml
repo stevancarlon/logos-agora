@@ -1,0 +1,80 @@
+name: Intel Mac Delivery package
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/delivery-intel.yml
+permissions:
+  contents: read
+concurrency:
+  group: delivery-intel-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  delivery:
+    runs-on: macos-15-intel
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: logos-co/logos-delivery-module
+          ref: c25b7868099949c375e7affdeb1502b354fd92e3
+      - uses: cachix/install-nix-action@b85815f71a6de0ddee80b8a80a98d43f4bcc66c7
+        with:
+          extra_nix_config: |
+            extra-substituters = https://cache.nix.logos.co/public
+            extra-trusted-public-keys = public:l4HrXgL4nw246+LBh2SOJyhz64BoGegOYLheT/iIAPU=
+      - name: Build pinned Delivery 0.3.2 Intel package
+        run: |
+          # The pinned Nim linker uses clang (C), but BoringSSL and Leopard
+          # contain C++ objects. Upstream adds stdc++ on Linux, omitting libc++
+          # on Darwin. Patch only that build flag in a copied pinned input.
+          source=$(nix eval --impure --raw --expr '(builtins.getFlake (toString ./.)).inputs.logos-delivery.outPath')
+          patched="$RUNNER_TEMP/delivery-core-intel"
+          cp -R "$source" "$patched"
+          chmod -R u+w "$patched"
+          python3 - "$patched/nix/default.nix" <<'PYCODE'
+          import pathlib, sys
+          p = pathlib.Path(sys.argv[1])
+          text = p.read_text()
+          old = '+ lib.optionalString hostPlatform.isLinux " -lstdc++";'
+          new = '+ lib.optionalString hostPlatform.isLinux " -lstdc++"\n      + lib.optionalString hostPlatform.isDarwin " -lc++";'
+          assert text.count(old) == 1, "Pinned Darwin linker patch no longer matches"
+          p.write_text(text.replace(old, new))
+          PYCODE
+          nix build .#lgx-portable --accept-flake-config --no-write-lock-file \
+            --override-input logos-delivery "path:$patched" -L
+      - name: Collect package
+        run: |
+          mkdir -p artifacts
+          if [ -f result ]; then
+            cp -L result artifacts/delivery_module-0.3.2-intel.lgx
+          else
+            package=$(find -L result -name '*.lgx' -type f -print -quit)
+            test -n "$package"
+            cp "$package" artifacts/delivery_module-0.3.2-intel.lgx
+          fi
+          # A successful development LGX build is not a relocatable package.
+          python3 - <<'PYCODE'
+          import json, pathlib, subprocess, tarfile, tempfile
+          archive = pathlib.Path('artifacts/delivery_module-0.3.2-intel.lgx')
+          with tempfile.TemporaryDirectory() as temp:
+              root = pathlib.Path(temp)
+              with tarfile.open(archive) as bundle:
+                  bundle.extractall(root, filter='data')
+              manifest = json.loads((root / 'manifest.json').read_text())
+              assert 'darwin-amd64' in manifest['main'], 'Missing portable Intel variant'
+              libraries = list((root / 'variants/darwin-amd64').rglob('*.dylib'))
+              assert libraries, 'Empty Intel library set'
+              for library in libraries:
+                  arch = subprocess.check_output(['lipo', '-archs', str(library)], text=True)
+                  assert 'x86_64' in arch.split(), f'Wrong CPU: {library}'
+                  deps = subprocess.check_output(['otool', '-L', str(library)], text=True)
+                  assert '/nix/store/' not in deps, f'Build-machine dependency: {library}\n{deps}'
+              print(f'Portable Intel Delivery package: {len(libraries)} libraries checked')
+          PYCODE
+          shasum -a 256 artifacts/delivery_module-0.3.2-intel.lgx > artifacts/delivery_module-0.3.2-intel.lgx.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: delivery-0.3.2-darwin-amd64
+          if-no-files-found: error
+          path: artifacts/*

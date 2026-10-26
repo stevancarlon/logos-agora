@@ -1,0 +1,60 @@
+name: Intel Mac Basecamp host
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/basecamp-intel.yml
+permissions:
+  contents: read
+concurrency:
+  group: basecamp-intel-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  host:
+    runs-on: macos-15-intel
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: logos-co/logos-basecamp
+          ref: f2fae630737bc56ef8c4bb33ce92ae365ba8abb9
+      - uses: cachix/install-nix-action@b85815f71a6de0ddee80b8a80a98d43f4bcc66c7
+        with:
+          extra_nix_config: |
+            max-jobs = 2
+            cores = 2
+            extra-substituters = https://cache.nix.logos.co/public
+            extra-trusted-public-keys = public:l4HrXgL4nw246+LBh2SOJyhz64BoGegOYLheT/iIAPU=
+      - name: Build pinned Basecamp 0.3.2 Intel app
+        run: |
+          # Keep verbose dependency diagnostics out of the live runner log.
+          if ! nix build .#bin-macos-app --accept-flake-config -L > basecamp-build.log 2>&1; then
+            tail -100 basecamp-build.log
+            exit 1
+          fi
+          tail -30 basecamp-build.log
+      - name: Verify bundle libraries and host startup
+        run: |
+          nix build .#link-gate --accept-flake-config --no-link -L
+          nix build .#smoke-test-bundle --accept-flake-config --out-link result-smoke -L
+          cat result-smoke/smoke-test.log
+      - name: Package Intel app bundle
+        run: |
+          app=$(find result/ -maxdepth 1 -name '*.app' -print -quit)
+          test -n "$app"
+          tar -czf logos-basecamp-0.3.2-intel-unsigned.app.tar.gz -C result "$(basename "$app")"
+          shasum -a 256 logos-basecamp-0.3.2-intel-unsigned.app.tar.gz > logos-basecamp-0.3.2-intel-unsigned.app.tar.gz.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: basecamp-0.3.2-darwin-amd64
+          if-no-files-found: error
+          path: |
+            logos-basecamp-0.3.2-intel-unsigned.app.tar.gz*
+            result-smoke/smoke-test.log
+      - name: Preserve Intel build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: basecamp-intel-build-log
+          if-no-files-found: warn
+          path: basecamp-build.log
