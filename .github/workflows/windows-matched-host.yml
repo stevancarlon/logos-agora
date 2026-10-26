@@ -1,14 +1,10 @@
 name: Windows matching host check
 on:
-  push:
-    paths:
-      - .github/workflows/windows-matched-host.yml
   workflow_dispatch:
     inputs:
       build_run:
         description: Successful Windows matching Qt build run ID
         required: true
-        default: '38196851758'
 permissions:
   contents: read
   actions: read
@@ -20,7 +16,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: agora-windows-matching-qt
-          run-id: ${{ inputs.build_run || '38196851758' }}
+          run-id: ${{ inputs.build_run }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/matching-download
       - uses: actions/checkout@v4
@@ -60,7 +56,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: agora-windows-matching-qt
-          run-id: ${{ inputs.build_run || '38196851758' }}
+          run-id: ${{ inputs.build_run }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/matching-download
       - uses: actions/download-artifact@v4
@@ -91,6 +87,7 @@ jobs:
           python scripts/prepare-host-video.py --profile "$env:RUNNER_TEMP/agora-profile"
           if ($LASTEXITCODE -ne 0) { throw 'Video probe installation failed' }
           python scripts/inspect-pe-symbols.py --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --runtime-dir "$env:RUNNER_TEMP/agora-runtime" --backend "$env:RUNNER_TEMP/agora-profile/plugins/logos_forum/forum_backend.dll" --output "$env:RUNNER_TEMP/agora-runtime/symbols.json"
+          if ($LASTEXITCODE -ne 0) { throw 'Windows dependency validation failed' }
           python scripts/check-windows-host.py --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --runtime-dir "$env:RUNNER_TEMP/agora-runtime" --profile "$env:RUNNER_TEMP/agora-profile" --output "$env:RUNNER_TEMP/agora-windows-host-check" --video
           if ($LASTEXITCODE -ne 0) { throw 'MP4 host playback failed' }
           New-Item -ItemType Directory -Force "$env:RUNNER_TEMP/agora-webm-profile" | Out-Null
