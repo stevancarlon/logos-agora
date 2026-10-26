@@ -1,8 +1,8 @@
-# Install Agora alpha (Linux x86_64)
+# Install Agora alpha
 
-Download the [0.3 alpha release](https://github.com/stevancarlon/logos-agora/releases/tag/v0.3.0-alpha.1), verify its archive checksum, and follow [the precompiled installation guide](docs/RELEASE.md). The kit includes compiled Agora code; the matching Qt media companion is still required. Close Basecamp before updating. Installers preserve user databases and signing keys.
+Download the [0.3.1 alpha release](https://github.com/stevancarlon/logos-agora/releases/tag/v0.3.1-alpha.1), choose the kit for your CPU/OS, and verify its archive checksum. Linux instructions are in [the precompiled installation guide](docs/RELEASE.md); Mac/Windows instructions are in [the desktop guide](docs/DESKTOP-INSTALL.md). Intel Mac users should follow the release's [Intel quickstart](https://github.com/stevancarlon/logos-agora/releases/download/v0.3.1-alpha.1/INTEL-MAC-QUICKSTART.txt). The kit includes compiled Agora code; the matching Qt media companion is still required. Close Basecamp before updating. Installers preserve user databases and signing keys.
 
-This is an unsigned testing release for Basecamp 0.3.2 and Qt 6.9.2. Shared attachments require a local Logos Storage node; see [Storage setup](docs/STORAGE.md). Without one, attachments remain device-local. Existing local-only discussions remain local.
+This is an unsigned testing release for Basecamp 0.3.2. Linux/macOS use Qt 6.9.2; Windows needs the release's matching Qt 6.11.1 runtime and source/license companion. Shared attachments require a local Logos Storage node; see [Storage setup](docs/STORAGE.md). Without one, attachments remain device-local. Existing local-only discussions remain local.
 
 ## Community catalog
 

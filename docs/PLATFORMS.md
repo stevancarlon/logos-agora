@@ -1,8 +1,10 @@
 # Desktop platform acceptance
 
-The supported-platform target is Linux x86_64, Windows x86_64, Intel macOS and
-Apple Silicon macOS. Only the Linux alpha is currently published. Linux, Windows and
-Apple Silicon development builds have passed actual Basecamp host checks. The desktop changes were merged in [PR #3](https://github.com/stevancarlon/logos-agora/pull/3); Intel host packaging remains separate.
+The [0.3.1 alpha](https://github.com/stevancarlon/logos-agora/releases/tag/v0.3.1-alpha.1) publishes Linux x86_64, Windows x86_64, Intel macOS and Apple Silicon macOS kits. Each kit passed installation and actual Basecamp UI/backend loading. Intel/Apple Silicon/Windows additionally passed MP4 and WebM playback. The companion media runtime remains required; these are unsigned testing packages, not a completed production-network release.
+
+Current candidate evidence: [Linux](https://github.com/stevancarlon/logos-agora/actions/runs/40342811322), [Apple Silicon and desktop checks](https://github.com/stevancarlon/logos-agora/actions/runs/40342818168), [Intel Basecamp integration](https://github.com/stevancarlon/logos-agora/actions/runs/40343339261), [Windows archive/upgrade/media checks](https://github.com/stevancarlon/logos-agora/actions/runs/40344924853). The release includes VERIFICATION.json, package hashes and the Windows runtime source/license companion. Physical audio devices, the user's Intel Mac running Sequoia 15.1, and real cross-machine messaging remain unverified.
+
+The notes below describe the earlier development sequence; their pending states are superseded by the current release evidence above.
 
 - Linux: 23 backend and 24 QML checks pass after portability changes. The MP4
   regression also passes without a system MIME database. The development kit

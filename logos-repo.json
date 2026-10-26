@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "name": "stevancarlon-agora",
   "displayName": "Agora \u2014 Alpha testing",
-  "description": "Unsigned Linux alpha. Native discussions and shared media through local Logos nodes; separate Qt media runtime required. Cross-machine exchange remains unverified.",
+  "description": "Unsigned desktop alpha for Linux, Intel/Apple Silicon macOS and Windows. Separate media runtime required; cross-machine exchange remains unverified.",
   "homepage": "https://github.com/stevancarlon/logos-agora",
-  "indexUrl": "https://github.com/stevancarlon/logos-agora/releases/download/v0.3.0-alpha.1/index.json",
+  "indexUrl": "https://github.com/stevancarlon/logos-agora/releases/download/v0.3.1-alpha.1/index.json",
   "trustedSigners": []
 }

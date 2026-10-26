@@ -1,6 +1,6 @@
 # Agora
 
-**Public alpha:** [v0.3.0-alpha.1](https://github.com/stevancarlon/logos-agora/releases/tag/v0.3.0-alpha.1) · [installation instructions](INSTALL.md). Linux x86_64 only; unsigned; cross-machine messaging remains unverified.
+**Public alpha:** [v0.3.1-alpha.1](https://github.com/stevancarlon/logos-agora/releases/tag/v0.3.1-alpha.1) · [installation instructions](INSTALL.md). Linux x86_64, Intel/Apple Silicon macOS and Windows x86_64; unsigned; companion runtime required; cross-machine messaging remains unverified.
 
 A native discussion app for **Logos Basecamp 0.3.2**, built with **QML, C++17, Qt 6.9.2 and SQLite**. The UI focuses on compact thread lists, readable conversations, quotes and quick replies. There is no centralized application server.
 
@@ -51,7 +51,7 @@ Build the official [logos-package CLI](https://github.com/logos-co/logos-package
 python3 scripts/package-native.py --lgx /absolute/path/to/lgx
 ```
 
-This produces `artifacts/logos_forum-0.3.1-linux-amd64.lgx` and runs `lgx verify`. It is an **unsigned local development package**, not a trusted catalog publication. It includes original-code licenses and an original 256×256 icon. Windows x86_64 and Apple Silicon development archives also pass installation and actual Basecamp MP4/WebM playback checks. Intel Mac native tests pass, but its Basecamp integration remains unverified. Only the Linux alpha is published; see [platform evidence](docs/PLATFORMS.md) before choosing a package. Package CLI revision used locally: `c25a1167578aef5cbd9a9b6f822ffe2ae4fd6a89`.
+This produces `artifacts/logos_forum-0.3.1-linux-amd64.lgx` and runs `lgx verify`. It is an **unsigned local development package**, not a trusted catalog publication. It includes original-code licenses and an original 256×256 icon. Windows x86_64 and Apple Silicon development archives also pass installation and actual Basecamp MP4/WebM playback checks. Intel Mac archive installation and Basecamp MP4/WebM playback also pass. All four alpha kits are published; see [platform evidence](docs/PLATFORMS.md) before choosing a package. Package CLI revision used locally: `c25a1167578aef5cbd9a9b6f822ffe2ae4fd6a89`.
 
 The header profile icon opens **Profile**. You can upload, replace or remove a PNG/JPEG avatar (up to 8 MB and 4096 pixels per side). It is cropped to a square, resized and saved locally for that identity. Avatars are not included in published posts.
 
