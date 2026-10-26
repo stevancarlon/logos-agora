@@ -40,6 +40,7 @@ let
 in {
   native = app;
   multimedia = media;
-  codecs = pkgs.lib.getLib ffmpeg;
+  # MinGW DLLs install in the primary output/bin, not the Unix library output.
+  codecs = ffmpeg.out;
   qtVersion = pkgs.qt6.qtbase.version;
 }
