@@ -42,8 +42,9 @@ test. Follow RELEASE.md on a separate clean Linux installation before submission
 
 ## Cross-machine and public-network gates
 
-On two separate Linux machines, install the exact candidate kit and Delivery
-0.3.2. Record kit hashes, Basecamp/Delivery versions, OS and timestamp. Use separate
+On two separate computers (for example Linux and Intel macOS), install the
+verified candidate kit for each platform and Delivery 0.3.2. Do not start the
+Intel test until its Basecamp host integration has passed. Record kit hashes, Basecamp/Delivery versions, OS and timestamp. Use separate
 identities and an agreed test thread. Start/connect Delivery on both machines.
 Verify each machine receives the other's signed replies; verify anonymous display
 and identity rotation independently. Record matching message IDs at both ends;
@@ -54,6 +55,36 @@ peer. Verify the missed post and existing replies are present once each. Repeat
 after restarting B again to check the persisted cursor. Queue a post while A is
 offline, restart A, reconnect, and check it arrives once at B. Record failures and
 latency; do not mark these gates passed from a local relay result.
+
+## Comparing receipt evidence
+
+Use `scripts/check-peer-receipts.py` on each test computer after each phase.
+Supply the complete 64-character message IDs for the agreed test thread and
+replies. Use a separate output file for live exchange, offline recovery and
+restart checks. The database is opened read-only, including committed WAL data;
+message bodies, aliases, identity keys and local paths are not exported.
+
+```sh
+python3 scripts/check-peer-receipts.py snapshot --database /absolute/path/to/forum.sqlite --installation linux-a --phase live --id FULL_THREAD_ID --id FULL_REPLY_ID --output linux-live.json
+```
+
+On the other computer, use its database path and `--installation intel-mac-b`,
+with the same IDs and phase. Copy only these receipt JSON files to one computer:
+
+```sh
+python3 scripts/check-peer-receipts.py compare linux-live.json mac-live.json
+```
+
+Comparison fails for missing messages, differing envelope hashes/parents, or
+messages that neither installation records as received. It never treats two
+sent indicators as incoming receipt. A matching report establishes database
+agreement only: retain the actual two-computer recording, kit hashes, transport
+logs and offline/restart sequence to establish how those records arrived.
+Installation labels are user-supplied and cannot prove independent hardware.
+The output deliberately leaves `crossMachineVerified` false. Do not copy the
+SQLite database between machines: that would copy identities and invalidate the
+independent receipt test. Hashes and timestamps still correlate selected test
+messages, so use agreed test conversations for shared evidence.
 
 ## Submission gates still requiring evidence
 

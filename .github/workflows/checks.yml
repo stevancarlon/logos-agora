@@ -11,6 +11,8 @@ jobs:
         with:
           python-version: '3.12'
       - run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config libssl-dev libgl1-mesa-dev libxkbcommon-dev libxcb-cursor0 libpulse0 libasound2t64 libharfbuzz0b zlib1g-dev libsodium-dev libicu-dev nlohmann-json3-dev
+      - name: Verify receipt evidence tooling
+        run: python3 -m unittest discover -s scripts/tests -v
       - run: pip install aqtinstall==3.3.0
       - run: python -m aqt install-qt linux desktop 6.9.2 linux_gcc_64 -O "$RUNNER_TEMP/Qt" --modules qtremoteobjects qtmultimedia --archives qtbase qtdeclarative qtremoteobjects qtmultimedia icu
       - run: QMAKE="$RUNNER_TEMP/Qt/6.9.2/gcc_64/bin/qmake" scripts/build-native.sh
