@@ -551,6 +551,13 @@ TestCase {
         findChild(app, "titleInput").text = "Immediate draft";
         findChild(app, "bodyInput").text = "Close before debounce";
         dialog.close();
+        // Draft writes do not emit a snapshot refresh. Reopening must use the
+        // current composer contents rather than the last server snapshot.
+        app.compose();
+        tryCompare(dialog, "opened", true);
+        compare(findChild(app, "titleInput").text, "Immediate draft");
+        compare(findChild(app, "bodyInput").text, "Close before debounce");
+        dialog.close();
         app.controller.refresh();
         var draft = JSON.parse(app.controller.state.drafts.new);
         compare(draft.title, "Immediate draft");

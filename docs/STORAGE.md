@@ -67,3 +67,20 @@ the actual Basecamp bridge plus private Delivery peers, and checks PNG/MP4/PDF
 upload, signed-reference ingestion, fetch and exact export bytes through the native
 backend. The Basecamp portion also verifies restart delivery and Store recovery.
 It does not establish cross-machine connectivity or public-network retention.
+
+## 28 October 2026 verification
+
+The updated candidate passes image, MP4 and PDF transfer with exact hashes between
+two isolated Storage nodes, including an MP4 through Basecamp, offline restart
+and Store recovery. [Private integration result](evidence/private-media-20261028.json).
+
+A separate attempt using two independently bootstrapped `logos.test` nodes on this
+host failed to fetch the sample image: provider advertisement timed out and the
+consumer did not receive data, including after allowing a 90-second download
+inactivity window. [Public attempt](evidence/public-storage-20261028.json). Public
+attachment discovery and retrieval are **not verified** here. Do not treat local
+upload success or a peer count as proof another reader can fetch the file.
+
+Downloads allow 90 seconds without data for discovery and 180 seconds overall.
+Failures preserve the source attachment and offer a retry; no corrupt download
+is inserted into the local archive.

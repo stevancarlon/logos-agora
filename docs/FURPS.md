@@ -10,8 +10,8 @@ Linux host. [Receipt evidence](evidence/public-delivery-20261028.json).
 The user reported successful Intel Mac installation on Sequoia 15.1. No additional
 cross-machine exchange is claimed. Authentic community discussions and the
 narrated demonstration remain explicit submission requirements; see
-[submission preparation](SUBMISSION.md). Public Storage retrieval is being checked
-separately and is not implied by the Delivery receipt.
+[submission preparation](SUBMISSION.md). Public Storage retrieval timed out on this host; private transfer and Basecamp
+media/restart/Store tests pass. See [Storage verification](STORAGE.md#28-october-2026-verification).
 
 | Area | Evidence | Remaining acceptance work |
 | --- | --- | --- |

@@ -59,6 +59,7 @@ Pane {
     property string sorting: "activity"
     property bool replyExpanded: false
     property var newAttachments: []
+    property var newDraftCache: null
     property var replyAttachments: []
     property var replyAttachmentCache: ({})
     property string attachmentTarget: "new"
@@ -275,7 +276,7 @@ Pane {
         forum.error = "";
         var d = {};
         try {
-            d = JSON.parse(forum.state.drafts.new || "{}");
+            d = root.newDraftCache !== null ? root.newDraftCache : JSON.parse(forum.state.drafts.new || "{}");
         } catch (e) {}
         newAttachments = d.attachments || [];
         titleInput.text = d.title || "";
@@ -285,13 +286,15 @@ Pane {
         titleInput.forceActiveFocus();
     }
     function saveNewDraft(force) {
-        if (force || composeDialog.opened)
-            forum.draft("new", JSON.stringify({
+        if (force || composeDialog.opened) {
+            root.newDraftCache = {
                 title: titleInput.text,
                 body: bodyInput.text,
                 board: newBoard,
                 attachments: newAttachments
-            }));
+            };
+            forum.draft("new", JSON.stringify(root.newDraftCache));
+        }
     }
     Component.onCompleted: console.log("FORUM_UI_READY native discussion interface")
 
@@ -1360,6 +1363,7 @@ Pane {
                         if (forum.posting) return;
                         forum.savePost("", root.newBoard, titleInput.text, bodyInput.text, function (r) {
                             composeDialog.submitted = true;
+                            root.newDraftCache = {};
                             composeDialog.close();
                             root.openThread(r.id);
                         }, root.newAttachments.map(function (f) {

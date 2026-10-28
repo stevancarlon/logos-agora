@@ -1,0 +1,9 @@
+{
+  "passed": false,
+  "network": "logos.test",
+  "sameMachine": true,
+  "crossMachineVerified": false,
+  "manualPeerConnection": false,
+  "files": [],
+  "error": "workshop-diagram.png: FORUM_BACKEND_READY SQLite and Ed25519 initialized\nFORUM_BACKEND_READY SQLite and Ed25519 initialized\nStorage node did not respond in time. Check its peer connection and retry.\n"
+}
