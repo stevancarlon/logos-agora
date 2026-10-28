@@ -1,4 +1,17 @@
-# FURPS self-assessment — native 0.3.1 alpha
+# FURPS self-assessment — native 0.3.2 release candidate
+
+
+28 October 2026 candidate update: **24 backend and 33 QML tests pass** locally on
+Qt 6.9.2. RLN registration completed; the real welcome thread was acknowledged
+by Delivery and received by an independent Basecamp profile on the public
+`logos.test` network, with matching envelope hashes. Both processes used one
+Linux host. [Receipt evidence](evidence/public-delivery-20261028.json).
+
+The user reported successful Intel Mac installation on Sequoia 15.1. No additional
+cross-machine exchange is claimed. Authentic community discussions and the
+narrated demonstration remain explicit submission requirements; see
+[submission preparation](SUBMISSION.md). Public Storage retrieval is being checked
+separately and is not implied by the Delivery receipt.
 
 | Area | Evidence | Remaining acceptance work |
 | --- | --- | --- |

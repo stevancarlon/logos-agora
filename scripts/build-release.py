@@ -33,13 +33,13 @@ def main():
     with tempfile.TemporaryDirectory(prefix='agora-release-') as temporary:
         stage = Path(temporary) / name
         stage.mkdir()
-        folders = ('native/forum/qml', 'native/forum/assets')
+        folders = ('native/forum/qml', 'native/forum/assets', 'docs')
         for folder in folders:
             shutil.copytree(ROOT / folder, stage / folder)
         renderer_path = f'build/qt{qt_version}-media/qml/Agora/Media'
         shutil.copytree(a.renderer or ROOT / renderer_path, stage / renderer_path)
         shutil.copy2(backend, stage / 'native/forum' / library)
-        files = ['README.md', 'LICENSE-MIT', 'LICENSE-APACHE', 'docs/RELEASE.md', 'docs/STORAGE.md',
+        files = ['README.md', 'INSTALL.md', 'LICENSE-MIT', 'LICENSE-APACHE',
                  'native/forum/metadata.json',
                  'native/forum/manifest.json', 'native/forum/variant',
                  'scripts/install-basecamp.py', 'scripts/install-media-runtime.py', 'scripts/install-release.py',

@@ -305,6 +305,15 @@ private slots:
     QCOMPARE(call({{"op","snapshot"}})["theme"].toString(), QString("light"));
     QVERIFY(!call({{"op","settings"},{"theme","invalid"}})["ok"].toBool());
   }
+  void autoConnectIsOptInAndPersists() {
+    QVERIFY(!call({{"op","snapshot"}})["autoConnect"].toBool());
+    QVERIFY(call({{"op","settings"},{"autoConnect",true}})["ok"].toBool());
+    backend.reset(); backend = std::make_unique<ForumBackend>();
+    QVERIFY(call({{"op","snapshot"}})["autoConnect"].toBool());
+    QVERIFY(!call({{"op","settings"},{"autoConnect","true"}})["ok"].toBool());
+    QVERIFY(call({{"op","settings"},{"autoConnect",false}})["ok"].toBool());
+    QVERIFY(!call({{"op","snapshot"}})["autoConnect"].toBool());
+  }
   void validatesHistoryAndPersistsCursor() {
     auto id = post()["id"].toString();
     auto wire = call({{"op", "wire"}, {"id", id}})["wire"].toString();

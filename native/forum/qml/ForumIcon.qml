@@ -3,7 +3,7 @@ import QtQuick
 Canvas {
     id: icon
     property string name: "general"
-    property color ink: "#b9c8bb"
+    property color ink: "#bcbcbc"
     implicitWidth: 24
     implicitHeight: 24
     onNameChanged: requestPaint()
@@ -30,7 +30,21 @@ Canvas {
             c.arc(x, y, r, 0, Math.PI * 2);
             c.stroke();
         }
-        if (name === "privacy") {
+        if (name === "back") {
+            line([14, 5, 7, 12, 14, 19]);
+            line([7, 12, 21, 12]);
+        } else if (name === "sun") {
+            circle(12, 12, 4);
+            line([12, 2, 12, 4]); line([12, 20, 12, 22]);
+            line([2, 12, 4, 12]); line([20, 12, 22, 12]);
+            line([5, 5, 6.5, 6.5]); line([17.5, 17.5, 19, 19]);
+            line([5, 19, 6.5, 17.5]); line([17.5, 6.5, 19, 5]);
+        } else if (name === "moon") {
+            c.beginPath();
+            c.arc(12, 12, 8.5, 0.25, 4.45);
+            c.bezierCurveTo(6, 14, 15, 18, 20.2, 14.1);
+            c.stroke();
+        } else if (name === "privacy") {
             c.strokeRect(5.5, 10, 13, 11);
             c.beginPath();
             c.moveTo(8, 10);

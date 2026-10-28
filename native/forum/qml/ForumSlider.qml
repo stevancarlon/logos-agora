@@ -3,6 +3,8 @@ import QtQuick.Controls.Basic
 
 Slider {
     id: control
+    hoverEnabled: true
+    HoverHandler { enabled: control.enabled; cursorShape: Qt.PointingHandCursor }
     leftPadding: 6
     rightPadding: 6
     implicitHeight: 40

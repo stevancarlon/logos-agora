@@ -9,14 +9,14 @@ Rectangle {
     required property var controller
     readonly property bool available: attachment.available !== false
     property var preview: null
-    property color ink: "#e6e8df"
-    property color muted: "#a7b2a9"
-    property color surface: "#1a221d"
-    property color outline: "#2c3931"
+    property color ink: "#ededed"
+    property color muted: "#a3a3a3"
+    property color surface: "#181818"
+    property color outline: "#333333"
     signal downloadRequested(string attachmentId, string filename)
     width: Math.min(parent ? parent.width : 320, video ? 480 : 320)
     height: content.implicitHeight + (video ? 0 : 20)
-    color: video ? "#080b09" : surface
+    color: video ? "#080808" : surface
     border.color: video ? "transparent" : outline
     radius: 6
     readonly property bool video: attachment.mime.indexOf("video/") === 0

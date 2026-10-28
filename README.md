@@ -25,12 +25,12 @@ Download the kit for Linux, macOS or Windows and follow the [installation guide]
 
 Open **Agora** in Basecamp, choose an identity and start a thread. Configure Delivery in **Network** to publish posts.
 
-**Alpha:** packages are unsigned. Public-network and cross-machine messaging remain unverified. Anonymous display does not guarantee network anonymity; public posts are not end-to-end encrypted.
+**Alpha:** packages are unsigned. Public Delivery receipt is verified between separate profiles on one Linux host; cross-machine messaging remains unverified. Anonymous display does not guarantee network anonymity; public posts are not end-to-end encrypted.
 
 ## Documentation
 
 - [Usage and development](docs/GUIDE.md)
-- [Storage setup](docs/STORAGE.md)
+- [Network setup](docs/NETWORK.md) · [Storage setup](docs/STORAGE.md)
 - [Architecture and protocol](docs/PROTOCOL.md)
 - [Verification and limitations](docs/FURPS.md)
 

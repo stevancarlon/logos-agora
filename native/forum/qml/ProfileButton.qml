@@ -7,16 +7,24 @@ AbstractButton {
     readonly property color iconColor: hovered || activeFocus ? palette.buttonText : palette.placeholderText
     implicitWidth: 36
     implicitHeight: 36
+    scale: down ? 0.96 : 1
+    Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
     hoverEnabled: true
+    HoverHandler {
+        enabled: control.enabled
+        cursorShape: Qt.PointingHandCursor
+    }
     Accessible.name: "Profile"
     ToolTip.visible: hovered
     ToolTip.delay: 600
     ToolTip.text: "Profile"
     background: Rectangle {
+        Behavior on color { ColorAnimation { duration: 110 } }
+        Behavior on border.color { ColorAnimation { duration: 110 } }
         radius: width / 2
         color: control.hovered ? control.palette.highlight : "transparent"
-        border.color: control.activeFocus ? control.palette.accent : control.palette.mid
-        border.width: control.activeFocus ? 2 : 1
+        border.color: control.visualFocus ? control.palette.accent : control.palette.mid
+        border.width: control.visualFocus ? 2 : 1
     }
     contentItem: Item {
         Canvas {

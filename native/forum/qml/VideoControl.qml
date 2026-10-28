@@ -3,6 +3,8 @@ import QtQuick.Controls.Basic
 
 ToolButton {
     id: control
+    hoverEnabled: true
+    HoverHandler { enabled: control.enabled; cursorShape: Qt.PointingHandCursor }
     property string symbol: "play"
     property string label: ""
     implicitWidth: 40
@@ -14,8 +16,8 @@ ToolButton {
     ToolTip.text: label
     background: Rectangle {
         radius: 5
-        color: control.hovered || control.activeFocus ? "#25ffffff" : "transparent"
-        border.color: control.activeFocus ? "#c5d6c7" : "transparent"
+        color: control.hovered || control.visualFocus ? "#25ffffff" : "transparent"
+        border.color: control.visualFocus ? "#dddddd" : "transparent"
     }
     contentItem: Item {
         Canvas {
@@ -27,8 +29,8 @@ ToolButton {
             onPaint: {
                 var c = getContext("2d");
                 c.reset();
-                c.strokeStyle = "#f2f3ee";
-                c.fillStyle = "#f2f3ee";
+                c.strokeStyle = "#f2f2f2";
+                c.fillStyle = "#f2f2f2";
                 c.lineWidth = 1.4;
                 c.lineCap = "round";
                 c.lineJoin = "round";

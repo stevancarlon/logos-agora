@@ -127,7 +127,9 @@ int main(int argc, char **argv) {
   view.setSource(QUrl::fromLocalFile(QStringLiteral(FORUM_QML_PATH)));
   if (view.status() == QQuickView::Error)
     return 1;
-  view.resize(args.contains("--reference") ? 1484 : args.contains("--compact") ? 400 : args.contains("--narrow") ? 560 : 1200, args.contains("--reference") ? 926 : 800);
+  view.resize(args.contains("--wide") ? 1780 : args.contains("--reference") ? 1484 : args.contains("--compact") ? 400 : args.contains("--narrow") ? 560 : 1200, args.contains("--reference") ? 926 : 800);
+  if (args.contains("--width")) view.setWidth(args.value(args.indexOf("--width") + 1).toInt());
+  if (args.contains("--height")) view.setHeight(args.value(args.indexOf("--height") + 1).toInt());
   view.setTitle(args.contains("--demo") ? "Agora — local demo · sample threads" : "Agora");
   view.show();
   if (args.contains("--screenshot")) {

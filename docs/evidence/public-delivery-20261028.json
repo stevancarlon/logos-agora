@@ -1,0 +1,25 @@
+{
+  "checkedAt": "2026-10-28T21:48:19.734912+00:00",
+  "network": "logos.test",
+  "sameMachine": true,
+  "crossMachineVerified": false,
+  "authenticAdoption": false,
+  "anonymityLevelRequested": "Required",
+  "sender": {
+    "id": "4b1a6ee1beab51d8d1ae8cfeb7014d063b9b1b9204b6ea637bb502b7958c7a9a",
+    "status": "sent",
+    "request": "",
+    "wireSha256": "c1b5040d73251daf2726c4a1ba93ba0122794701220aeb4e1d887940757ed76e"
+  },
+  "observer": {
+    "id": "4b1a6ee1beab51d8d1ae8cfeb7014d063b9b1b9204b6ea637bb502b7958c7a9a",
+    "status": "received",
+    "request": "",
+    "wireSha256": "c1b5040d73251daf2726c4a1ba93ba0122794701220aeb4e1d887940757ed76e"
+  },
+  "senderAcknowledgement": [
+    "qml: AGORA_DELIVERY_EVENT messageSent [\"1767c70eb32385a19cc2\",\"0x76e7528acd4321e694c7ac630fdf62520cb68586c9e919d2684e05ce9b21daf2\",1793224054099937300]"
+  ],
+  "registeredMembership": true,
+  "passed": true
+}

@@ -23,6 +23,19 @@ In Agora, open **Network & delivery → Advanced**, enter
 `http://127.0.0.1:8080/api/storage/v1`, then choose **Save media connection**.
 Remote HTTP gateways are not accepted. The endpoint is saved per forum profile.
 
+For a persistent Linux desktop setup, the node can run as a systemd user service.
+Keep `--api-bindaddr=127.0.0.1`, choose an unused API port, and keep its data
+directory across upgrades. The local development installation uses
+`agora-storage.service`, Storage v0.5.3, and port `18080`; its API is
+`http://127.0.0.1:18080/api/storage/v1`. Check it with
+`systemctl --user status agora-storage.service`. The service starts at user login.
+This is a separate official Storage process because Agora's HTTP integration
+does not consume the Basecamp Storage module's native upload/download methods.
+
+On 2026-10-26 this setup connected to public testnet peers and served its local
+API. That establishes node connectivity, not public attachment retrieval or
+retention; the two-node transfer evidence below remains the media validation.
+
 ## Post and read
 
 Attach a PNG/JPEG, MP4/WebM or PDF to a new thread or reply and publish it. Agora

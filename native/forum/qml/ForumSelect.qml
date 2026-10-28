@@ -20,6 +20,10 @@ ComboBox {
     leftPadding: quiet ? 0 : 12
     rightPadding: 34
     hoverEnabled: true
+    HoverHandler {
+        enabled: control.enabled
+        cursorShape: Qt.PointingHandCursor
+    }
     font.family: "Adwaita Sans"
     font.pixelSize: 13
     contentItem: Text {
@@ -28,6 +32,25 @@ ComboBox {
         color: control.palette.text
         verticalAlignment: Text.AlignVCenter
         elide: Text.ElideRight
+    }
+    delegate: ItemDelegate {
+        required property int index
+        width: control.width
+        implicitHeight: 40
+        text: control.textAt(index)
+        highlighted: control.highlightedIndex === index
+        hoverEnabled: true
+        HoverHandler { cursorShape: Qt.PointingHandCursor }
+        background: Rectangle {
+            color: parent.highlighted || parent.hovered ? control.palette.highlight : control.palette.base
+        }
+        contentItem: Text {
+            text: parent.text
+            font: control.font
+            color: control.palette.text
+            verticalAlignment: Text.AlignVCenter
+            elide: Text.ElideRight
+        }
     }
     indicator: Canvas {
         x: control.width - width - 13
@@ -51,8 +74,10 @@ ComboBox {
         }
     }
     background: Rectangle {
+        Behavior on color { ColorAnimation { duration: 110 } }
+        Behavior on border.color { ColorAnimation { duration: 110 } }
         radius: 6
         color: control.hovered ? control.palette.alternateBase : control.quiet ? "transparent" : control.palette.base
-        border.color: control.activeFocus ? control.palette.accent : control.quiet ? "transparent" : control.palette.mid
+        border.color: control.visualFocus ? control.palette.accent : control.quiet ? "transparent" : control.palette.mid
     }
 }

@@ -5,8 +5,9 @@ import QtQuick.Layouts
 ColumnLayout {
     id: control
     property var files: []
-    property color ink: "#e6e8df"
-    property color muted: "#a7b2a9"
+    property bool uploadAvailable: false
+    property color ink: "#ededed"
+    property color muted: "#a3a3a3"
     signal addRequested
     signal removeRequested(int index)
     spacing: 4
@@ -19,7 +20,7 @@ ColumnLayout {
         }
         Text {
             Layout.fillWidth: true
-            text: control.files.length ? "Attachments stay on this device" : "Images, video or PDF · up to 64 MB"
+            text: control.files.length ? (control.uploadAvailable ? "Attachments upload when you post" : "Attachments stay on this device") : "Images, video or PDF · up to 64 MB"
             color: control.muted
             font.pixelSize: 10
             wrapMode: Text.Wrap

@@ -30,4 +30,4 @@ with 0.4.0. Earlier network evidence uses pinned Delivery 0.3.2.
 
 The source passes native tests on GitHub's default branch. Private loopback Basecamp exchange, restart retry, Store recovery and local Storage transfers are covered by the acceptance checks. A sent marker means transport acknowledgement, not proof every peer received a post.
 
-Cross-machine messaging, public-network retention, full desktop installation on a separate clean OS and authentic community adoption remain unverified. See [acceptance requirements](docs/ACCEPTANCE.md) before treating this alpha as a production release or completed prize submission.
+Public Delivery receipt is verified between separate profiles on one Linux host; see [network setup and evidence](docs/NETWORK.md). Cross-machine messaging, public Storage retention and authentic community adoption remain unverified. See [acceptance requirements](docs/ACCEPTANCE.md) before treating this alpha as a production release or completed prize submission.

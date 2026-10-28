@@ -1,6 +1,6 @@
 # Agora usage and development
 
-Detailed setup, everyday use, identity and media notes for the published alpha. For prebuilt downloads, start with [installation](../INSTALL.md).
+Detailed setup, everyday use, identity and media notes. For prebuilt downloads, start with [installation](../INSTALL.md).
 
 ## Open the installed app
 
@@ -10,11 +10,11 @@ Basecamp is installed at `~/Applications/LogosBasecamp-0.3.2-x86_64.AppImage`. A
 ~/Applications/LogosBasecamp-Agora --uri=basecamp://app/logos_forum
 ```
 
-Use the header’s **/all/** and board links to browse. The feed places its sort dropdown on the left and **New thread** on the right; the board dropdown appears only on narrow windows where the header board links are hidden. Each thread shows its opening text, latest reply preview when available, and a **Reply** action that opens its composer. Desktop search lives in the header; Ctrl+F focuses search. The profile icon opens identity/avatar settings. Saved threads and network settings are available in the footer. Narrow windows retain board and sort selectors. Pending and failed delivery states stay on posts; there is no sidebar or Outbox tab.
+Use the header’s **/all/** and board links to browse. The feed places its sort dropdown on the left and **New thread** on the right; the board dropdown appears only on narrow windows where the header board links are hidden. Each thread shows its opening text, latest reply preview when available, and a **Reply** action that opens its composer. Desktop search lives in the header; Ctrl+F focuses search. The profile icon opens identity/avatar settings. Saved threads and network settings are available in the profile dialog. Narrow windows retain board and sort selectors. Pending and failed delivery states stay on posts; there is no sidebar or Outbox tab.
 
 Feeds load 30 discussions per page and open discussions load 50 replies per page. Previous/next controls appear when needed; search covers the whole local archive.
 
-Create a thread, reply, quote a post, switch boards, search, bookmark or change identity. Text-only posts enter the durable outbox. With a local Logos Storage node configured, new attachments upload to Storage and their signed references are queued with the post. Without that configuration, attachment posts and their replies stay local. In **Network**, connect to an already-running Delivery node, or explicitly start one. The app subscribes to its content topic and sends one queued item at a time. A matching Delivery acknowledgement changes it to sent. A sent label does not guarantee receipt by every peer.
+Create a thread, reply, quote a post, switch boards, search, bookmark or change identity. Text-only posts enter the durable outbox. With a local Logos Storage node configured, new attachments upload to Storage and their signed references are queued with the post. Without that configuration, attachment posts and their replies stay local. In **Network**, connect to an already-running Delivery node, or explicitly start one. Optionally enable **Connect when Agora opens** to reconnect automatically; it is off by default. The app subscribes to its content topic and sends one queued item at a time. A matching Delivery acknowledgement changes it to sent. A sent label does not guarantee receipt by every peer.
 
 Offline threads, drafts, identities and outbox entries remain available after restart. **Load history** requests at most 50 messages from a Store peer multiaddress you provide; its cursor is persisted. No public peer or centralized API is hardcoded.
 
@@ -72,3 +72,9 @@ The multimedia launcher keeps the official Basecamp AppImage intact and selects 
 Video decoding and audio run in the out-of-process native backend. The player accepts a stored video attachment ID, never an arbitrary media URL. QML receives only state and bounded RGBA frames, displayed by the small `Agora.Media` renderer in the explicitly installed runtime. The renderer has no filesystem or networking API. Basecamp's URL/network sandbox is unchanged. Playback is limited to a 640-pixel maximum dimension, with frames polled at most 25 times per second; original attachment files and exported copies are unchanged. One video plays at a time, and leaving/destroying its discussion stops playback.
 
 The default Qt/FFmpeg codecs are used. Unsupported media shows an inline error. Video sharing uses signed protocol v2 references and Logos Storage; inline playback remains within the app.
+
+## Public network
+
+Follow [NETWORK.md](NETWORK.md) for the current Delivery/RLN dependencies and
+testnet funding steps. Earlier network examples do not guarantee compatibility
+with the current public testnet.

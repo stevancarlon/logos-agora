@@ -33,10 +33,18 @@ def main():
     env = dict(os.environ)
     qt_bin = subprocess.check_output([qmake, '-query', 'QT_INSTALL_BINS'], text=True).strip()
     env['PATH'] = qt_bin + os.pathsep + env.get('PATH', '')
+    # Use the selected Qt at runtime as well as compile time. An old build's
+    # RPATH may point at a removed SDK and otherwise pick up system Qt instead.
+    def qt_path(key):
+        return subprocess.check_output([qmake, '-query', key], text=True).strip()
+    if sys.platform.startswith('linux'):
+        env['LD_LIBRARY_PATH'] = qt_path('QT_INSTALL_LIBS') + os.pathsep + env.get('LD_LIBRARY_PATH', '')
+    env['QT_PLUGIN_PATH'] = qt_path('QT_INSTALL_PLUGINS')
+    env['QML2_IMPORT_PATH'] = qt_path('QT_INSTALL_QML')
     if windows and env.get('OPENSSL_ROOT_DIR'):
         env['PATH'] = str(Path(env['OPENSSL_ROOT_DIR']) / 'bin') + os.pathsep + env['PATH']
     env['QML_IMPORT_PATH'] = str(ROOT / f'build/qt{version}-media/qml') + (
-        os.pathsep + env['QML_IMPORT_PATH'] if env.get('QML_IMPORT_PATH') else '')
+        os.pathsep + qt_path('QT_INSTALL_QML') + (os.pathsep + env['QML_IMPORT_PATH'] if env.get('QML_IMPORT_PATH') else ''))
     env.update(QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software')
 
     def executable(target, name):

@@ -7,18 +7,24 @@ QtObject {
     property bool eventsAttached: false
     property var earlyEvents: []
     property bool ready: false
+    property bool startupConnectionChecked: false
+    property int connectionEpoch: 0
     property var browseQuery: ({})
     onBrowseQueryChanged: {
         error = "";
-        if (backend) scheduleRefresh();
+        if (backend) scheduleRefresh(true);
     }
     property bool refreshing: false
     readonly property bool loading: refreshing || refreshTimer.running
     property bool refreshAgain: false
     property int pendingReceives: 0
-    function scheduleRefresh() {
+    function scheduleRefresh(immediate) {
         if (refreshing) { refreshAgain = true; return; }
-        if (!refreshTimer.running) refreshTimer.start();
+        // User navigation runs next frame; network bursts remain coalesced.
+        if (immediate || !refreshTimer.running) {
+            refreshTimer.interval = immediate ? 0 : 100;
+            refreshTimer.restart();
+        }
     }
     property Timer refreshTimer: Timer {
         interval: 100
@@ -155,6 +161,10 @@ QtObject {
             if (!ready)
                 console.log("FORUM_STATE_READY", r.identities.length, "identities");
             ready = true;
+            if (!startupConnectionChecked) {
+                startupConnectionChecked = true;
+                if (state.autoConnect && bridge) Qt.callLater(function () { ctl.connectNetwork(true); });
+            }
             refreshing = false;
             if (refreshAgain) scheduleRefresh();
         }, function (message) {
@@ -217,7 +227,7 @@ QtObject {
         } else if (files.length && state.storageEndpoint) uploadNext();
         else submit();
     }
-    function moduleCall(method, args, done) {
+    function moduleCall(method, args, done, failed) {
         if (!bridge) {
             error = "Logos Delivery is available inside Basecamp.";
             return;
@@ -226,6 +236,7 @@ QtObject {
             try {
                 done(parse(raw));
             } catch (e) {
+                if (failed) { failed(String(e)); return; }
                 connection = "error";
                 connectionDetail = String(e);
                 error = String(e);
@@ -246,29 +257,49 @@ QtObject {
         }
         return true;
     }
-    function connectNetwork() {
+    function connectNetwork(startIfNeeded) {
         if (!attachEvents())
             return;
         if (connection === "connecting" || connection === "online")
             return;
         connection = "connecting";
+        var epoch = ++connectionEpoch;
         connectionDetail = "Starting Logos Delivery…";
         error = "";
 
         // Use the host's shared delivery node if already connected. Never stop or
         // reconfigure a node owned by another app. A fresh node is explicitly started.
         moduleCall("getConnectionStatus", [], function (status) {
+            if (epoch !== connectionEpoch) return;
             var connected = String(status).toLowerCase();
             if (connected === "connected" || connected === "partiallyconnected") {
                 subscribe();
                 return;
             }
+            if (startIfNeeded && connected === "disconnected") {
+                // Start the existing node without changing its configuration.
+                moduleCall("start", [], function () {});
+                return;
+            }
+            if (startIfNeeded && connected === "connecting") return;
             connection = "error";
             connectionDetail = "Start a Delivery node in Basecamp, then connect here.";
+        }, function (message) {
+            if (epoch !== connectionEpoch) return;
+            if (startIfNeeded && message.indexOf("Context not initialized") >= 0) {
+                startNode();
+                return;
+            }
+            connection = "error";
+            connectionDetail = message;
+            error = message;
         });
     }
     function subscribe() {
+        if (connection === "offline") return;
+        var epoch = connectionEpoch;
         moduleCall("subscribe", [contentTopic], function () {
+            if (epoch !== connectionEpoch) return;
             connection = "online";
             connectionDetail = "Subscribed via Logos Delivery · public discussions";
             notice = "Connected. Queued messages will be sent gradually.";
@@ -279,6 +310,7 @@ QtObject {
             return;
 
         connection = "connecting";
+        var epoch = ++connectionEpoch;
         connectionDetail = "Creating Delivery node with required mix routing…";
         moduleCall("createNode", [JSON.stringify({
                 mode: "Core",
@@ -289,6 +321,7 @@ QtObject {
                     backfillRequestTimeoutSeconds: 10
                 }
             })], function () {
+            if (epoch !== connectionEpoch) return;
             moduleCall("start", [], function () {
                 connectionDetail = "Waiting for node start and peers…";
             });
@@ -320,6 +353,7 @@ QtObject {
         });
     }
     function disconnect() {
+        connectionEpoch++;
         connection = "offline";
         connectionDetail = "Local mode · drafts and posts stay on this device";/* Do not stop the shared host node. */
     }

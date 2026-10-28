@@ -36,18 +36,18 @@ Pane {
     }
     QtObject {
         id: theme
-        readonly property color canvas: root.darkTheme ? "#101815" : "#f5f5ef"
-        readonly property color sidebar: root.darkTheme ? "#121b17" : "#ecefe5"
-        readonly property color surface: root.darkTheme ? "#1a221d" : "#fafbf5"
-        readonly property color alternate: root.darkTheme ? "#1e2821" : "#eef0e7"
-        readonly property color selection: root.darkTheme ? "#233128" : "#dce7db"
-        readonly property color border: root.darkTheme ? "#2c3931" : "#cdd8c4"
-        readonly property color text: root.darkTheme ? "#e6e8df" : "#2e4632"
-        readonly property color muted: root.darkTheme ? "#a7b2a9" : "#66765f"
-        readonly property color accent: root.darkTheme ? "#b3d0b7" : "#366144"
-        readonly property color quote: root.darkTheme ? "#e5b77f" : "#9b603c"
-        readonly property color error: root.darkTheme ? "#ffc3ac" : "#8b422d"
-        readonly property color errorSurface: root.darkTheme ? "#442e25" : "#f6e7d8"
+        readonly property color canvas: root.darkTheme ? "#0c0c0c" : "#ffffff"
+        readonly property color sidebar: root.darkTheme ? "#101010" : "#f5f5f5"
+        readonly property color surface: root.darkTheme ? "#181818" : "#fafafa"
+        readonly property color alternate: root.darkTheme ? "#202020" : "#f0f0f0"
+        readonly property color selection: root.darkTheme ? "#2a2a2a" : "#e5e5e5"
+        readonly property color border: root.darkTheme ? "#333333" : "#d4d4d4"
+        readonly property color text: root.darkTheme ? "#ededed" : "#171717"
+        readonly property color muted: root.darkTheme ? "#a3a3a3" : "#666666"
+        readonly property color accent: root.darkTheme ? "#eeeeee" : "#222222"
+        readonly property color quote: root.darkTheme ? "#cccccc" : "#444444"
+        readonly property color error: root.darkTheme ? "#f5f5f5" : "#171717"
+        readonly property color errorSurface: root.darkTheme ? "#242424" : "#eeeeee"
     }
     implicitWidth: 1160
     implicitHeight: 760
@@ -93,8 +93,11 @@ Pane {
         }
     ]
     property var current: findPost(selected)
-    property bool narrow: width < 850
-    readonly property real uiScale: narrow ? 1 : Math.max(0.82, Math.min(1, width / 1402))
+    property bool narrow: width < 1080
+    readonly property real rowInset: narrow ? 12 : 16
+    readonly property real contentGutter: Math.max(narrow ? 16 : 28, (width - 1600) / 2)
+    // Qt handles display scaling; resizing the window should not shrink text.
+    readonly property real uiScale: 1
     property string newBoard: board === "all" ? "general" : board
     property string feedCursor: ""
     property string replyCursor: ""
@@ -105,7 +108,10 @@ Pane {
     onSortingChanged: resetFeedPages()
     onShowingSavedChanged: resetFeedPages()
     onSelectedChanged: { pendingReplyScroll = ""; replyCursor = ""; replyHistory = []; }
-    function resetFeedPages() { feedCursor = ""; feedHistory = []; }
+    function resetFeedPages() {
+        feedCursor = ""; feedHistory = []; feedScrollY = 0; restoreFeedScroll = false;
+        threadListView.positionViewAtBeginning();
+    }
     function nextPage() {
         if (!forum.state.hasMore || forum.loading) return;
         if (selected) { replyHistory = replyHistory.concat([replyCursor]); replyCursor = forum.state.nextCursor; }
@@ -120,10 +126,45 @@ Pane {
         else { feedHistory = history; feedCursor = cursor; }
         threadListView.positionViewAtBeginning(); postsView.positionViewAtBeginning();
     }
-    property var visibleThreads: threadList()
+    // Keep view data separate from settings/draft snapshots. Unchanged posts
+    // must not recreate delegates, reset selection, or interrupt inline video.
+    property var feedPosts: []
+    property var discussionPosts: []
+    property real feedScrollY: 0
+    property bool restoreFeedScroll: false
+    property string feedFingerprint: ""
+    property string discussionFingerprint: ""
+    property var visibleThreads: feedPosts.filter(function (p) { return !p.thread; })
+    function syncViewData() {
+        var data = forum.state.posts;
+        var fingerprint = JSON.stringify(data);
+        if (forum.state.view === "feed" && !selected) {
+            if (feedFingerprint !== fingerprint) {
+                var y = restoreFeedScroll ? feedScrollY : threadListView.contentY;
+                feedFingerprint = fingerprint;
+                feedPosts = data;
+                Qt.callLater(function () {
+                    if (root && !root.selected) threadListView.contentY = Math.max(0, Math.min(y, Math.max(0, threadListView.contentHeight - threadListView.height)));
+                });
+            }
+            if (restoreFeedScroll) {
+                restoreFeedScroll = false;
+                Qt.callLater(function () { if (root) threadListView.contentY = root.feedScrollY; });
+            }
+        } else if (forum.state.view === "thread" && forum.state.threadId === selected && discussionFingerprint !== fingerprint) {
+            var postY = postsView.contentY;
+            discussionFingerprint = fingerprint;
+            discussionPosts = data;
+            Qt.callLater(function () {
+                if (root && !root.pendingReplyScroll) postsView.contentY = Math.max(0, Math.min(postY, Math.max(0, postsView.contentHeight - postsView.height)));
+            });
+        }
+    }
     ForumController {
         id: forum
+        onStateChanged: root.syncViewData()
         onLoadingChanged: {
+            if (!loading) loadingIndicator.visible = false;
             if (!loading && root.pendingReplyScroll && root.findPost(root.pendingReplyScroll)) {
                 root.pendingReplyScroll = "";
                 Qt.callLater(function () { postsView.positionViewAtEnd(); });
@@ -168,7 +209,7 @@ Pane {
     function statusLabel(status) {
         if (status === "local")
             return "Local only · attachments are not published";
-        return status === "sent" ? "Network confirmed" : status === "received" ? "Received" : status === "sending" ? "Sending…" : status === "failed" ? "Retry pending" : "Saved locally · queued";
+        return status === "sent" ? "Sent to network" : status === "received" ? "Received" : status === "sending" ? "Sending…" : status === "failed" ? "Retry pending" : "Saved locally · queued";
     }
     function threadList() {
         return forum.state.posts.filter(function (p) { return !p.thread; });
@@ -184,7 +225,10 @@ Pane {
     }
     function leaveThread() {
         saveReplyDraft();
+        if (selected) restoreFeedScroll = true;
         selected = "";
+        discussionPosts = [];
+        discussionFingerprint = "";
         replyExpanded = false;
     }
     function goBoard(id) {
@@ -195,6 +239,9 @@ Pane {
     }
     function openThread(pid) {
         saveReplyDraft();
+        if (!selected) feedScrollY = threadListView.contentY;
+        discussionFingerprint = "";
+        discussionPosts = [];
         selected = pid;
         replyInput.text = Object.prototype.hasOwnProperty.call(replyDraftCache, pid) ? replyDraftCache[pid] : forum.state.drafts[pid] || "";
         replyDraftTimer.stop();
@@ -225,6 +272,7 @@ Pane {
         beginReply();
     }
     function compose() {
+        forum.error = "";
         var d = {};
         try {
             d = JSON.parse(forum.state.drafts.new || "{}");
@@ -252,8 +300,8 @@ Pane {
         spacing: 0
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: root.narrow ? 64 : 76 * root.uiScale
-            color: "#141a17"
+            Layout.preferredHeight: root.narrow ? 64 : 76
+            color: theme.sidebar
             Rectangle {
                 anchors.bottom: parent.bottom
                 width: parent.width
@@ -262,18 +310,40 @@ Pane {
             }
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: root.narrow ? 16 : 26 * root.uiScale
-                anchors.rightMargin: root.narrow ? 16 : 26 * root.uiScale
+                anchors.leftMargin: root.contentGutter + root.rowInset
+                anchors.rightMargin: root.contentGutter + root.rowInset
                 spacing: 12
-                Image {
-                    source: "brand/agora-wordmark.png"
-                    smooth: true
-                    mipmap: true
-                    sourceSize: Qt.size(544, 181)
-                    sourceClipRect: Qt.rect(70, 11, 390, 147)
+                Canvas {
+                    id: wordmark
+                    property url artwork: Qt.resolvedUrl("brand/agora-wordmark.png")
+                    property color ink: theme.text
                     Layout.preferredWidth: 106
                     Layout.preferredHeight: 40
-                    fillMode: Image.PreserveAspectFit
+                    Component.onCompleted: loadImage(artwork)
+                    onImageLoaded: requestPaint()
+                    onInkChanged: requestPaint()
+                    onWidthChanged: requestPaint()
+                    onHeightChanged: requestPaint()
+                    onPaint: {
+                        if (!isImageLoaded(artwork)) return;
+                        var c = getContext("2d");
+                        c.clearRect(0, 0, width, height);
+                        c.drawImage(artwork, 280, 44, 1560, 588, 0, 0, width, height);
+                        // Use the original lettering as a mask, removing its baked-in
+                        // forest background. Works with software and GPU rendering.
+                        var pixels = c.getImageData(0, 0, width, height).data;
+                        c.clearRect(0, 0, width, height);
+                        c.fillStyle = ink;
+                        for (var y = 0; y < height; y++) {
+                            for (var x = 0; x < width; x++) {
+                                var i = (y * width + x) * 4;
+                                var luminance = (pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3;
+                                c.globalAlpha = Math.max(0, Math.min(1, (luminance - 35) / 185));
+                                c.fillRect(x, y, 1, 1);
+                            }
+                        }
+                        c.globalAlpha = 1;
+                    }
                     Accessible.name: "Agora"
                     Accessible.role: Accessible.Graphic
                     MouseArea {
@@ -295,8 +365,8 @@ Pane {
                         objectName: "discussionsTab"
                         text: "/all/"
                         selected: root.board === "all" && !root.showingSaved
-                        palette.text: "#e6e8df"
-                        palette.placeholderText: "#a7b2a9"
+                        palette.text: theme.text
+                        palette.placeholderText: theme.muted
                         onClicked: root.goBoard("all")
                     }
                     Repeater {
@@ -306,8 +376,8 @@ Pane {
                             objectName: "board-" + modelData.id
                             text: "/" + modelData.id + "/"
                             selected: root.board === modelData.id && !root.showingSaved
-                            palette.text: "#e6e8df"
-                            palette.placeholderText: "#a7b2a9"
+                            palette.text: theme.text
+                            palette.placeholderText: theme.muted
                             onClicked: root.goBoard(modelData.id)
                         }
                     }
@@ -318,19 +388,21 @@ Pane {
                 }
                 ForumField {
                     id: headerSearch
+                    clearable: true
                     maximumLength: 200
                     objectName: "headerSearch"
                     visible: !root.narrow
                     Layout.fillWidth: true
                     Layout.maximumWidth: 248 * root.uiScale
                     Layout.minimumWidth: 160
-                    implicitHeight: 36 * root.uiScale
+                    implicitHeight: 36
                     leftPadding: 12
                     rightPadding: 36
                     font.pixelSize: 14 * root.uiScale
                     ForumIcon {
                         name: "search"
-                        ink: "#a7b2a9"
+                        visible: !headerSearch.text.length
+                        ink: theme.muted
                         x: parent.width - width - 12
                         anchors.verticalCenter: parent.verticalCenter
                         width: 20 * root.uiScale
@@ -344,13 +416,14 @@ Pane {
                     }
                     selectByMouse: true
                     Accessible.name: "Search discussions"
-                    palette.base: "#1a221d"
-                    palette.text: "#e6e8df"
-                    palette.placeholderText: "#a7b2a9"
-                    palette.mid: "#2c3931"
+                    palette.base: theme.surface
+                    palette.text: theme.text
+                    palette.placeholderText: theme.muted
+                    palette.mid: theme.border
                 }
                 Switch {
                     id: themeSwitch
+                    HoverHandler { enabled: themeSwitch.enabled; cursorShape: Qt.PointingHandCursor }
                     objectName: "themeToggle"
                     implicitWidth: 40
                     implicitHeight: 40
@@ -373,16 +446,16 @@ Pane {
                         width: 40
                         height: 22
                         radius: 11
-                        color: themeSwitch.hovered ? "#233d30" : "#172a21"
-                        border.color: themeSwitch.activeFocus ? "#b3d0b7" : "#587060"
-                        border.width: themeSwitch.activeFocus ? 2 : 1
+                        color: themeSwitch.hovered ? "#303030" : "#202020"
+                        border.color: themeSwitch.visualFocus ? "#eeeeee" : "#666666"
+                        border.width: themeSwitch.visualFocus ? 2 : 1
                         Rectangle {
                             x: themeSwitch.checked ? 20 : 2
                             y: 2
                             width: 18
                             height: 18
                             radius: 9
-                            color: "#d9e7d7"
+                            color: "#eeeeee"
                             Behavior on x {
                                 NumberAnimation {
                                     duration: 120
@@ -390,30 +463,32 @@ Pane {
                                 }
                             }
                         }
-                        Image {
+                        ForumIcon {
                             x: 5
                             y: 5
                             width: 12
                             height: 12
-                            source: themeSwitch.checked ? "icons/sun-muted.png" : "icons/sun-active.png"
+                            name: "sun"
+                            ink: themeSwitch.checked ? "#aaaaaa" : "#222222"
                         }
-                        Image {
+                        ForumIcon {
                             x: 23
                             y: 5
                             width: 12
                             height: 12
-                            source: themeSwitch.checked ? "icons/moon-active.png" : "icons/moon-muted.png"
+                            name: "moon"
+                            ink: themeSwitch.checked ? "#222222" : "#aaaaaa"
                         }
                     }
                 }
                 ProfileButton {
                     objectName: "profileButton"
-                    Layout.preferredWidth: root.narrow ? 36 : 44 * root.uiScale
-                    Layout.preferredHeight: root.narrow ? 36 : 44 * root.uiScale
-                    palette.placeholderText: "#89978b"
-                    palette.buttonText: "#b7c3b5"
-                    palette.mid: "#344138"
-                    palette.highlight: "#24332a"
+                    Layout.preferredWidth: 40
+                    Layout.preferredHeight: 40
+                    palette.placeholderText: theme.muted
+                    palette.buttonText: theme.muted
+                    palette.mid: theme.border
+                    palette.highlight: theme.selection
                     avatar: forum.state.avatar || ""
                     enabled: forum.ready
                     onClicked: identityDialog.open()
@@ -427,8 +502,8 @@ Pane {
             color: theme.canvas
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: root.narrow ? 16 : 28 * root.uiScale
-                anchors.rightMargin: root.narrow ? 16 : 28 * root.uiScale
+                anchors.leftMargin: root.contentGutter + root.rowInset
+                anchors.rightMargin: root.contentGutter + root.rowInset
                 spacing: root.narrow ? 8 : 16
                 ForumSelect {
                     objectName: "boardFilter"
@@ -472,7 +547,7 @@ Pane {
                 ForumButton {
                     objectName: "newThreadButton"
                     text: root.narrow ? "+ New" : "+ New thread"
-                    implicitWidth: root.narrow ? 76 : 123 * root.uiScale
+                    implicitWidth: root.narrow ? 76 : 123
                     implicitHeight: 38
                     primary: true
                     enabled: forum.ready
@@ -507,15 +582,11 @@ Pane {
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 0
-            Item {
-                Layout.fillWidth: true
-            }
             ColumnLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.maximumWidth: 1600
-                Layout.leftMargin: root.narrow ? 16 : 30 * root.uiScale
-                Layout.rightMargin: root.narrow ? 16 : 30 * root.uiScale
+                Layout.leftMargin: root.contentGutter
+                Layout.rightMargin: root.contentGutter
                 Layout.topMargin: 0
                 Layout.bottomMargin: 12
                 spacing: 12
@@ -523,12 +594,45 @@ Pane {
                     visible: root.selected !== "" || root.showingSaved
                     Layout.fillWidth: true
                     Layout.topMargin: 12
-                    ForumButton {
-                        text: "← Threads"
-                        onClicked: {
-                            root.leaveThread();
-                            root.showingSaved = false;
+                    Layout.leftMargin: root.rowInset
+                    Layout.rightMargin: root.rowInset
+                    spacing: 12
+                    AbstractButton {
+                        id: backToDiscussions
+                        objectName: "backToDiscussions"
+                        implicitWidth: backContent.implicitWidth
+                        implicitHeight: 40
+                        hoverEnabled: true
+                        Accessible.name: "Back to discussions"
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        background: Item {}
+                        contentItem: RowLayout {
+                            id: backContent
+                            spacing: 8
+                            ForumIcon {
+                                name: "back"
+                                Layout.preferredWidth: 16
+                                Layout.preferredHeight: 16
+                                ink: backToDiscussions.hovered || backToDiscussions.visualFocus ? theme.text : theme.muted
+                            }
+                            Text {
+                                text: "Back to discussions"
+                                font.family: "Adwaita Sans"
+                                font.pixelSize: 13
+                                color: backToDiscussions.hovered || backToDiscussions.visualFocus ? theme.text : theme.muted
+                                font.underline: backToDiscussions.visualFocus
+                                Behavior on color { ColorAnimation { duration: 100 } }
+                            }
                         }
+                        onClicked: {
+                            if (root.selected) root.leaveThread();
+                            else root.showingSaved = false;
+                        }
+                    }
+                    Text {
+                        text: "/"
+                        color: theme.border
+                        font.pixelSize: 13
                     }
                     Text {
                         text: root.showingSaved ? "Saved threads" : root.boardName(root.current ? root.current.board : root.board)
@@ -542,6 +646,10 @@ Pane {
                 }
                 ForumField {
                     id: compactSearch
+                    objectName: "compactSearchField"
+                    clearable: true
+                    Layout.leftMargin: root.rowInset
+                    Layout.rightMargin: root.rowInset
                     maximumLength: 200
                     visible: root.narrow && root.selected === ""
                     Layout.fillWidth: true
@@ -558,6 +666,7 @@ Pane {
                     Item {
                         ListView {
                             id: threadListView
+                            objectName: "threadListView"
                             anchors.fill: parent
                             clip: true
                             spacing: 0
@@ -569,8 +678,9 @@ Pane {
                                 required property var modelData
                                 required property int index
                                 width: ListView.view.width
-                                height: threadContents.implicitHeight + (root.narrow ? 30 : 32 * root.uiScale)
+                                height: threadContents.implicitHeight + 32
                                 color: rowHover.hovered ? theme.alternate : "transparent"
+                                Behavior on color { ColorAnimation { duration: 110 } }
                                 HoverHandler {
                                     id: rowHover
                                     cursorShape: Qt.PointingHandCursor
@@ -588,18 +698,14 @@ Pane {
                                     onClicked: root.openThread(row.modelData.id)
                                     cursorShape: Qt.PointingHandCursor
                                 }
-                                Rectangle {
-                                    anchors.bottom: parent.bottom
-                                    width: parent.width
-                                    height: 1
-                                    color: theme.border
-                                }
                                 RowLayout {
                                     id: threadContents
                                     anchors.left: parent.left
                                     anchors.right: parent.right
+                                    anchors.leftMargin: root.rowInset
+                                    anchors.rightMargin: root.rowInset
                                     anchors.top: parent.top
-                                    anchors.topMargin: 16 * root.uiScale
+                                    anchors.topMargin: 16
                                     spacing: root.narrow ? 12 : 28 * root.uiScale
                                     ColumnLayout {
                                         Layout.fillWidth: true
@@ -613,14 +719,14 @@ Pane {
                                             textFormat: Text.PlainText
                                             font.family: "Liberation Serif"
                                             font.pixelSize: root.narrow ? 22 : 25 * root.uiScale
-                                            color: root.darkTheme ? "#e8e4d8" : theme.text
+                                            color: rowHover.hovered ? (root.darkTheme ? "#ffffff" : "#000000") : theme.text
                                             wrapMode: Text.Wrap
                                             maximumLineCount: 2
                                             elide: Text.ElideRight
                                         }
                                         Text {
                                             Layout.fillWidth: true
-                                            text: "/" + row.modelData.board + "/  ·  by " + root.displayAuthor(row.modelData) + "  ·  #" + root.shortId(row.modelData.id) + "  ·  " + root.activityAge(row.modelData.created) + (row.modelData.status === "queued" ? "  ·  Pending" : row.modelData.status === "failed" ? "  ·  Retry pending" : row.modelData.status === "sending" ? "  ·  Sending…" : "")
+                                            text: "/" + row.modelData.board + "/  ·  " + (row.modelData.mode === "anonymous" ? "Anonymous" : row.modelData.mode === "uid" ? root.shortId(row.modelData.author) : row.modelData.author) + "  ·  " + root.activityAge(row.modelData.created) + (root.narrow ? "  ·  " + row.modelData.replyCount + (row.modelData.replyCount === 1 ? " reply" : " replies") : "") + (row.modelData.status === "queued" ? "  ·  Pending" : row.modelData.status === "failed" ? "  ·  Retry pending" : row.modelData.status === "sending" ? "  ·  Sending…" : "")
                                             textFormat: Text.PlainText
                                             color: theme.muted
                                             font.family: "Adwaita Sans"
@@ -630,7 +736,7 @@ Pane {
                                         Text {
                                             Layout.fillWidth: true
                                             Layout.maximumWidth: root.narrow ? 10000 : 850 * root.uiScale
-                                            text: row.modelData.body
+                                            text: row.modelData.body.replace(/\s+/g, " ").trim()
                                             textFormat: Text.PlainText
                                             color: theme.muted
                                             font.family: "Adwaita Sans"
@@ -641,7 +747,7 @@ Pane {
                                             lineHeight: 1.3
                                         }
                                         Rectangle {
-                                            property var replyPosts: root.replies(row.modelData.id)
+                                            property var replyPosts: root.feedPosts.filter(function (p) { return p.thread === row.modelData.id; })
                                             property var latestReply: replyPosts.length ? replyPosts[replyPosts.length - 1] : null
                                             visible: latestReply !== null
                                             Layout.fillWidth: true
@@ -662,7 +768,7 @@ Pane {
                                                 spacing: 6
                                                 Text {
                                                     Layout.fillWidth: true
-                                                    text: parent.parent.latestReply ? root.displayAuthor(parent.parent.latestReply) + "  #" + root.shortId(parent.parent.latestReply.id) + "  ·  " + root.activityAge(parent.parent.latestReply.created) : ""
+                                                    text: parent.parent.latestReply ? (parent.parent.latestReply.mode === "anonymous" ? "Anonymous" : parent.parent.latestReply.mode === "uid" ? root.shortId(parent.parent.latestReply.author) : parent.parent.latestReply.author) + "  ·  " + root.activityAge(parent.parent.latestReply.created) : ""
                                                     textFormat: Text.PlainText
                                                     elide: Text.ElideRight
                                                     color: theme.accent
@@ -686,7 +792,7 @@ Pane {
                                         Layout.minimumWidth: 170 * root.uiScale
                                         Layout.maximumWidth: 170 * root.uiScale
                                         Layout.alignment: Qt.AlignTop
-                                        Layout.topMargin: 10
+                                        Layout.topMargin: 5
                                         spacing: 6
                                         Text {
                                             text: row.modelData.replyCount + (row.modelData.replyCount === 1 ? " reply" : " replies")
@@ -695,13 +801,7 @@ Pane {
                                             font.pixelSize: 14 * root.uiScale
                                         }
                                         Text {
-                                            text: "Last activity"
-                                            color: theme.muted
-                                            font.family: "Adwaita Sans"
-                                            font.pixelSize: 14 * root.uiScale
-                                        }
-                                        Text {
-                                            text: root.activityAge(row.modelData.lastActivity || row.modelData.created)
+                                            text: "Active " + root.activityAge(row.modelData.lastActivity || row.modelData.created)
                                             color: theme.muted
                                             font.family: "Adwaita Sans"
                                             font.pixelSize: 14 * root.uiScale
@@ -710,7 +810,7 @@ Pane {
                                     ForumButton {
                                         objectName: "reply-" + row.modelData.id
                                         Layout.alignment: Qt.AlignTop
-                                        Layout.topMargin: 12
+                                        Layout.topMargin: 0
                                         implicitWidth: root.narrow ? 72 : 82 * root.uiScale
                                         implicitHeight: 40
                                         text: "Reply"
@@ -727,7 +827,7 @@ Pane {
                         ColumnLayout {
                             anchors.centerIn: parent
                             width: Math.min(parent.width - 40, 460)
-                            visible: root.visibleThreads.length === 0
+                            visible: !forum.loading && root.visibleThreads.length === 0
                             spacing: 14
                             Text {
                                 font.family: "Adwaita Sans"
@@ -771,12 +871,15 @@ Pane {
                             radius: 4
                             RowLayout {
                                 anchors.fill: parent
-                                anchors.margins: 11
+                                anchors.topMargin: 11
+                                anchors.bottomMargin: 11
+                                anchors.leftMargin: root.rowInset
+                                anchors.rightMargin: root.rowInset
                                 Text {
                                     id: threadTitle
                                     font.family: "Liberation Serif"
                                     Layout.fillWidth: true
-                                    text: root.current ? root.current.title : forum.refreshing ? "Loading discussion…" : "Thread not found"
+                                    text: root.current ? root.current.title : forum.loading ? "Loading discussion…" : "Thread not found"
                                     wrapMode: Text.Wrap
                                     font.pixelSize: root.narrow ? 25 : 34
                                     font.weight: Font.DemiBold
@@ -801,7 +904,7 @@ Pane {
                             spacing: 6
                             boundsBehavior: Flickable.StopAtBounds
                             ScrollBar.vertical: ScrollBar {}
-                            model: root.current && forum.state.view === "thread" && forum.state.threadId === root.selected ? [root.current].concat(root.replies(root.selected)) : []
+                            model: root.discussionPosts
                             delegate: Rectangle {
                                 id: post
                                 required property var modelData
@@ -811,18 +914,14 @@ Pane {
                                 color: "transparent"
                                 radius: 0
                                 border.width: 0
-                                Rectangle {
-                                    anchors.bottom: parent.bottom
-                                    width: parent.width
-                                    height: 1
-                                    color: theme.border
-                                }
                                 ColumnLayout {
                                     id: postColumn
                                     anchors.left: parent.left
                                     anchors.right: parent.right
                                     anchors.top: parent.top
-                                    anchors.margins: 12
+                                    anchors.topMargin: 12
+                                    anchors.leftMargin: root.rowInset
+                                    anchors.rightMargin: root.rowInset
                                     spacing: 8
                                     RowLayout {
                                         Layout.fillWidth: true
@@ -866,6 +965,7 @@ Pane {
                                         }
                                     }
                                     TextArea {
+                                        objectName: "post-body-" + post.modelData.id
                                         Layout.fillWidth: true
                                         text: post.modelData.body
                                         readOnly: true
@@ -964,6 +1064,7 @@ Pane {
                                     ink: theme.text
                                     muted: theme.muted
                                     Layout.fillWidth: true
+                                    uploadAvailable: !!forum.state.storageEndpoint && (!root.current || root.current.status !== "local")
                                     files: root.replyAttachments
                                     onAddRequested: {
                                         root.attachmentTarget = root.selected;
@@ -991,7 +1092,7 @@ Pane {
                                         wrapMode: Text.Wrap
                                     }
                                     ForumButton {
-                                        text: forum.posting ? "Uploading…" : (root.replyAttachments.length && !forum.state.storageEndpoint) || (root.current && root.current.status === "local") ? "Save reply" : forum.connection === "online" ? "Post reply →" : "Queue reply →"
+                                        text: forum.posting ? (forum.transferBusy ? "Uploading…" : "Saving…") : (root.replyAttachments.length && !forum.state.storageEndpoint) || (root.current && root.current.status === "local") ? "Save reply" : "Post reply"
                                         primary: true
                                         enabled: forum.ready && !forum.posting && replyInput.text.trim().length > 0 && replyInput.text.length <= 12000
                                         onClicked: {
@@ -1038,55 +1139,69 @@ Pane {
                         onClicked: root.nextPage()
                     }
                 }
-                RowLayout {
-                    visible: true
-                    Layout.fillWidth: true
-                    ForumButton {
-                        objectName: "savedTab"
-                        text: "Saved"
-                        flat: true
-                        implicitHeight: 28
-                        onClicked: {
-                            root.goBoard("all");
-                            root.showingSaved = true;
+                AbstractButton {
+                    id: logosReference
+                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    Layout.rightMargin: root.rowInset
+                    Layout.alignment: Qt.AlignRight
+                    implicitWidth: 40
+                    implicitHeight: 32
+                    hoverEnabled: true
+                    Accessible.name: "Logos — open logos.co"
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 700
+                    ToolTip.text: "Logos"
+                    background: Item {}
+                    contentItem: Item {
+                        Image {
+                            anchors.centerIn: parent
+                            source: "brand/logos-mark.png"
+                            sourceSize: Qt.size(24, 24)
+                            width: 24
+                            height: 24
+                            opacity: logosReference.hovered || logosReference.activeFocus ? 1 : 0.65
                         }
                     }
-                    ForumButton {
-                        objectName: "networkStatus"
-                        text: forum.connection === "online" ? "● Connected" : "○ Offline"
-                        flat: true
-                        implicitHeight: 28
-                        onClicked: networkDialog.open()
-                        Accessible.name: "Network and delivery settings"
-                    }
-                    Text {
-                        font.family: "Adwaita Sans"
-                        Layout.fillWidth: true
-                        text: forum.notice || (forum.connection === "online" ? "" : "Pending posts are saved until connected")
-                        elide: Text.ElideRight
-                        font.pixelSize: 11
-                        color: theme.muted
-                    }
-                    Text {
-                        font.family: "Adwaita Sans"
-                        text: forum.ready ? "Saved on this device" : "Connecting…"
-                        font.pixelSize: 10
-                        color: theme.muted
-                    }
+                    onClicked: Qt.openUrlExternally("https://logos.co/")
                 }
-            }
-            Item {
-                Layout.fillWidth: true
             }
         }
     }
+    Timer {
+        id: loadingDelay
+        interval: 180
+        running: forum.loading
+        onTriggered: loadingIndicator.visible = forum.loading
+    }
+    BusyIndicator {
+        id: loadingIndicator
+        visible: false
+        running: visible
+        width: 24
+        height: 24
+        anchors.right: parent.right
+        anchors.rightMargin: root.contentGutter + root.rowInset + 46
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 16
+        Accessible.name: "Loading discussions"
+    }
     Shortcut {
-        sequence: StandardKey.Find
+        sequences: [StandardKey.Find]
         enabled: !composeDialog.visible && !identityDialog.visible && !networkDialog.visible
         onActivated: {
             root.leaveThread();
             (root.narrow ? compactSearch : headerSearch).forceActiveFocus();
         }
+    }
+    Shortcut {
+        sequences: [StandardKey.Back]
+        enabled: !!root.selected && !composeDialog.visible && !identityDialog.visible && !networkDialog.visible
+        onActivated: root.leaveThread()
+    }
+    Shortcut {
+        sequence: "Escape"
+        enabled: root.replyExpanded && !composeDialog.visible && !identityDialog.visible && !networkDialog.visible
+        onActivated: { root.saveReplyDraft(); root.replyExpanded = false; postsView.forceActiveFocus(); }
     }
     Timer {
         id: replyDraftTimer
@@ -1118,8 +1233,28 @@ Pane {
             if (!submitted)
                 root.saveNewDraft(true);
         }
-        contentItem: ColumnLayout {
+        contentItem: ScrollView {
+            id: composeDialogScroll
+            clip: true
+            implicitHeight: composeDialogContents.implicitHeight
+            contentWidth: availableWidth
+            contentHeight: composeDialogContents.implicitHeight
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+            ColumnLayout {
+                id: composeDialogContents
+                width: composeDialogScroll.availableWidth
+
             spacing: 12
+            Text {
+                objectName: "composeError"
+                visible: !!forum.error
+                text: forum.error
+                textFormat: Text.PlainText
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                font.pixelSize: 13
+                color: theme.error
+            }
             Text {
                 font.family: "Adwaita Sans"
                 text: "Make the title specific. Give people something to respond to."
@@ -1139,6 +1274,7 @@ Pane {
                 onActivated: root.newBoard = currentValue
                 Accessible.name: "Thread board"
             }
+            Label { text: "Title"; color: theme.muted; font.pixelSize: 12 }
             ForumField {
                 id: titleInput
                 objectName: "titleInput"
@@ -1150,9 +1286,10 @@ Pane {
                 onTextChanged: newDraftTimer.restart()
                 Accessible.name: "Thread title"
             }
+            Label { text: "Message"; color: theme.muted; font.pixelSize: 12 }
             ScrollView {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 200
+                Layout.preferredHeight: Math.max(100, Math.min(180, root.height * 0.24))
                 TextArea {
                     id: bodyInput
                     objectName: "bodyInput"
@@ -1166,7 +1303,7 @@ Pane {
             }
             Text {
                 font.family: "Adwaita Sans"
-                text: bodyInput.length + " / 12000 · Draft stored on this device"
+                text: bodyInput.length + " / 12000 · " + (root.newAttachments.length && !forum.state.storageEndpoint ? "Local-only thread · attachments stay here" : forum.connection === "online" ? "Saved on this device before sending" : "Offline · saved here, sent when connected")
                 font.pixelSize: 11
                 color: bodyInput.length > 12000 ? theme.error : theme.muted
             }
@@ -1174,6 +1311,7 @@ Pane {
                 ink: theme.text
                 muted: theme.muted
                 Layout.fillWidth: true
+                uploadAvailable: !!forum.state.storageEndpoint
                 files: root.newAttachments
                 onAddRequested: {
                     root.attachmentTarget = "new";
@@ -1186,16 +1324,25 @@ Pane {
                     root.saveNewDraft();
                 }
             }
-            RowLayout {
+            GridLayout {
                 Layout.fillWidth: true
+                columns: root.narrow ? 2 : 4
+                columnSpacing: 8
+                rowSpacing: 8
                 ForumButton {
+                    Layout.columnSpan: root.narrow ? 2 : 1
+                    Layout.fillWidth: !root.narrow
                     text: forum.state.mode === "anonymous" ? "Anonymous" : forum.activeAlias()
+                    Layout.maximumWidth: 110
                     onClicked: identityDialog.open()
                 }
                 Item {
+                    visible: !root.narrow
                     Layout.fillWidth: true
                 }
                 ForumButton {
+                    Layout.fillWidth: root.narrow
+                    Layout.alignment: Qt.AlignRight
                     text: "Keep draft"
                     onClicked: {
                         root.saveNewDraft();
@@ -1203,7 +1350,9 @@ Pane {
                     }
                 }
                 ForumButton {
-                    text: forum.posting ? "Uploading…" : root.newAttachments.length && !forum.state.storageEndpoint ? "Save locally" : forum.connection === "online" ? "Publish thread" : "Queue thread"
+                    objectName: "submitThreadButton"
+                    Layout.fillWidth: root.narrow
+                    text: forum.posting ? (forum.transferBusy ? "Uploading…" : "Saving…") : root.newAttachments.length && !forum.state.storageEndpoint ? "Save locally" : "Create thread"
                     primary: true
                     enabled: forum.ready && !forum.posting && titleInput.text.trim().length > 0 && bodyInput.text.trim().length > 0 && bodyInput.length <= 12000
                     onClicked: {
@@ -1219,6 +1368,7 @@ Pane {
                     }
                 }
             }
+                    }
         }
     }
     NativeDialogs.FileDialog {
@@ -1282,8 +1432,43 @@ Pane {
         modal: true
         anchors.centerIn: parent
         width: Math.min(root.width - 30, 500)
-        contentItem: ColumnLayout {
+        contentItem: ScrollView {
+            id: identityDialogScroll
+            clip: true
+            implicitHeight: identityDialogContents.implicitHeight
+            contentWidth: availableWidth
+            contentHeight: identityDialogContents.implicitHeight
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+            ColumnLayout {
+                id: identityDialogContents
+                width: identityDialogScroll.availableWidth
+
             spacing: 12
+            RowLayout {
+                Layout.fillWidth: true
+                ForumButton {
+                    objectName: "savedTab"
+                    text: "Saved threads"
+                    flat: true
+                    Layout.fillWidth: true
+                    onClicked: {
+                        identityDialog.close();
+                        root.goBoard("all");
+                        root.showingSaved = true;
+                    }
+                }
+                ForumButton {
+                    objectName: "networkStatus"
+                    text: "Network settings"
+                    flat: true
+                    Layout.fillWidth: true
+                    Accessible.name: "Network and delivery settings"
+                    onClicked: {
+                        identityDialog.close();
+                        networkDialog.open();
+                    }
+                }
+            }
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 16
@@ -1363,6 +1548,7 @@ Pane {
                 Accessible.name: "Posting mode"
             }
             CheckBox {
+                HoverHandler { cursorShape: Qt.PointingHandCursor }
                 text: "New identity for each thread"
                 checked: forum.state.rotate
                 onToggled: forum.mutate({
@@ -1403,6 +1589,7 @@ Pane {
                 Layout.alignment: Qt.AlignRight
                 onClicked: identityDialog.close()
             }
+                    }
         }
     }
     ForumDialog {
@@ -1419,8 +1606,27 @@ Pane {
         modal: true
         anchors.centerIn: parent
         width: Math.min(root.width - 30, 520)
-        contentItem: ColumnLayout {
+        contentItem: ScrollView {
+            id: networkDialogScroll
+            clip: true
+            implicitHeight: networkDialogContents.implicitHeight
+            contentWidth: availableWidth
+            contentHeight: networkDialogContents.implicitHeight
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+            ColumnLayout {
+                id: networkDialogContents
+                width: networkDialogScroll.availableWidth
+
             spacing: 14
+            Text {
+                visible: !!forum.notice
+                text: forum.notice
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                font.family: "Adwaita Sans"
+                font.pixelSize: 12
+                color: theme.muted
+            }
             Text {
                 font.family: "Adwaita Sans"
                 text: forum.connectionDetail
@@ -1444,6 +1650,23 @@ Pane {
                 wrapMode: Text.Wrap
                 font.pixelSize: 12
                 color: theme.muted
+            }
+            CheckBox {
+                objectName: "autoConnectSetting"
+                HoverHandler { cursorShape: Qt.PointingHandCursor }
+                text: "Connect when Agora opens"
+                checked: !!forum.state.autoConnect
+                onToggled: forum.mutate({op: "settings", autoConnect: checked}, function () {
+                    if (checked) forum.connectNetwork(true);
+                })
+            }
+            Text {
+                Layout.fillWidth: true
+                text: "Starts Delivery if needed. Queued public posts send automatically while connected."
+                font.family: "Adwaita Sans"
+                font.pixelSize: 12
+                color: theme.muted
+                wrapMode: Text.Wrap
             }
             Text {
                 font.family: "Adwaita Sans"
@@ -1530,6 +1753,7 @@ Pane {
                     onClicked: networkDialog.advanced = !networkDialog.advanced
                 }
             }
+                    }
         }
     }
 }

@@ -17,7 +17,159 @@ TestCase {
         }
     }
     property var app
+    Component {
+        id: deliveryBridgeComponent
+        QtObject {
+            property var calls: []
+            property string nodeStatus: "Connected"
+            property bool uninitialized: false
+            property var subscriptionDone: null
+            function onModuleEvent(module, name) {}
+            function callModuleAsync(module, method, args, done, timeout) {
+                calls.push(method);
+                if (method === "getConnectionStatus") {
+                    done(uninitialized ? {success: false, error: "Context not initialized"} : {success: true, value: nodeStatus});
+                } else if (method === "subscribe") {
+                    subscriptionDone = done;
+                } else {
+                    done({success: true, value: true});
+                }
+            }
+        }
+    }
+    function test_connectReusesSharedNodeAndOfflineCancelsSubscription() {
+        var bridge = createTemporaryObject(deliveryBridgeComponent, testCase);
+        var c = app.controller;
+        c.bridge = bridge;
+        c.connectNetwork(true);
+        compare(bridge.calls.join(","), "getConnectionStatus,subscribe");
+        c.disconnect();
+        bridge.subscriptionDone({success: true, value: true});
+        compare(c.connection, "offline");
+    }
+    function test_connectCreatesOnlyMissingNode() {
+        var bridge = createTemporaryObject(deliveryBridgeComponent, testCase, {uninitialized: true});
+        var c = app.controller;
+        c.bridge = bridge;
+        c.connectNetwork(true);
+        compare(bridge.calls.join(","), "getConnectionStatus,createNode,start");
+        c.disconnect();
+        bridge.calls = [];
+        bridge.uninitialized = false;
+        bridge.nodeStatus = "Disconnected";
+        c.connectNetwork(true);
+        compare(bridge.calls.join(","), "getConnectionStatus,start");
+        c.disconnect();
+    }
     Component { id: stateSpyComponent; SignalSpy { signalName: "stateChanged" } }
+    function test_buttonInteractionFeedback() {
+        var button = findChild(app, "newThreadButton");
+        mouseMove(button, button.width / 2, button.height / 2);
+        tryCompare(button, "hovered", true);
+        mousePress(button, button.width / 2, button.height / 2);
+        tryVerify(function () { return button.scale < 0.99; });
+        mouseRelease(button, button.width / 2, button.height / 2);
+        tryCompare(findChild(app, "composeDialog"), "opened", true);
+        tryCompare(button, "scale", 1);
+        findChild(app, "composeDialog").close();
+    }
+    function test_returnToFeedRestoresPosition() {
+        app.searchText = "Reading position fixture";
+        for (var n = 0; n < 18; ++n)
+            app.controller.call({op: "post", board: "general", title: "Reading position fixture " + n, body: "A longer discussion opener to exercise the scroll position."});
+        app.controller.refresh();
+        tryVerify(function () { return !app.controller.loading && app.visibleThreads.length === 18; });
+        var list = findChild(app, "threadListView");
+        list.positionViewAtIndex(8, ListView.Beginning);
+        tryVerify(function () { return list.contentY > 200; });
+        var offset = list.contentY;
+        var selected = app.visibleThreads[8].id;
+        app.openThread(selected);
+        tryVerify(function () { return !app.controller.loading && app.discussionPosts.length > 0; });
+        var back = findChild(app, "backToDiscussions");
+        mouseClick(back, back.width / 2, back.height / 2);
+        tryVerify(function () { return !app.controller.loading && app.selected === ""; });
+        compare(app.searchText, "Reading position fixture");
+        tryVerify(function () { return Math.abs(list.contentY - offset) < 3; });
+    }
+    function test_draftRefreshPreservesPostDelegate() {
+        var id = "";
+        app.controller.call({op: "post", board: "general", title: "Stable reading", body: "Select this text while drafting."}, function (r) { id = r.id; });
+        app.openThread(id);
+        tryVerify(function () { return !app.controller.loading && app.discussionPosts.length === 1; });
+        var body = findChild(app, "post-body-" + id);
+        verify(body !== null);
+        body.select(0, 6);
+        app.controller.draft(id, "Unfinished reply");
+        app.controller.refresh();
+        tryVerify(function () { return !app.controller.loading; });
+        compare(findChild(app, "post-body-" + id), body);
+        compare(body.selectedText, "Select");
+    }
+    function test_smallDialogScrollAndInlineError() {
+        app.width = 400; app.height = 540;
+        app.compose();
+        var dialog = findChild(app, "composeDialog");
+        tryCompare(dialog, "opened", true);
+        verify(dialog.height <= app.height - 32);
+        app.controller.error = "Could not save. Your draft is still here.";
+        var errorLabel = findChild(app, "composeError");
+        tryCompare(errorLabel, "visible", true);
+        verify(errorLabel.text.indexOf("draft") >= 0);
+        verify(dialog.contentItem.contentHeight > dialog.contentItem.height);
+        dialog.contentItem.contentItem.contentY = dialog.contentItem.contentHeight - dialog.contentItem.height;
+        var submit = findChild(app, "submitThreadButton");
+        tryVerify(function () { return submit.mapToItem(app, submit.width, submit.height).x <= app.width - 16; });
+        tryVerify(function () { return submit.mapToItem(app, 0, submit.height).y <= app.height - 16; });
+        dialog.close();
+        tryCompare(dialog, "visible", false);
+        var profile = findChild(app, "identityDialog");
+        profile.open();
+        tryCompare(profile, "opened", true);
+        verify(profile.height <= app.height - 32);
+        verify(profile.contentItem.contentHeight > profile.contentItem.height);
+        profile.close();
+    }
+    function test_mediumWidthAndSearchClear() {
+        app.width = 950;
+        tryCompare(app, "narrow", true);
+        var profile = findChild(app, "profileButton");
+        tryVerify(function () { return profile.mapToItem(app, profile.width, 0).x <= app.width - 16; });
+        app.searchText = "Nothing matches this query";
+        var search = findChild(app, "compactSearchField");
+        verify(search !== null);
+        var clear = findChild(search, "clearSearch");
+        tryCompare(clear, "visible", true);
+        mouseClick(clear, clear.width / 2, clear.height / 2);
+        compare(app.searchText, "");
+        tryCompare(search, "activeFocus", true);
+    }
+    function test_escapeCollapsesReplyWithoutLosingDraft() {
+        var id = "";
+        app.controller.call({op: "post", board: "general", title: "Escape draft", body: "Opening"}, function (r) { id = r.id; });
+        app.openThread(id);
+        tryVerify(function () { return !app.controller.loading; });
+        app.beginReply();
+        var input = findChild(app, "replyInput");
+        input.text = "Keep this unfinished thought";
+        keyClick(Qt.Key_Escape);
+        tryCompare(app, "replyExpanded", false);
+        compare(app.replyDraftCache[id], "Keep this unfinished thought");
+        app.beginReply();
+        compare(input.text, "Keep this unfinished thought");
+    }
+    function test_responsiveHeaderBounds() {
+        var widths = [400, 950, 1080, 1100, 1440, 1780];
+        var profile = findChild(app, "profileButton");
+        var search = findChild(app, "headerSearch");
+        var lastBoard = findChild(app, "board-governance");
+        for (var i = 0; i < widths.length; i++) {
+            app.width = widths[i];
+            tryVerify(function () { return profile.mapToItem(app, profile.width, 0).x <= app.width - 16; });
+            if (!app.narrow)
+                tryVerify(function () { return lastBoard.mapToItem(app, lastBoard.width, 0).x + 8 <= search.mapToItem(app, 0, 0).x; });
+        }
+    }
     function test_networkBurstRefreshesOnce() {
         var c = app.controller;
         tryCompare(c, "refreshing", false);
@@ -87,8 +239,13 @@ TestCase {
     }
     function test_headerNavigation() {
         var saved = findChild(app, "savedTab"), discussions = findChild(app, "discussionsTab");
-        verify(waitForRendering(saved));
+        var profile = findChild(app, "profileButton");
+        var profileDialog = findChild(app, "identityDialog");
+        mouseClick(profile, profile.width / 2, profile.height / 2);
+        tryCompare(profileDialog, "opened", true);
+        tryCompare(saved, "visible", true);
         mouseClick(saved, saved.width / 2, saved.height / 2);
+        tryCompare(profileDialog, "visible", false);
         compare(app.showingSaved, true);
         var general = findChild(app, "board-general");
         mouseClick(general, general.width / 2, general.height / 2);
@@ -105,19 +262,26 @@ TestCase {
         search.forceActiveFocus();
         keyClick(Qt.Key_Z);
         compare(app.searchText, "z");
+        mouseClick(profile, profile.width / 2, profile.height / 2);
+        tryCompare(profileDialog, "opened", true);
         var status = findChild(app, "networkStatus");
         mouseClick(status, status.width / 2, status.height / 2);
         tryCompare(findChild(app, "networkDialog"), "opened", true);
         findChild(app, "networkDialog").close();
+        tryCompare(findChild(app, "networkDialog"), "visible", false);
         app.width = 400;
         tryCompare(app, "narrow", true);
         var board = findChild(app, "boardFilter");
         verify(waitForRendering(board));
+        mouseClick(profile, profile.width / 2, profile.height / 2);
+        tryCompare(profileDialog, "opened", true);
         mouseClick(saved, saved.width / 2, saved.height / 2);
+        tryCompare(profileDialog, "visible", false);
         compare(app.showingSaved, true);
         board.forceActiveFocus();
         keyClick(Qt.Key_Down);
         compare(app.board, "general");
+        tryCompare(profileDialog, "visible", false);
         compare(app.showingSaved, true);
         var edge = board.mapToItem(app, board.width, 0);
         verify(edge.x <= app.width);
@@ -128,6 +292,7 @@ TestCase {
             id = r.id;
         });
         app.searchText = "Direct reply test";
+        tryVerify(function () { return !app.controller.loading && app.visibleThreads.length === 1; });
         var replyButton = null;
         tryVerify(function () {
             replyButton = findChild(app, "reply-" + id);
@@ -245,6 +410,12 @@ TestCase {
         tryCompare(player, "playing", false);
         app.controller.playingAttachment = file.id;
         player.playPause();
+        tryCompare(player, "playing", true);
+        app.controller.draft(id, "Typing while watching");
+        app.controller.refresh();
+        tryVerify(function () { return !app.controller.loading; });
+        compare(findChild(app, "video-" + file.id), player);
+        verify(player.playing);
         app.leaveThread();
         wait(10);
         var current = null;

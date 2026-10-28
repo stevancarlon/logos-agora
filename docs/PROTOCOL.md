@@ -6,6 +6,21 @@
 
 Dependencies: `delivery_module >=0.3.0`. Tested host: Basecamp 0.3.2, Qt 6.9.2, Linux x86_64. Calls use `logos.callModuleAsync` with a 15-second timeout. The response wrapper `{success,value,error}` is checked before using the value. Events arrive through `moduleEventReceived(moduleName,eventName,data)` after registering `onModuleEvent`.
 
+Public testnet setup also depends on a usable RLN membership. A successful
+subscription alone does not establish that publishing works. On 2026-10-26,
+the local installation was upgraded to Delivery 0.4.0, RLN 0.12.0 and LEZ RLN
+5.1.0 for the current `https://testnet.lez.logos.co/` deployment; the older
+RLN provider still pointed at the retired testnet sequencer. New membership
+provisioning waits for a funded local payer. Registration price and fee reserve
+come from the network and can change. Until a matching `messageSent` arrives,
+posts must remain pending or failed, even when the node has connected peers.
+
+The optional **Connect when Agora opens** preference defaults to false. Once
+enabled, launch reuses an existing connected Delivery node, starts an existing
+disconnected node, or creates one only when Delivery reports that its context
+has not been initialized. It does not replace another app's node configuration.
+Going offline cancels pending connection callbacks for the current session.
+
 The adapter uses `getConnectionStatus`, `subscribe(contentTopic)`, `send(contentTopic,QByteArray)` and `storeQuery(queryJSON,peer,timeoutMs)`. Starting a node is a deliberate UI action using Core mode, logos.test preset, required anonymity routing and backfill. Connecting to a shared node does not reconfigure or stop it. Local disconnect stops forum sends/ingestion, not the shared node. Connected and PartiallyConnected transport states retain the subscription; partial connectivity may still require delivery retries and is not proof of receipt.
 
 ## Wire envelope
@@ -70,7 +85,7 @@ The node, rather than Agora, performs peer discovery and content availability.
 Downloads enforce signed byte count while streaming, then SHA-256 and sniffed MIME
 before copying into attachment storage. Images are bounded to 24 megapixels. File
 names never select filesystem paths. Redirects are refused; requests have a
-30-second inactivity timeout and a 180-second total deadline. Failed downloads
+30-second upload / 90-second download inactivity timeout and a 180-second total deadline. Failed downloads
 are deleted; failed uploads retain the staged original. Original upload metadata
 is preserved. Content retention depends on Storage providers remaining available;
 upload success is not a permanent-availability promise or anonymity guarantee.
@@ -85,3 +100,12 @@ restart, Store recovery and independent-database deduplication checks. The
 claim that the source tag or the published Agora alpha was tested. Public
 mix routing and cross-machine connectivity remain unverified. The pinned 0.3.2
 contract above remains the reproducible source reference.
+
+## Public Delivery receipt — 28 October 2026
+
+After funding and registering a membership, the welcome thread received a matching
+`messageSent` event and arrived in an independent Basecamp profile through the
+public `logos.test` network. Envelope hashes match. Both processes ran on one
+Linux host; cross-machine receipt and network anonymity remain unverified. See
+[the receipt record](evidence/public-delivery-20261028.json) and
+[current setup](NETWORK.md).

@@ -30,7 +30,7 @@ void StorageTransfer::cancel() {
   }
 }
 void StorageTransfer::drain() {
-  if(!m_reply || m_upload) return;
+  if(!m_reply || m_upload || !m_reply->isOpen()) return;
   const auto bytes=m_reply->readAll();
   if(!m_failure.isEmpty()) return;
   m_received+=bytes.size();
@@ -57,7 +57,9 @@ void StorageTransfer::start(const QString &id,const QJsonObject &file,const QStr
   m_state={{"id",id},{"action",upload?"upload":"download"},{"status","running"},{"bytes",0},{"total",double(m_expected)}};
   QNetworkRequest request(QUrl(endpoint+(upload ? "/data" : "/data/"+cid+"/network/stream?advertise=false")));
   request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,QNetworkRequest::ManualRedirectPolicy);
-  request.setTransferTimeout(30000);
+  // A cold public-network lookup can spend a full discovery round before
+  // returning its first byte. The overall transfer remains bounded at 180 s.
+  request.setTransferTimeout(upload ? 30000 : 90000);
   request.setHeader(QNetworkRequest::ContentTypeHeader,"application/octet-stream");
   m_reply=upload ? m_network.post(request,&m_file) : m_network.get(request);
   auto reply=m_reply.data();
@@ -74,6 +76,8 @@ void StorageTransfer::start(const QString &id,const QJsonObject &file,const QStr
     m_timeout.stop();
     if(upload) m_response+=reply->readAll(); else drain();
     const auto code=reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    if(m_failure.isEmpty() && reply->error()==QNetworkReply::OperationCanceledError)
+      m_failure="Storage node did not respond in time. Check its peer connection and retry.";
     if(m_failure.isEmpty() && (reply->error()!=QNetworkReply::NoError || code!=200))
       m_failure="Logos Storage request failed (HTTP "+QString::number(code)+"): "+reply->errorString();
     m_file.close();

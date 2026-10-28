@@ -416,6 +416,7 @@ QJsonObject ForumBackend::snapshot(const QJsonObject &options) {
           {"theme", setting("theme", "dark")},
           {"avatar", avatarValue},
           {"rotate", setting("rotate", "false") == "true"},
+          {"autoConnect", setting("autoConnect", "false") == "true"},
           {"storageEndpoint",setting("storageEndpoint")},
           {"historyPeer", setting("historyPeer")},
           {"historyCursor", setting("historyCursor")}};
@@ -817,6 +818,10 @@ QJsonObject ForumBackend::execute(const QJsonObject &c) {
     return out;
   }
   if (op == "settings") {
+    if (c.contains("autoConnect")) {
+      require(c["autoConnect"].isBool(), "Auto-connect must be true or false");
+      setSetting("autoConnect", c["autoConnect"].toBool() ? "true" : "false");
+    }
     if(c.contains("storageEndpoint")) {
       const auto endpoint=c["storageEndpoint"].toString().trimmed();
       require(endpoint.isEmpty() || StorageTransfer::validEndpoint(endpoint),"Use your local node URL: http://127.0.0.1:PORT/api/storage/v1");

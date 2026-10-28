@@ -7,8 +7,8 @@ FocusScope {
     id: player
     required property string attachmentId
     required property var controller
-    property color ink: "#e6e8df"
-    property color muted: "#a7b2a9"
+    property color ink: "#ededed"
+    property color muted: "#a3a3a3"
     property bool loading: false
     property bool busy: false
     property string failure: ""
@@ -136,7 +136,7 @@ FocusScope {
     }
     Rectangle {
         anchors.fill: output
-        color: "#141c17"
+        color: "#141414"
         visible: player.failure !== ""
         Text {
             anchors.fill: parent
@@ -190,8 +190,8 @@ FocusScope {
             Layout.fillWidth: true
             Layout.preferredHeight: 40
             palette.mid: "#55ffffff"
-            palette.accent: "#dbe7dd"
-            palette.text: "#f2f3ee"
+            palette.accent: "#dddddd"
+            palette.text: "#f2f2f2"
             palette.base: "#40000000"
             from: 0
             to: Math.max(1, player.duration)
@@ -212,7 +212,7 @@ FocusScope {
             }
             Text {
                 text: player.loading ? "Loading…" : player.clock(player.position) + " / " + player.clock(player.duration)
-                color: "#e5e8e2"
+                color: "#e5e5e5"
                 font.family: "monospace"
                 font.pixelSize: 10
             }
@@ -232,8 +232,8 @@ FocusScope {
                 Layout.preferredWidth: 56
                 Layout.preferredHeight: 40
                 palette.mid: "#55ffffff"
-                palette.accent: "#dbe7dd"
-                palette.text: "#f2f3ee"
+                palette.accent: "#dddddd"
+                palette.text: "#f2f2f2"
                 palette.base: "#40000000"
                 from: 0
                 to: 1
