@@ -1,5 +1,12 @@
 # Agora narrated walkthrough
 
+[Watch the 3:39 development walkthrough](https://github.com/stevancarlon/logos-agora/releases/download/v0.3.2-alpha.1/agora-0.3.2-walkthrough.mp4). Recorded in actual Basecamp on 28 October 2026, with synthetic narration and clearly labeled sample content in an isolated profile. No staged posts were added to the user's forum.
+
+The video shows installation/checksum verification, identities, drafts, threads, replies, quotes, inline video, attachments and network settings. It displays the saved public Delivery receipt and explains its same-host scope. It does not show a fresh testnet 0.4 exchange, public attachment retrieval, organic adoption, or live restart/Store recovery. The latter has separate automated evidence. A final submission recording must demonstrate those remaining network scenarios once verified.
+
+## Final submission recording checklist
+
+
 Record the actual application and terminal output. Use a separate demo profile
 for staged examples and label it clearly. Do not present staged discussions as
 organic use. Keep private keys, wallet files and personal paths out of the video.

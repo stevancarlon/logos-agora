@@ -1,4 +1,4 @@
-# FURPS self-assessment — native 0.3.2 release candidate
+# FURPS self-assessment — native 0.3.2 alpha
 
 
 28 October 2026 candidate update: **24 backend and 33 QML tests pass** locally on
@@ -8,8 +8,8 @@ by Delivery and received by an independent Basecamp profile on the public
 Linux host. [Receipt evidence](evidence/public-delivery-20261028.json).
 
 The user reported successful Intel Mac installation on Sequoia 15.1. No additional
-cross-machine exchange is claimed. Authentic community discussions and the
-narrated demonstration remain explicit submission requirements; see
+cross-machine exchange is claimed. A [development walkthrough](DEMO.md) is recorded. Authentic community discussions,
+verified testnet 0.4 operation and a final end-to-end recording remain open; see
 [submission preparation](SUBMISSION.md). Public Storage retrieval timed out on this host; private transfer and Basecamp
 media/restart/Store tests pass. See [Storage verification](STORAGE.md#28-october-2026-verification).
 
@@ -21,7 +21,9 @@ media/restart/Store tests pass. See [Storage verification](STORAGE.md#28-october
 | Performance | Single in-flight send, five-second pacing, exponential retry, 50-message history pages, 64 KiB envelopes, live intake budget, coalesced snapshots and database-backed feed/reply pages | Sustained resource measurements, stronger moderation |
 | Supportability | C++17/QML source, build/install scripts, green default-branch CI, published unsigned desktop alpha/catalog, dual license, verified Linux/Windows/Apple Silicon Basecamp loading and media | Full narrated demo and cross-machine acceptance |
 
-Current evidence (26 October 2026): [default-branch Linux checks](https://github.com/stevancarlon/logos-agora/actions/runs/40337478339) and [desktop checks](https://github.com/stevancarlon/logos-agora/actions/runs/40337478401) pass 23 backend and 24 QML tests per target. Windows and Apple Silicon archives additionally pass actual Basecamp MP4/WebM playback; see [platform evidence and limits](PLATFORMS.md). Intel host integration has now passed, and the 0.3.1 alpha publishes all four desktop kits. Cross-machine exchange and authentic adoption remain open. Its community-catalog GUI installation and actual UI/backend load also passed in a disposable Ubuntu/Xvfb desktop with the companion runtime; see [installation scope](../INSTALL.md).
+Current code evidence (28 October 2026, `860e1ec`): [Linux checks](https://github.com/stevancarlon/logos-agora/actions/runs/40776947729) and [desktop checks](https://github.com/stevancarlon/logos-agora/actions/runs/40776947735) pass. [Windows matching-host playback](https://github.com/stevancarlon/logos-agora/actions/runs/40776972271) passes with current QML. [Intel Mac host playback](https://github.com/stevancarlon/logos-agora/actions/runs/40776118984) passes for the same native binary sources before the QML-only draft fix; the subsequent Intel Qt workflow checks that fix. The release reuses these CI binaries and packages current QML and documentation. See [platform evidence and limits](PLATFORMS.md).
+
+The [current LP-0026 specification](https://github.com/logos-co/lambda-prize/blob/main/prizes/LP-0026.md) requires testnet 0.4. Our receipt identifies LEZ v0.3.1; the installed Delivery module's 0.4.0 version is not the chain/testnet version. Testnet 0.4 end-to-end acceptance is **not verified**.
 
 The dated results below are a verification history; earlier test counts and pending states are superseded by this current summary. Publisher signing, backup/restore UI, assistive-technology testing and sustained benchmarks are additional quality work, not claimed as explicit prize requirements. The required narrated end-to-end demo and authentic conversations are still incomplete.
 

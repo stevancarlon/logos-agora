@@ -1,8 +1,11 @@
 # Agora — LP-0026 submission preparation
 
-**Status: not ready to submit.** Authentic community conversations and the narrated
-end-to-end walkthrough are required by the prize. They must be linked below before
-submission; synthetic examples and automated tests do not satisfy adoption.
+**Status: not ready to submit.** A development walkthrough is recorded. Genuine
+community conversations, confirmed end-to-end operation on **testnet 0.4**, and
+public attachment retrieval remain open. The current prize added the 0.4 criterion
+on 12 October; Delivery module version 0.4.0 does not establish testnet 0.4 support.
+See the [current specification](https://github.com/logos-co/lambda-prize/blob/main/prizes/LP-0026.md)
+and the [filled submission draft](submission/LP-0026.md).
 
 ## Project
 
@@ -24,14 +27,15 @@ images, videos and PDFs. There is no centralized application backend.
 | Requirement | Current evidence / remaining action |
 | --- | --- |
 | Native Basecamp GUI and local build | Source in `native/`; [build instructions](GUIDE.md#build-and-test) |
-| Prebuilt catalog package | Published desktop alpha and community catalog; final candidate update in progress |
+| Prebuilt catalog package | [0.3.2 alpha release](https://github.com/stevancarlon/logos-agora/releases/tag/v0.3.2-alpha.1); four desktop variants and unsigned community catalog |
 | Accounts, threads/replies and identity choices | Native backend and QML workflow tests; show each in the recording |
 | Logos integration | [Public Delivery receipt](evidence/public-delivery-20261028.json); [Storage scope](STORAGE.md) |
 | Failed sends persist; missed messages recover | Private relay/restart/Store acceptance checks; [reproduction](ACCEPTANCE.md) |
 | Bounded network traffic | One in-flight send, paced retries, bounded history queries; [protocol](PROTOCOL.md) |
-| Green default-branch CI | Link the passing runs for the final source revision |
+| Green default-branch CI | [Linux](https://github.com/stevancarlon/logos-agora/actions/runs/40776947729) and [desktop](https://github.com/stevancarlon/logos-agora/actions/runs/40776947735) pass at `860e1ec` |
 | End-to-end instructions | [Installation](../INSTALL.md), [usage](GUIDE.md), [network](NETWORK.md) |
-| Narrated demonstration | **Pending recording and upload**; [recording outline](DEMO.md) |
+| Narrated demonstration | [Recorded development walkthrough](DEMO.md); final network scenarios still required |
+| Testnet 0.4 | **Unverified**; current receipt uses the `logos.test` deployment with LEZ v0.3.1 |
 | Realistic topics and organic conversations | **Pending genuine participation**; no fabricated accounts or usage counts |
 
 ## Community invitation

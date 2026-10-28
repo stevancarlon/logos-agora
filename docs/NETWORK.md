@@ -52,3 +52,9 @@ The latest LEZ RLN module's published platform coverage differs from Agora's own
 four desktop builds. The combination above is verified on Linux. Do not assume
 that an older Windows or Intel Mac dependency package targets the current testnet;
 check the upstream catalog before enabling public publishing on those platforms.
+
+## Prize target versus tested deployment
+
+LP-0026 was updated on 12 October 2026 to require **Logos testnet 0.4** ([specification change](https://github.com/logos-co/lambda-prize/commit/ad608bf93f22fea4dc619f0b27bea99f98e97d58)). The receipt above uses the then-current public `logos.test` deployment and LEZ v0.3.1. Delivery module 0.4.0 is an independent version; it does not satisfy this requirement by itself.
+
+Before submission, identify the official 0.4 deployment and compatible Delivery/RLN/LEZ packages, provision membership against that deployment if a reset requires it, then repeat send/independent receive, failed-send retry, Store recovery and attachment retrieval. Record endpoint, chain/module versions and matching message/file hashes. Preserve existing databases and signing keys through the transition. Until that evidence exists, 0.4 remains unverified.
