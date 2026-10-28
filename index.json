@@ -1,11 +1,55 @@
 {
   "schemaVersion": 2,
   "repositoryName": "stevancarlon-agora",
-  "generatedAt": "2026-10-26T15:13:48.163376+00:00",
+  "generatedAt": "2026-10-28T22:14:43.528147+00:00",
   "packages": [
     {
       "name": "logos_forum",
       "versions": [
+        {
+          "releasedAt": "2026-10-28T22:14:43.528147+00:00",
+          "publisherRef": "v0.3.2-alpha.1",
+          "url": "https://github.com/stevancarlon/logos-agora/releases/download/v0.3.2-alpha.1/logos_forum-0.3.2.lgx",
+          "urls": [
+            "https://github.com/stevancarlon/logos-agora/releases/download/v0.3.2-alpha.1/logos_forum-0.3.2.lgx"
+          ],
+          "size": 7291066,
+          "sha256": "b67fbf8cdf1442f50210bafcbe615fe48311ccc14b904929d225b2d787ed2bb3",
+          "rootHash": "da14d0b688a38772af53ec4d5f23eb68467f59f034b4feeaa058f7c68904684f",
+          "manifest": {
+            "author": "Logos Forum contributors",
+            "category": "social",
+            "dependencies": [
+              {
+                "name": "delivery_module",
+                "version": ">=0.3.0"
+              }
+            ],
+            "description": "Public discussions, local drafts and deliberate identity choices.",
+            "display_name": "Agora",
+            "hashes": {
+              "assets": "be9933cbc8437d0da226eae09fbe660b3ef2a00c3b203bbaefb62d7636c9d293",
+              "root": "da14d0b688a38772af53ec4d5f23eb68467f59f034b4feeaa058f7c68904684f",
+              "variants": "eac57119b25ac976469ac869143c34bea4f02295e88ce93394a593bc967a5805",
+              "variants/darwin-amd64": "2cc433f115b9f46d38ac94d45cc56e3ea2e9ee9da91f25a2b2a4858a90cb4c2d",
+              "variants/darwin-arm64": "78261601928c64229110f45f4d814c894f06c22a260d6751bcefb6c70431bb15",
+              "variants/linux-amd64": "7c701b2e95b92a3cfb9b622647030147e663b37eefa3b10221950f5486e2aca7",
+              "variants/windows-amd64": "2437a8c6047ed876b13648184542eae4efb52f402895ddeacdd06c75a7956b95"
+            },
+            "icon": "assets/icon.png",
+            "main": {
+              "darwin-amd64": "forum_backend.dylib",
+              "darwin-arm64": "forum_backend.dylib",
+              "linux-amd64": "forum_backend.so",
+              "windows-amd64": "forum_backend.dll"
+            },
+            "manifestVersion": "0.6.0",
+            "name": "logos_forum",
+            "type": "ui_qml",
+            "version": "0.3.2",
+            "view": "qml/Main.qml"
+          }
+        },
         {
           "releasedAt": "2026-10-26T15:13:48.163376+00:00",
           "publisherRef": "v0.3.1-alpha.1",
