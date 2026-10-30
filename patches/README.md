@@ -70,6 +70,7 @@ Build and test in a separate checkout (Nim 2.2.10, C/C++ compiler, make, CMake):
 ```sh
 git checkout 56854f4ebce0cfe68e3557d1be21b758ac62ae0c
 git apply /absolute/path/to/logos-agora/patches/logos-storage-0.5.3-public-download.patch
+git -C vendor/nim-libp2p apply /absolute/path/to/logos-agora/patches/logos-libp2p-provider-addresses.patch
 make USE_SYSTEM_NIM=1 NIM_PARAMS="-d:release -d:agoraRelayOnly" -j2
 ./env.sh nim c -r -d:release --out:build/testswarm tests/storage/blockexchange/engine/testswarm.nim
 ./env.sh nim c -r -d:release --out:build/testdirectconnect tests/storage/testdirectconnect.nim
@@ -90,3 +91,27 @@ and patch, loads current official fleet records, runs swarm regressions, and
 retrieves the public fixture CIDs. It does not copy the provider's store or keys.
 A successful build alone is not receipt evidence: all fixture downloads and
 checksums must pass as well.
+
+## Provider address preservation
+
+`logos-libp2p-provider-addresses.patch` targets Storage v0.5.3's pinned
+nim-libp2p commit `9281a6d35671af70417d0d1330ce64adb3e39fdd`.
+Apply it inside `vendor/nim-libp2p` in addition to the Storage patch above.
+
+Public DHT peers can cache different relay addresses for the same provider.
+The upstream provider set compares records by peer ID, so the first response
+wins and subsequent responses containing working relay addresses are discarded.
+The correction merges unique addresses for each provider, retaining at most 32.
+It does not alter provider identity checks, CID verification or transport
+security. A real four-node DHT regression checks that both sets of addresses
+survive discovery while the provider itself remains deduplicated.
+
+Run the dependency regression from the Storage checkout:
+
+```sh
+USE_SYSTEM_NIM=1 ./env.sh nim c -r -d:release --warningAsError:UnusedImport:off --out:build/test_get_providers vendor/nim-libp2p/tests/libp2p/kademlia/test_get_providers.nim
+```
+
+The unused-import override is needed by the upstream test logger under the
+Storage checkout's compiler configuration; it does not disable assertions.
+Remote receipt results are recorded separately from build/regression results.

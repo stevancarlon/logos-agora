@@ -1,0 +1,18 @@
+{
+  "issue": "DHT provider deduplication discarded alternate relay addresses",
+  "upstreamStorage": "56854f4ebce0cfe68e3557d1be21b758ac62ae0c",
+  "upstreamLibp2p": "9281a6d35671af70417d0d1330ce64adb3e39fdd",
+  "baseline": {
+    "tests": 12,
+    "passed": 11,
+    "failed": 1,
+    "failingTest": "Get providers preserves alternate addresses from duplicate provider records"
+  },
+  "corrected": {
+    "tests": 12,
+    "passed": 12,
+    "failed": 0
+  },
+  "nativeStorageBinarySha256": "6bc3933594584f80afff55f17f2ea2cc2a36f091c120c4bd4c9dc6b776bd5cc3",
+  "publicNativeReceiptPending": true
+}
