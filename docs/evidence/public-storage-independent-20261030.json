@@ -1,0 +1,49 @@
+{
+  "checkedAt": "2026-10-30T18:34:26.023424+00:00",
+  "networkPreset": "logos.test",
+  "passed": true,
+  "maxPeers": 160,
+  "testnet04Verified": false,
+  "manualPeerConnection": false,
+  "scope": "Public Storage byte/hash receipt; no Delivery or Basecamp UI claim",
+  "githubRun": "41107109568",
+  "storageVersion": "Storage version:  v0.5.3\nStorage revision: 56854f4\n\n\u001b[0m",
+  "storageSha256": "4bba0c027b5b04b2a5a5409317333d3b9d0906d5599ab364d6b9ed7ebe27906d",
+  "manifestSha256": "ab44402a95054b114d83d37a62070b2dccd4c286309b7c12f151830d59065ca1",
+  "files": [
+    {
+      "name": "workshop-diagram.png",
+      "cid": "zDvZRwzm6LjEZoCu64zFZhfRKt48XVp71WCQvcQJMqh3uvokHx74",
+      "bytes": 30402,
+      "sha256": "ecf8a8131ec9af54d4d09a52a7bc17ad91a3fbd918f9cde29ebb2d957f1d0d40",
+      "seconds": 9.08,
+      "passed": true
+    },
+    {
+      "name": "playback-test.mp4",
+      "cid": "zDvZRwzm3A8ib85rKRh394JyscbsXWYARoaigSfi55YRn4jbbH4a",
+      "bytes": 556240,
+      "sha256": "5d395c12d311528a4ab3a4c8993ad18dbb55492794daa2148b264b52f413b98a",
+      "seconds": 63.183,
+      "passed": true
+    },
+    {
+      "name": "workshop-plan.pdf",
+      "cid": "zDvZRwzm5PDngzvMMZGt2vEmLNY55wE4PBAeoKSP7FSnMrQjKWbF",
+      "bytes": 2345,
+      "sha256": "5217541bd04fb275fe93fe2aa3432d17f9922b81cb841fa13edaa6c24dc19641",
+      "seconds": 9.21,
+      "passed": true
+    }
+  ],
+  "transport": "direct",
+  "configSha256": "dd5482c737a4bf48164c4cdd695624d77c559be1fb4d702b165b6e895a2c52ad",
+  "readerPeerId": "16Uiu2HAmGoUyLSpXSNq8qmd7rJjbZtAFQbAZjFuX7YUUvsmuz8tR",
+  "readerAddresses": [
+    "/ip4/178.128.140.206/tcp/8070/p2p/16Uiu2HAm3xPbYz2zsq5XVGDCMqKhhNXZWyYV6WLVv3yzzUiRJWnW/p2p-circuit",
+    "/ip4/178.128.140.206/tcp/8070/mix-transport/An67-cPFkDpqyeTEjDPbhtN8NUxt9S-niBc5QRLyc2xrfadHgJmHjhbhrmTY2S86xaAz0wkgJnLzjEsjWAApyTU=/p2p/16Uiu2HAm3xPbYz2zsq5XVGDCMqKhhNXZWyYV6WLVv3yzzUiRJWnW/p2p-circuit",
+    "/ip4/34.70.60.201/tcp/8070/p2p/16Uiu2HAm5gxGojS6RFjK9jUm6QiKb1Vjnx81iQkfhSTXTzXWmJd4/p2p-circuit",
+    "/ip4/34.70.60.201/tcp/8070/mix-transport/Aph_ARtkKQwuVAqmTaccbMpF5q2Ub3rOI8AO8jNJPqU_iCJShu0awGv6pVemEA0WydIx1Dhc7GOXi9r88D1QPi8=/p2p/16Uiu2HAm5gxGojS6RFjK9jUm6QiKb1Vjnx81iQkfhSTXTzXWmJd4/p2p-circuit",
+    "/ip4/34.70.60.201/tcp/8070/p2p/16Uiu2HAm5gxGojS6RFjK9jUm6QiKb1Vjnx81iQkfhSTXTzXWmJd4/p2p-circuit/mix-transport/Az2bwbBBAbmiY4ZxY4KKbUWed9vlW0d4MSFrkL-I68NKmyMjZeC9mPFryUmTygsDuhQm6XSIhb8ks517VhjR1VE="
+  ]
+}

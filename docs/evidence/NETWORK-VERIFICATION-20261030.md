@@ -1,5 +1,7 @@
 # Network verification — 30 October 2026
 
+**Latest result:** [independent public attachment retrieval now passes](PUBLIC-STORAGE-20261030.md). The earlier attempts below are retained as verification history.
+
 ## Target deployment
 
 The public RPC at `https://testnet.lez.logos.co` responded to `checkHealth`,

@@ -14,5 +14,5 @@
     "failed": 0
   },
   "nativeStorageBinarySha256": "6bc3933594584f80afff55f17f2ea2cc2a36f091c120c4bd4c9dc6b776bd5cc3",
-  "publicNativeReceiptPending": true
+  "nativePublicReceipt": "public-storage-addresses-native-20261030.json"
 }

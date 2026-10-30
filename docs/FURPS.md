@@ -1,9 +1,9 @@
-# FURPS self-assessment — native 0.3.3 alpha
+# FURPS self-assessment — native 0.3.4 alpha
 
 30 October update: signed/anonymous private Delivery exchange, restart and Store
 recovery pass. Public PNG/MP4/PDF retrieval now passes through the native backend
 with a fresh reader and patched Storage; both nodes used one computer. Independent
-hosted receipt of the final patch timed out fetching the manifest; cross-machine public attachment reliability remains unverified. Testnet 0.4 remains unverified.
+hosted receipt now passes all three original fixtures with exact size/hash validation. See [cross-machine Storage evidence](evidence/PUBLIC-STORAGE-20261030.md). Testnet 0.4 remains unverified.
 26 backend and 67 QML tests pass. The acceptance harness's auto-connect race is fixed. See the
 [dated verification report](evidence/NETWORK-VERIFICATION-20261030.md).
 

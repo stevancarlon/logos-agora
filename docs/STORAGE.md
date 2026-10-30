@@ -8,7 +8,7 @@ There is no central forum server. Each participant uses a local Storage node.
 
 Use the official [Logos Storage implementation](https://github.com/logos-storage/logos-storage-nim).
 Public relay retrieval uses v0.5.3 plus the pinned
-[Agora public-download patch](../patches/README.md#storage-public-download-correction)
+[Agora public-download patches](../patches/README.md#storage-public-download-correction)
 on Linux x86_64. The unpatched binary failed the public receipt checks.
 With the tested `storage` executable installed,
 run a node with a persistent directory and a loopback-only API:
@@ -35,7 +35,7 @@ direct transport. Configuration generation does not establish public retrieval.
 
 Keep this process running. Node discovery/bootstrap and network reachability must
 be configured for the network your participants use. Public PNG/MP4/PDF retrieval now passes with fresh readers through public
-discovery and relays on one host; the independent hosted reader still timed out fetching the manifest.
+discovery and relays on one host; an independent GitHub-hosted reader now verifies all three original fixture CIDs with matching sizes and hashes. See [the receipt](evidence/PUBLIC-STORAGE-20261030.md).
 The separate private integration checks use loopback-connected nodes.
 
 Set the forum profile’s `storageEndpoint` through the backend `settings`
@@ -122,7 +122,7 @@ Public relay throughput and discovery latency are still limited; the 180-second
 application transfer deadline can reject larger/slower relay transfers. These
 results do not establish
 large-file performance, retention, Mix transport or testnet 0.4 compatibility.
-Both native test processes were on one computer.
+Both native test processes were on one computer. A subsequent independent GitHub-hosted reader also passed all three files: [cross-machine receipt](evidence/PUBLIC-STORAGE-20261030.md).
 
 The patch handles constrained relay batches, known-provider admission, stale
 addresses and relay renewal. Agora sends the validated MIME type and refreshes
