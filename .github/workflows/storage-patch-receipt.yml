@@ -18,13 +18,20 @@ jobs:
           git clone --branch v0.5.3 --depth 1 https://github.com/logos-storage/logos-storage-nim.git "$RUNNER_TEMP/storage-source"
           cd "$RUNNER_TEMP/storage-source"
           test "$(git rev-parse HEAD)" = 56854f4ebce0cfe68e3557d1be21b758ac62ae0c
+          git submodule update --init --depth 1
+          git submodule foreach 'if [ "$sm_path" != "vendor/nimbus-build-system" ]; then git submodule update --init --recursive --depth 1; fi'
           git apply "$GITHUB_WORKSPACE/patches/logos-storage-0.5.3-public-download.patch"
-          make -j2 > "$RUNNER_TEMP/storage-build.log" 2>&1
+          curl --fail --location --max-time 120 --output "$RUNNER_TEMP/nim.tar.xz" https://nim-lang.org/download/nim-2.2.10-linux_x64.tar.xz
+          echo "0a3a38752e97e9d44aa479b3a7b37336dfe0176daf22ee5b5218ad0991ecd211  $RUNNER_TEMP/nim.tar.xz" | sha256sum --check
+          tar -xf "$RUNNER_TEMP/nim.tar.xz" -C "$RUNNER_TEMP"
+          export PATH="$RUNNER_TEMP/nim-2.2.10/bin:$PATH"
+          echo "$RUNNER_TEMP/nim-2.2.10/bin" >> "$GITHUB_PATH"
+          make USE_SYSTEM_NIM=1 -j2 > "$RUNNER_TEMP/storage-build.log" 2>&1
       - name: Run download swarm regressions
         shell: bash
         run: |
           cd "$RUNNER_TEMP/storage-source"
-          ./env.sh nim c -r -d:release --out:build/testswarm tests/storage/blockexchange/engine/testswarm.nim > "$RUNNER_TEMP/storage-tests.log" 2>&1
+          USE_SYSTEM_NIM=1 ./env.sh nim c -r -d:release --out:build/testswarm tests/storage/blockexchange/engine/testswarm.nim > "$RUNNER_TEMP/storage-tests.log" 2>&1
       - name: Retrieve public fixtures without manual peer connection
         shell: bash
         run: |

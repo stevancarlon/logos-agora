@@ -38,6 +38,38 @@ index db2e51e..b8b4c4e 100644
 +    optimal = min(TargetBatchBytes, 64'u32 * 1024) div blockSize
      maxFromBytes = MaxWantBlocksResponseBytes div blockSize
    return clamp(optimal, MinBatchSize, maxFromBytes)
+diff --git i/storage/nat.nim w/storage/nat.nim
+index dce1cf7..df546db 100644
+--- i/storage/nat.nim
++++ w/storage/nat.nim
+@@ -255,7 +255,7 @@ proc tryStartingDirectConn(
+     try:
+       let isRelayedAddr = address.contains(multiCodec("p2p-circuit"))
+       if not isRelayedAddr.get(false) and address.isPublicMA():
+-        return await tryConnect(address)
++        return await tryConnect(address).wait(3.seconds)
+     except CancelledError as exc:
+       raise exc
+     except CatchableError as err:
+@@ -292,14 +292,16 @@ proc holePunchIfRelayed*(
+   if natAddrs.len == 0:
+     natAddrs = switch.peerInfo.listenAddrs.mapIt(switch.peerStore.guessDialableAddr(it))
+   try:
+-    await DcutrClient.new().startSync(switch, peerId, natAddrs)
++    await DcutrClient.new(connectTimeout = 3.seconds).startSync(switch, peerId, natAddrs)
+     await closeRelayConn(relayedConn)
+   except DcutrError as err:
+     debug "Hole punching failed during dcutr", description = err.msg
+ 
+ proc setupHolePunching*(switch: Switch): PeerEventHandler =
+   try:
+-    switch.mount(Dcutr.new(switch))
++    # Failed direct dials hold the per-peer dial lock. Bound them so a live
++    # relay can carry transfers promptly and reconnect after its byte limit.
++    switch.mount(Dcutr.new(switch, connectTimeout = 3.seconds))
+   except LPError as err:
+     error "Failed to mount Dcutr protocol", description = err.msg
+ 
 diff --git i/tests/storage/blockexchange/engine/testswarm.nim w/tests/storage/blockexchange/engine/testswarm.nim
 index 0e30cbd..bbaf39b 100644
 --- i/tests/storage/blockexchange/engine/testswarm.nim
