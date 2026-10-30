@@ -39,6 +39,36 @@ void StorageTransfer::drain() {
     cancel();
   }
 }
+void StorageTransfer::finish(QJsonObject result,QNetworkReply *reply) {
+  m_timeout.stop();
+  m_state["status"]=m_failure.isEmpty()?"complete":"failed";
+  m_state["error"]=m_failure;
+  result["error"]=m_failure;
+  m_reply=nullptr; reply->deleteLater();
+  emit completed(result);
+}
+void StorageTransfer::announce(QJsonObject result,const QString &endpoint) {
+  // Re-uploading an existing CID can skip Storage's onBlockStored callback.
+  // Explicitly refresh its provider announcement, including after a retry.
+  QNetworkRequest request(QUrl(endpoint+"/data/"+result["cid"].toString()+"/advertise?advertise=true"));
+  request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,QNetworkRequest::ManualRedirectPolicy);
+  request.setTransferTimeout(30000);
+  request.setHeader(QNetworkRequest::ContentTypeHeader,"application/octet-stream");
+  auto reply=m_network.post(request,QByteArray());
+  m_reply=reply;
+  reply->setReadBufferSize(512);
+  m_response.clear();
+  connect(reply,&QNetworkReply::readyRead,this,[this]{
+    m_response+=m_reply->readAll();
+    if(m_response.size()>512) {m_failure="Invalid Storage announcement response";cancel();}
+  });
+  connect(reply,&QNetworkReply::finished,this,[this,reply,result]{
+    if(m_failure.isEmpty() && (reply->error()!=QNetworkReply::NoError ||
+        reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt()!=200))
+      m_failure="Storage could not announce the attachment. Retry uploading.";
+    finish(result,reply);
+  });
+}
 void StorageTransfer::start(const QString &id,const QJsonObject &file,const QString &endpoint,
                             const QString &path,bool upload) {
   if(m_reply) throw std::runtime_error("Another attachment transfer is in progress");
@@ -57,10 +87,10 @@ void StorageTransfer::start(const QString &id,const QJsonObject &file,const QStr
   m_state={{"id",id},{"action",upload?"upload":"download"},{"status","running"},{"bytes",0},{"total",double(m_expected)}};
   QNetworkRequest request(QUrl(endpoint+(upload ? "/data" : "/data/"+cid+"/network/stream?advertise=false")));
   request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,QNetworkRequest::ManualRedirectPolicy);
-  // A cold public-network lookup can spend a full discovery round before
-  // returning its first byte. The overall transfer remains bounded at 180 s.
-  request.setTransferTimeout(upload ? 30000 : 90000);
-  request.setHeader(QNetworkRequest::ContentTypeHeader,"application/octet-stream");
+  // Manifest and block-provider discovery can each take a cold lookup round.
+  // Leave room for both; the independent overall deadline stays at 180 s.
+  request.setTransferTimeout(upload ? 30000 : 150000);
+  request.setHeader(QNetworkRequest::ContentTypeHeader,upload?file["mime"].toString():"application/octet-stream");
   m_reply=upload ? m_network.post(request,&m_file) : m_network.get(request);
   auto reply=m_reply.data();
   reply->setReadBufferSize(65536);
@@ -72,8 +102,7 @@ void StorageTransfer::start(const QString &id,const QJsonObject &file,const QStr
   });
   connect(reply,upload?&QNetworkReply::uploadProgress:&QNetworkReply::downloadProgress,this,
     [this](qint64 bytes,qint64){m_state["bytes"]=double(bytes);});
-  connect(reply,&QNetworkReply::finished,this,[this,reply,file,path,id,upload]{
-    m_timeout.stop();
+  connect(reply,&QNetworkReply::finished,this,[this,reply,file,path,id,upload,endpoint]{
     if(upload) m_response+=reply->readAll(); else drain();
     const auto code=reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
     if(m_failure.isEmpty() && reply->error()==QNetworkReply::OperationCanceledError)
@@ -108,11 +137,10 @@ void StorageTransfer::start(const QString &id,const QJsonObject &file,const QStr
       }
     }
     if(!upload && !m_failure.isEmpty()) QFile::remove(path);
-    m_state["status"]=m_failure.isEmpty()?"complete":"failed";
-    m_state["error"]=m_failure;
-    result["error"]=m_failure;
-    m_reply=nullptr; reply->deleteLater();
-    emit completed(result);
+    if(upload && m_failure.isEmpty()) {
+      reply->deleteLater();
+      announce(result,endpoint);
+    } else finish(result,reply);
   });
   m_timeout.start(180000);
 }

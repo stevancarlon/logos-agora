@@ -66,6 +66,11 @@ bytes, including embedded metadata, become available through Storage. If an uplo
 fails, the composer and local file remain available to retry. Already uploaded
 files can remain on Storage even if a later upload or post fails.
 
+Each upload uses the file's validated MIME type and explicitly refreshes the
+Storage provider announcement, including when the node already has those bytes.
+An announcement failure keeps the original staged file available for retry.
+The node accepting the announcement does not prove a remote download succeeded.
+
 Readers see a **Fetch** button with the attachment size. Fetching is explicit;
 incoming posts never automatically download media. After download, Agora verifies
 the exact signed size, SHA-256 and MIME type. Images render inline, videos use the

@@ -279,6 +279,8 @@ private slots:
     QImage image(16,16,QImage::Format_RGB32); image.fill(Qt::green); QVERIFY(image.save(source));
     QFile input(source); QVERIFY(input.open(QIODevice::ReadOnly)); const auto original=input.readAll();
     QByteArray stored, downloaded=original;
+    bool announcementFails=true;
+    int announcements=0;
     const auto cid=QByteArray("bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabcd234567abcdef");
     connect(&server,&QTcpServer::newConnection,&server,[&]{
       auto socket=server.nextPendingConnection();
@@ -291,10 +293,14 @@ private slots:
         for(const auto &line:request->left(split).split('\n'))
           if(line.toLower().startsWith("content-length:")) length=line.mid(15).trimmed().toLongLong();
         if(request->size()<split+4+length) return;
-        const bool upload=request->startsWith("POST ");
+        const bool announce=request->startsWith("POST /api/storage/v1/data/"+cid+"/advertise?advertise=true ");
+        const bool upload=request->startsWith("POST /api/storage/v1/data ");
+        if(announce) ++announcements;
+        if(upload) QVERIFY(request->left(split).toLower().contains("content-type: image/png"));
         if(upload) stored=request->mid(split+4,length);
-        const auto body=upload?cid:downloaded;
-        socket->write("HTTP/1.1 200 OK\r\nContent-Length: "+QByteArray::number(body.size())+"\r\nConnection: close\r\n\r\n"+body);
+        const auto body=announce?QByteArray():upload?cid:downloaded;
+        const auto status=announce && announcementFails?QByteArray("503 Unavailable"):QByteArray("200 OK");
+        socket->write("HTTP/1.1 "+status+"\r\nContent-Length: "+QByteArray::number(body.size())+"\r\nConnection: close\r\n\r\n"+body);
         socket->disconnectFromHost();
       });
     });
@@ -304,7 +310,12 @@ private slots:
     QVERIFY(!aid.isEmpty());
     QVERIFY(call({{"op","attachmentUpload"},{"id",aid}})["ok"].toBool());
     auto transfer=[&]{return call({{"op","attachmentTransfer"}})["transfer"].toObject();};
+    QTRY_COMPARE_WITH_TIMEOUT(transfer()["status"].toString(),QString("failed"),5000);
+    QVERIFY(transfer()["error"].toString().contains("announce"));
+    announcementFails=false;
+    QVERIFY(call({{"op","attachmentUpload"},{"id",aid}})["ok"].toBool());
     QTRY_COMPARE_WITH_TIMEOUT(transfer()["status"].toString(),QString("complete"),5000);
+    QCOMPARE(announcements,2);
     QCOMPARE(stored,original);
     auto created=call({{"op","post"},{"title","Shared image"},{"body","Signed attachment"},{"board","general"},{"attachments",QJsonArray{aid}}});
     QVERIFY2(created["ok"].toBool(),qPrintable(created["error"].toString()));

@@ -95,13 +95,19 @@ returns running/complete/failed, byte progress and error; `attachmentCancel` abo
 One transfer runs at a time. The endpoint is a user-configured literal loopback
 HTTP URL ending `/api/storage/v1`, with an explicit port and no credentials,
 query or fragment. No remote gateway or central application server is used.
-Uploads POST `/data`; downloads GET `/data/{cid}/network/stream?advertise=false`.
+Uploads POST `/data` with the validated MIME type, then POST
+`/data/{cid}/advertise?advertise=true` to refresh the provider announcement even
+when Storage deduplicates an existing file. Failure of either request leaves the
+original staged file available for retry and does not persist a publishable CID.
+Announcement acceptance is not proof of remote retrieval. Downloads GET
+`/data/{cid}/network/stream?advertise=false`.
 The node, rather than Agora, performs peer discovery and content availability.
 
 Downloads enforce signed byte count while streaming, then SHA-256 and sniffed MIME
 before copying into attachment storage. Images are bounded to 24 megapixels. File
 names never select filesystem paths. Redirects are refused; requests have a
-30-second upload / 90-second download inactivity timeout and a 180-second total deadline. Failed downloads
+30-second upload/announcement and 150-second download inactivity timeout, with
+an independent 180-second total deadline covering all phases. Failed downloads
 are deleted; failed uploads retain the staged original. Original upload metadata
 is preserved. Content retention depends on Storage providers remaining available;
 upload success is not a permanent-availability promise or anonymity guarantee.

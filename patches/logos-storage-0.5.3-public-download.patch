@@ -1,7 +1,7 @@
-diff --git i/storage/blockexchange/engine/engine.nim w/storage/blockexchange/engine/engine.nim
+diff --git a/storage/blockexchange/engine/engine.nim b/storage/blockexchange/engine/engine.nim
 index b409c16..fa4a341 100644
---- i/storage/blockexchange/engine/engine.nim
-+++ w/storage/blockexchange/engine/engine.nim
+--- a/storage/blockexchange/engine/engine.nim
++++ b/storage/blockexchange/engine/engine.nim
 @@ -429,6 +429,12 @@ proc sendWantBlocksRequest(
    else:
      download.completeBatch(start, validCount.uint64, totalBytes)
@@ -38,10 +38,10 @@ index b409c16..fa4a341 100644
      directPresenceQueryPolicy: PresenceQueryPolicy =
        PresenceQueryPolicy.QuerySelectedPeers,
      mixPresenceQueryPolicy: PresenceQueryPolicy = PresenceQueryPolicy.QuerySelectedPeers,
-diff --git i/storage/blockexchange/engine/swarm.nim w/storage/blockexchange/engine/swarm.nim
+diff --git a/storage/blockexchange/engine/swarm.nim b/storage/blockexchange/engine/swarm.nim
 index f74592b..5c30501 100644
---- i/storage/blockexchange/engine/swarm.nim
-+++ w/storage/blockexchange/engine/swarm.nim
+--- a/storage/blockexchange/engine/swarm.nim
++++ b/storage/blockexchange/engine/swarm.nim
 @@ -123,7 +123,19 @@ proc addPeer*(swarm: Swarm, peerId: PeerId, availability: BlockAvailability): bo
    if peerId in swarm.removedPeers:
      return false
@@ -63,10 +63,10 @@ index f74592b..5c30501 100644
    swarm.peers[peerId] = SwarmPeer.new(availability)
    true
  
-diff --git i/storage/blockexchange/network/network.nim w/storage/blockexchange/network/network.nim
-index dd80215..f40d2e7 100644
---- i/storage/blockexchange/network/network.nim
-+++ w/storage/blockexchange/network/network.nim
+diff --git a/storage/blockexchange/network/network.nim b/storage/blockexchange/network/network.nim
+index dd80215..6a607bf 100644
+--- a/storage/blockexchange/network/network.nim
++++ b/storage/blockexchange/network/network.nim
 @@ -14,6 +14,7 @@ import std/sets
  import pkg/chronos
  
@@ -75,20 +75,30 @@ index dd80215..f40d2e7 100644
  import pkg/libp2p/connmanager as lp_connmanager
  import pkg/libp2p/protocols/protocol as lp_protocol
  import pkg/questionable
-@@ -301,6 +302,12 @@ proc dialPeer*(self: BlockExcNetwork, peer: PeerRecord) {.async.} =
-   else:
-     await self.switch.connect(peer.peerId, peer.addresses.mapIt(it.address))
+@@ -29,6 +30,7 @@ import ./networkpeer
+ import ../protocol/wantblocks
  
+ import ../../mix
++import ../../utils/directconnect
+ 
+ export networkpeer, wantblocks
+ 
+@@ -299,7 +301,13 @@ proc dialPeer*(self: BlockExcNetwork, peer: PeerRecord) {.async.} =
+       raise newException(StorageError, "Failed to connect over MixTransport: " & error)
+     self.mixSessions[peer.peerId] = session
+   else:
+-    await self.switch.connect(peer.peerId, peer.addresses.mapIt(it.address))
++    await self.switch.connectDirect(peer.peerId, peer.addresses.mapIt(it.address))
++
 +proc isRelayPeer*(self: BlockExcNetwork, peer: PeerId): bool =
 +  if self.isMixDownload or self.switch.isNil:
 +    return false
 +  let connections = self.switch.connManager.getConnections().getOrDefault(peer)
 +  connections.len > 0 and connections.allIt(isRelayed(it.connection))
-+
+ 
  proc dropPeer*(
      self: BlockExcNetwork, peer: PeerId
- ) {.async: (raises: [CancelledError]).} =
-@@ -324,6 +331,18 @@ proc dropPeer*(
+@@ -324,6 +332,18 @@ proc dropPeer*(
    except CatchableError as error:
      warn "Error attempting to disconnect from peer", peer = peer, error = error.msg
  
@@ -97,7 +107,7 @@ index dd80215..f40d2e7 100644
 +  await self.dropPeer(peer)
 +  if reconnect and addresses.len > 0:
 +    try:
-+      await self.switch.connect(peer, addresses).wait(10.seconds)
++      await self.switch.connectDirect(peer, addresses).wait(25.seconds)
 +    except CancelledError as exc:
 +      raise exc
 +    except CatchableError as exc:
@@ -107,10 +117,10 @@ index dd80215..f40d2e7 100644
  proc excludeRelays*(self: BlockExcNetwork, peers: openArray[PeerId]) =
    for p in peers:
      self.excludedPeers.incl(p)
-diff --git i/storage/blockexchange/utils.nim w/storage/blockexchange/utils.nim
+diff --git a/storage/blockexchange/utils.nim b/storage/blockexchange/utils.nim
 index db2e51e..b8b4c4e 100644
---- i/storage/blockexchange/utils.nim
-+++ w/storage/blockexchange/utils.nim
+--- a/storage/blockexchange/utils.nim
++++ b/storage/blockexchange/utils.nim
 @@ -49,6 +49,9 @@ func isIndexInRanges*(
  proc computeBatchSize*(blockSize: uint32): uint32 =
    doAssert blockSize > 0, "computeBatchSize requires blockSize > 0"
@@ -122,10 +132,50 @@ index db2e51e..b8b4c4e 100644
 +    optimal = min(TargetBatchBytes, 64'u32 * 1024) div blockSize
      maxFromBytes = MaxWantBlocksResponseBytes div blockSize
    return clamp(optimal, MinBatchSize, maxFromBytes)
-diff --git i/storage/storage.nim w/storage/storage.nim
+diff --git a/storage/manifest/protocol.nim b/storage/manifest/protocol.nim
+index bd016ca..4dcb7d4 100644
+--- a/storage/manifest/protocol.nim
++++ b/storage/manifest/protocol.nim
+@@ -20,6 +20,7 @@ import ../discovery
+ import ../errors
+ import ../logutils
+ import ../mix
++import ../utils/directconnect
+ import ../stores/blockstore
+ 
+ import ./coders
+@@ -157,9 +158,8 @@ proc fetchManifestFromPeer(
+           "Error opening MixTransport manifest stream to " & $peer.peerId & ": " & error
+         )
+     else:
+-      conn = await self.switch.dial(
+-        peer.peerId, peer.addresses.mapIt(it.address), ManifestProtocolCodec
+-      )
++      await self.switch.connectDirect(peer.peerId, peer.addresses.mapIt(it.address))
++      conn = await self.switch.dial(peer.peerId, ManifestProtocolCodec)
+ 
+     let cidBytes = cid.data.buffer
+     var reqBuf = newSeqUninit[byte](2 + cidBytes.len)
+@@ -229,6 +229,15 @@ proc fetchManifest*(
+             blkResult = await fetchFut
+           else:
+             trace "Manifest fetch from peer timed out", cid, peer = provider.peerId
++            # A timed-out stream can leave a stale circuit in the connection
++            # manager. Retrying on that same connection never changes the path.
++            if transport == DownloadTransport.Direct:
++              try:
++                await self.switch.disconnect(provider.peerId)
++              except CancelledError as exc:
++                raise exc
++              except CatchableError as exc:
++                trace "Failed to retire manifest connection", error = exc.msg
+             continue
+ 
+           without blk =? blkResult, fetchErr:
+diff --git a/storage/storage.nim b/storage/storage.nim
 index 2a928a8..9bcbcd3 100644
---- i/storage/storage.nim
-+++ w/storage/storage.nim
+--- a/storage/storage.nim
++++ b/storage/storage.nim
 @@ -613,7 +613,8 @@ proc new*(
          engine.advertiser.onAddrChange()
      )
@@ -136,10 +186,62 @@ index 2a928a8..9bcbcd3 100644
  
    # REST server
    var restServer: RestServerRef = nil
-diff --git i/tests/storage/blockexchange/engine/testswarm.nim w/tests/storage/blockexchange/engine/testswarm.nim
+diff --git a/storage/utils/directconnect.nim b/storage/utils/directconnect.nim
+new file mode 100644
+index 0000000..1ed5700
+--- /dev/null
++++ b/storage/utils/directconnect.nim
+@@ -0,0 +1,46 @@
++## Bound each advertised address so an expired relay cannot consume the entire
++## peer dial budget before a working address is attempted.
++{.push raises: [].}
++
++import std/[strutils, algorithm]
++import pkg/chronos
++import pkg/libp2p
++import ../logutils
++
++logScope:
++  topics = "storage directconnect"
++
++proc connectDirect*(
++    switch: Switch, peer: PeerId, addresses: seq[MultiAddress]
++) {.async: (raises: [CancelledError, DialFailedError]).} =
++  var lastError = "No usable direct address"
++  # Reuse addresses that actually worked before trying unverified DHT entries.
++  # Identify can report the same expired relay first on every renewed circuit.
++  let book = switch.peerStore[AddressBook]
++  let live = book[peer]
++  var known = book.entries(peer)
++  known.sort(proc(a, b: AddressEntry): int = cmp(b.lastUpdated, a.lastUpdated))
++  var candidates: seq[MultiAddress]
++  for entry in known:
++    if entry.confidence >= AddressConfidence.High and entry.address in live:
++      candidates.add(entry.address)
++  for address in addresses:
++    if address notin candidates:
++      candidates.add(address)
++  let deadline = Moment.now() + 25.seconds
++  for address in candidates:
++    # Mix endpoints require their own authenticated Mix transport.
++    if "/mix-transport/" in $address:
++      continue
++    let remaining = deadline - Moment.now()
++    if remaining <= ZeroDuration:
++      break
++    try:
++      await switch.connect(peer, @[address]).wait(min(8.seconds, remaining))
++      return
++    except CancelledError as exc:
++      raise exc
++    except CatchableError as exc:
++      lastError = exc.msg
++      trace "Address failed; trying next", peer, address, error = lastError
++  raise newException(DialFailedError, lastError)
+diff --git a/tests/storage/blockexchange/engine/testswarm.nim b/tests/storage/blockexchange/engine/testswarm.nim
 index 0e30cbd..bbaf39b 100644
---- i/tests/storage/blockexchange/engine/testswarm.nim
-+++ w/tests/storage/blockexchange/engine/testswarm.nim
+--- a/tests/storage/blockexchange/engine/testswarm.nim
++++ b/tests/storage/blockexchange/engine/testswarm.nim
 @@ -243,6 +243,33 @@ suite "Swarm":
      check removed.isSome
      check swarm.getPeer(peerId).isNone
@@ -174,3 +276,59 @@ index 0e30cbd..bbaf39b 100644
    test "banPeer prevents re-adding":
      let peerId = PeerId.example
      discard swarm.addPeer(peerId, BlockAvailability.complete())
+diff --git a/tests/storage/testdirectconnect.nim b/tests/storage/testdirectconnect.nim
+new file mode 100644
+index 0000000..be9093d
+--- /dev/null
++++ b/tests/storage/testdirectconnect.nim
+@@ -0,0 +1,50 @@
++import pkg/chronos
++import pkg/libp2p except setup, eventually
++import pkg/storage/utils/directconnect
++import ../asynctest
++import ./helpers
++
++asyncchecksuite "Direct provider connection fallback":
++  var
++    provider, reader: Switch
++    stalled: StreamServer
++    accepted: seq[StreamTransport]
++
++  proc acceptWithoutHandshake(server: StreamServer, transport: StreamTransport) {.async: (raises: []).} =
++    accepted.add(transport)
++
++  setup:
++    provider = newStandardSwitch()
++    reader = newStandardSwitch()
++    await provider.start()
++    await reader.start()
++    stalled = createStreamServer(initTAddress("127.0.0.1", 0), acceptWithoutHandshake, {ReuseAddr})
++    stalled.start()
++
++  teardown:
++    for transport in accepted:
++      await transport.closeWait()
++    stalled.stop()
++    await stalled.closeWait()
++    await reader.stop()
++    await provider.stop()
++    accepted.setLen(0)
++
++  test "Falls through an unresponsive first address to a working provider":
++    let stale = MultiAddress.init("/ip4/127.0.0.1/tcp/" & $stalled.localAddress.port).tryGet()
++    let started = Moment.now()
++    await reader.connectDirect(provider.peerInfo.peerId, @[stale] & provider.peerInfo.addrs).wait(12.seconds)
++    check:
++      accepted.len == 1
++      Moment.now() - started < 12.seconds
++    await reader.disconnect(provider.peerInfo.peerId)
++    # The successful address is now preferred over the same stalled entry.
++    await reader.connectDirect(provider.peerInfo.peerId, @[stale] & provider.peerInfo.addrs).wait(3.seconds)
++    check accepted.len == 1
++
++  test "Cancellation stops an in-flight connection attempt":
++    let stale = MultiAddress.init("/ip4/127.0.0.1/tcp/" & $stalled.localAddress.port).tryGet()
++    let pending = reader.connectDirect(provider.peerInfo.peerId, @[stale])
++    await sleepAsync(100.millis)
++    await pending.cancelAndWait()
++    check pending.cancelled()

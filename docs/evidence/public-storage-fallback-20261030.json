@@ -1,0 +1,64 @@
+{
+  "checkedAt": "2026-10-30T17:11:53.695915+00:00",
+  "networkPreset": "logos.test",
+  "testnet04Verified": false,
+  "sameMachine": true,
+  "crossMachineVerified": false,
+  "manualPeerConnection": false,
+  "passed": true,
+  "files": [
+    {
+      "bytes": 30402,
+      "cid": "zDvZRwzm6LjEZoCu64zFZhfRKt48XVp71WCQvcQJMqh3uvokHx74",
+      "crossMachineVerified": false,
+      "mime": "image/png",
+      "passed": true,
+      "sha256": "ecf8a8131ec9af54d4d09a52a7bc17ad91a3fbd918f9cde29ebb2d957f1d0d40",
+      "seconds": 17.919
+    },
+    {
+      "bytes": 556240,
+      "cid": "zDvZRwzm3A8ib85rKRh394JyscbsXWYARoaigSfi55YRn4jbbH4a",
+      "crossMachineVerified": false,
+      "mime": "video/mp4",
+      "passed": true,
+      "sha256": "5d395c12d311528a4ab3a4c8993ad18dbb55492794daa2148b264b52f413b98a",
+      "seconds": 154.965
+    },
+    {
+      "bytes": 2345,
+      "cid": "zDvZRwzm5PDngzvMMZGt2vEmLNY55wE4PBAeoKSP7FSnMrQjKWbF",
+      "crossMachineVerified": false,
+      "mime": "application/pdf",
+      "passed": true,
+      "sha256": "5217541bd04fb275fe93fe2aa3432d17f9922b81cb841fa13edaa6c24dc19641",
+      "seconds": 18.134
+    }
+  ],
+  "storageSha256": "bfb742639179d382707b6b95b2f4e30120d62a8d6bbd1bac72e3b87818d436c4",
+  "storageVersion": "Storage version:  v0.5.3\nStorage revision: 56854f4\n\n\u001b[0m",
+  "probeSha256": "90921b8984e34e81cc1e96de230d0cb8b4b434993dbd615a8173f2b21b367dc2",
+  "configSha256": "dd5482c737a4bf48164c4cdd695624d77c559be1fb4d702b165b6e895a2c52ad",
+  "provider": {
+    "peerId": "16Uiu2HAkyZpWpvj6qcriGsdY1op31rECysyU2LaVKwpFzPTLDeur",
+    "addresses": [
+      "/ip4/128.140.55.128/tcp/8399/p2p/16Uiu2HAmEVspg4pqvhZUp82QCFJKpgxg9EaUGukdKor6eWcWJC9N/p2p-circuit",
+      "/ip4/128.140.55.128/tcp/8399/mix-transport/Axthw_gIbJw6xaiEGmDaL5u3-M0ADrymoazjKNkwYn-J-VpRjMM84W485haSKLGlNMpyfBfsF5jBs39j5yqSrww=/p2p/16Uiu2HAmEVspg4pqvhZUp82QCFJKpgxg9EaUGukdKor6eWcWJC9N/p2p-circuit",
+      "/ip4/34.70.60.201/tcp/8070/p2p/16Uiu2HAm5gxGojS6RFjK9jUm6QiKb1Vjnx81iQkfhSTXTzXWmJd4/p2p-circuit",
+      "/ip4/34.70.60.201/tcp/8070/mix-transport/Aph_ARtkKQwuVAqmTaccbMpF5q2Ub3rOI8AO8jNJPqU_iCJShu0awGv6pVemEA0WydIx1Dhc7GOXi9r88D1QPi8=/p2p/16Uiu2HAm5gxGojS6RFjK9jUm6QiKb1Vjnx81iQkfhSTXTzXWmJd4/p2p-circuit",
+      "/ip4/128.140.55.128/tcp/8399/p2p/16Uiu2HAmEVspg4pqvhZUp82QCFJKpgxg9EaUGukdKor6eWcWJC9N/p2p-circuit/mix-transport/Aj2FC3hCNPL2cXz-uO5CRnXUCBA96ICpHWOPvZqkk3J9PoGQFMR5YyWGfbMIbyt5PwO-M4-GhXtVke7xv1HI4Cw="
+    ],
+    "discoveredPeers": 48
+  },
+  "consumer": {
+    "peerId": "16Uiu2HAkzsq2smyCiwtXx1md9yYLXiTBT4H3EFejiRmB42SSxxnJ",
+    "addresses": [
+      "/ip4/129.212.221.44/tcp/8070/p2p/16Uiu2HAmVFXLh9fs5mExDDwzsah2rWdiHR2Fy3cPmF5xPx29vrbB/p2p-circuit",
+      "/ip4/129.212.221.44/tcp/8070/mix-transport/A_aTx0w5sTTjM1GEgYYDd1cbzpzGQZ8eiqL77znxAunKouXQ3WVLH-5B4g_222ZrPRKBRi-10dcrPmrbrQPMHQI=/p2p/16Uiu2HAmVFXLh9fs5mExDDwzsah2rWdiHR2Fy3cPmF5xPx29vrbB/p2p-circuit",
+      "/ip4/47.76.178.164/tcp/8070/p2p/16Uiu2HAmFKREVxCD89jkdEw8oBJo3WHXr9esmuDoKGWi63i66rfD/p2p-circuit",
+      "/ip4/47.76.178.164/tcp/8070/mix-transport/AyePlG8L_W6LpMHk-0xMY0tkMEWSNT5Mhe44ppPkaG9EfccfucmnggvzCplJyLSqimv8ciTYSGT1mzT1zDDJkGg=/p2p/16Uiu2HAmFKREVxCD89jkdEw8oBJo3WHXr9esmuDoKGWi63i66rfD/p2p-circuit",
+      "/ip4/129.212.221.44/tcp/8070/p2p/16Uiu2HAmVFXLh9fs5mExDDwzsah2rWdiHR2Fy3cPmF5xPx29vrbB/p2p-circuit/mix-transport/AlD9xagyz4amov0-PNs23_7e_wmvIiRCVoNUEql6cq6H5SPoCnQNU1Qw8r3R-xjQIFd8ywv4AF9Bi1K_nboZdw4="
+    ],
+    "discoveredPeers": 51
+  }
+}

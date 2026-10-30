@@ -52,6 +52,12 @@ more blocks are needed. This avoids both exhausting the relay allowance with
 concurrent batches and repeating DHT discovery for every block. Reachable direct
 peers retain their normal connections and pipelining.
 
+Direct provider dials skip Mix-only addresses and allow eight seconds per
+address. An expired relay therefore cannot consume the full manifest timeout
+before the next address is tried. Manifest timeouts retire stale connections
+before retrying. Regression tests cover an unresponsive first address followed
+by a working peer, and cancellation during connection setup.
+
 The `agoraRelayOnly` build option disables automatic NAT hole punching, whose
 connection attempts delay the usable relay on this deployment. Ordinary direct
 connections remain supported. This is an Agora-maintained dependency patch, not
@@ -64,6 +70,7 @@ git checkout 56854f4ebce0cfe68e3557d1be21b758ac62ae0c
 git apply /absolute/path/to/logos-agora/patches/logos-storage-0.5.3-public-download.patch
 make USE_SYSTEM_NIM=1 NIM_PARAMS="-d:release -d:agoraRelayOnly" -j2
 ./env.sh nim c -r -d:release --out:build/testswarm tests/storage/blockexchange/engine/testswarm.nim
+./env.sh nim c -r -d:release --out:build/testdirectconnect tests/storage/testdirectconnect.nim
 ```
 
 On 30 October, the patched reader fetched PNG, MP4 and PDF from a separate

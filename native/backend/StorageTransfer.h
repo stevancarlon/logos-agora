@@ -33,4 +33,6 @@ private:
   bool m_upload=false;
   qint64 m_expected=0, m_received=0;
   void drain();
+  void finish(QJsonObject result, QNetworkReply *reply);
+  void announce(QJsonObject result, const QString &endpoint);
 };
