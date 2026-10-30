@@ -1,0 +1,48 @@
+{
+  "checkedAt": "2026-10-30T19:08:16.490718+00:00",
+  "networkPreset": "logos.test",
+  "passed": true,
+  "maxPeers": 160,
+  "testnet04Verified": false,
+  "manualPeerConnection": false,
+  "scope": "Public Storage byte/hash receipt; no Delivery or Basecamp UI claim",
+  "githubRun": "41111993615",
+  "storageVersion": "Storage version:  v0.5.3\nStorage revision: 56854f4\n\n\u001b[0m",
+  "storageSha256": "4bb71e3790e3c8fc4f92160a923d35a4a942331c2ffcce2e82657c2c8d857feb",
+  "manifestSha256": "ab44402a95054b114d83d37a62070b2dccd4c286309b7c12f151830d59065ca1",
+  "files": [
+    {
+      "name": "workshop-diagram.png",
+      "cid": "zDvZRwzm6LjEZoCu64zFZhfRKt48XVp71WCQvcQJMqh3uvokHx74",
+      "bytes": 30402,
+      "sha256": "ecf8a8131ec9af54d4d09a52a7bc17ad91a3fbd918f9cde29ebb2d957f1d0d40",
+      "seconds": 7.547,
+      "passed": true
+    },
+    {
+      "name": "playback-test.mp4",
+      "cid": "zDvZRwzm3A8ib85rKRh394JyscbsXWYARoaigSfi55YRn4jbbH4a",
+      "bytes": 556240,
+      "sha256": "5d395c12d311528a4ab3a4c8993ad18dbb55492794daa2148b264b52f413b98a",
+      "seconds": 34.139,
+      "passed": true
+    },
+    {
+      "name": "workshop-plan.pdf",
+      "cid": "zDvZRwzm5PDngzvMMZGt2vEmLNY55wE4PBAeoKSP7FSnMrQjKWbF",
+      "bytes": 2345,
+      "sha256": "5217541bd04fb275fe93fe2aa3432d17f9922b81cb841fa13edaa6c24dc19641",
+      "seconds": 8.61,
+      "passed": true
+    }
+  ],
+  "transport": "direct",
+  "configSha256": "dd5482c737a4bf48164c4cdd695624d77c559be1fb4d702b165b6e895a2c52ad",
+  "readerPeerId": "16Uiu2HAmExGQt5necQQwtaU28KfCJQPXJFFBV5JzPxLNoNhfs4zR",
+  "readerAddresses": [
+    "/ip4/34.123.182.254/tcp/8070/p2p/16Uiu2HAm17wqb6L3gNU1n2jNTbQGXXYS6wqm9QbHCtoWCypN9NEM/p2p-circuit",
+    "/ip4/34.123.182.254/tcp/8070/mix-transport/AlSbmSoZT3knJOqgs5Yj0sRMdqsKFXfQzCToeCy-lDFqbF-MKuV_t9DxFFCJOMz_jpm5K6GjhNNYQHblKnvOVQQ=/p2p/16Uiu2HAm17wqb6L3gNU1n2jNTbQGXXYS6wqm9QbHCtoWCypN9NEM/p2p-circuit",
+    "/ip4/128.140.55.128/tcp/8199/p2p/16Uiu2HAm9MihmCFk6rY2YdkNa78LU5xrdj4wBn5jUUea5ABqCVa8/p2p-circuit",
+    "/ip4/34.123.182.254/tcp/8070/p2p/16Uiu2HAm17wqb6L3gNU1n2jNTbQGXXYS6wqm9QbHCtoWCypN9NEM/p2p-circuit/mix-transport/AyIkaKyeLDdrS_kcgY2KZAkW3-YihYGTFUdxEofuOAbeSUgxuWhKKGQy-2ApSqKveyU8A4gGEmXjwWGDOeF5PTk="
+  ]
+}

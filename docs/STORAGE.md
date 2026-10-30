@@ -9,7 +9,8 @@ There is no central forum server. Each participant uses a local Storage node.
 Use the official [Logos Storage implementation](https://github.com/logos-storage/logos-storage-nim).
 Public relay retrieval uses v0.5.3 plus the pinned
 [Agora public-download patches](../patches/README.md#storage-public-download-correction)
-on Linux x86_64. The unpatched binary failed the public receipt checks.
+on Linux x86_64. The unpatched binary failed the public receipt checks. Apply all three patches,
+including relay forwarding validation and renewal, on the publisher and reader.
 With the tested `storage` executable installed,
 run a node with a persistent directory and a loopback-only API:
 

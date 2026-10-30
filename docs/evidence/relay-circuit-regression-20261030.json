@@ -1,0 +1,22 @@
+{
+  "upstream": "56854f4ebce0cfe68e3557d1be21b758ac62ae0c",
+  "libp2p": "9281a6d35671af70417d0d1330ce64adb3e39fdd",
+  "binarySha256": "af7fb59ec337f38a57f8b8acb2a6bf0c9ca449c2cbcd14c65c4b1cf163b228ce",
+  "buildFlags": "-d:release -d:agoraRelayOnly",
+  "patches": {
+    "logos-storage-0.5.3-public-download.patch": "9598e162e4a73b91637f99614d003c3f3344efa86dfbbd990e8b519deea4c1ef",
+    "logos-libp2p-provider-addresses.patch": "da0b8bfcf64e0da78a74a4ce1ab2b17fe513c01c58f5fb8e066c43f82ffcbea1",
+    "logos-libp2p-relay-renewal.patch": "c0c5561fe01def543b61129f66a03ec47dc11b12fb6a02196138ddb84c632656"
+  },
+  "installedAt": "2026-10-30T19:03:31.806243+00:00",
+  "tests": {
+    "relayTests": 6,
+    "newRegressionTests": 3,
+    "backendTests": 26,
+    "qmlTests": 67
+  },
+  "limitations": "Finite PNG/MP4/PDF tests; not permanent retention or universal network availability.",
+  "independentRun": "https://github.com/stevancarlon/logos-agora/actions/runs/41111993615",
+  "independentReceiptPassed": true,
+  "localRepeatPassed": true
+}

@@ -1,4 +1,4 @@
-# FURPS self-assessment — native 0.3.4 alpha
+# FURPS self-assessment — native 0.3.5 alpha
 
 30 October update: signed/anonymous private Delivery exchange, restart and Store
 recovery pass. Public PNG/MP4/PDF retrieval now passes through the native backend

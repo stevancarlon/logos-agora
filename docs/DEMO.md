@@ -8,4 +8,4 @@ The final video was decoded with ffmpeg without errors (1920×1080, 30 fps, H.26
 
 The recording's closing note says public attachment reliability and testnet verification were still in progress. Subsequent native PNG/MP4/PDF retrieval tests passed through public discovery and relays between fresh profiles on one computer; the independent GitHub reader subsequently passed all three original fixtures with matching sizes and hashes. See [current verification](evidence/PUBLIC-STORAGE-20261030.md). The video does not claim that either of those tests happened in the recorded scenes.
 
-[Recording delivery evidence](evidence/presentation-delivery-20261030.json) · [Release](https://github.com/stevancarlon/logos-agora/releases/tag/v0.3.4-alpha.1)
+[Recording delivery evidence](evidence/presentation-delivery-20261030.json) · [Release](https://github.com/stevancarlon/logos-agora/releases/tag/v0.3.5-alpha.1)

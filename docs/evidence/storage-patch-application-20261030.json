@@ -1,0 +1,17 @@
+[
+  {
+    "patch": "logos-storage-0.5.3-public-download.patch",
+    "sha256": "9598e162e4a73b91637f99614d003c3f3344efa86dfbbd990e8b519deea4c1ef",
+    "appliesToPinnedSource": true
+  },
+  {
+    "patch": "logos-libp2p-provider-addresses.patch",
+    "sha256": "da0b8bfcf64e0da78a74a4ce1ab2b17fe513c01c58f5fb8e066c43f82ffcbea1",
+    "appliesToPinnedSource": true
+  },
+  {
+    "patch": "logos-libp2p-relay-renewal.patch",
+    "sha256": "c0c5561fe01def543b61129f66a03ec47dc11b12fb6a02196138ddb84c632656",
+    "appliesToPinnedSource": true
+  }
+]
