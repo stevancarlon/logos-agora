@@ -1023,7 +1023,7 @@ TestCase {
         app.beginReply();
         var input = findChild(app, "replyInput");
         var viewport = findChild(app, "replyScroll");
-        input.text = "First line\\n\\nThird line\\nFourth line\\nFifth line\\nSixth line\\nSeventh line";
+        input.text = "First line\n\nThird line\nFourth line\nFifth line\nSixth line\nSeventh line";
         for (var theme of ["dark", "light"]) {
             app.controller.mutate({op: "settings", theme: theme});
             input.forceActiveFocus();

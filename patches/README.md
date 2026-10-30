@@ -127,8 +127,15 @@ five-second timeout. Failed renewals withdraw their addresses from PeerInfo,
 disconnect the unusable path and let the existing backoff choose a replacement.
 The patch does not restart Storage or change stored files, keys or identities.
 
-Two regressions use real relay/client switches to verify renewal before expiry
-and address withdrawal after a failed renewal. Run alongside the upstream
+Before advertising a reservation, the service also tests a circuit through
+that relay back to itself. It closes the probe before application negotiation;
+no forum content or signing key is sent. This checks actual forwarding, which
+can fail even when reservation renewals succeed. The check has a five-second
+budget and is repeated with each renewal.
+
+Three regressions use real relay/client switches to verify renewal before expiry,
+address withdrawal after a failed renewal, and rejection of a relay that accepts
+reservations but cannot forward a circuit. Run alongside the upstream
 AutoRelay tests:
 
 ```sh

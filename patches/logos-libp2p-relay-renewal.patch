@@ -1,7 +1,16 @@
 diff --git i/libp2p/services/autorelayservice.nim w/libp2p/services/autorelayservice.nim
-index 92ecb2b..66e4933 100644
+index 92ecb2b..a9ec1ad 100644
 --- i/libp2p/services/autorelayservice.nim
 +++ w/libp2p/services/autorelayservice.nim
+@@ -4,7 +4,7 @@
+ {.push raises: [].}
+ 
+ import chronos, chronicles, times, tables, sequtils
+-import ../switch, ../protocols/connectivity/relay/[client, utils]
++import ../switch, ../protocols/connectivity/relay/[client, utils, rconn]
+ 
+ logScope:
+   topics = "libp2p autorelay"
 @@ -16,6 +16,7 @@ type
      running: bool
      runner: Future[void]
@@ -10,7 +19,34 @@ index 92ecb2b..66e4933 100644
      maxNumRelays: int # maximum number of relays we can reserve at the same time
      relayPeers: Table[PeerId, Future[void]]
      relayAddresses: Table[PeerId, seq[MultiAddress]]
-@@ -52,7 +53,9 @@ proc reserveAndUpdate(
+@@ -33,6 +34,19 @@ proc addressMapper(
+ ): Future[seq[MultiAddress]] {.async: (raises: []).} =
+   return concat(toSeq(self.relayAddresses.values)) & listenAddrs
+ 
++proc checkCircuit(
++    self: AutoRelayService, relayPid: PeerId, switch: Switch
++) {.async: (raises: [CatchableError]).} =
++  # A successful RESERVE does not prove that the relay can forward a circuit.
++  # Exercise its HOP -> STOP path back to this node before advertising it.
++  # Close before Noise/application negotiation; this carries no user content.
++  let stream = await switch.dial(relayPid, RelayV2HopCodec)
++  let circuit = RelayConnection.new(stream, 0, 0)
++  try:
++    discard await self.client.dialPeerV2(circuit, switch.peerInfo.peerId, @[])
++  finally:
++    await circuit.close()
++
+ proc reserveAndUpdate(
+     self: AutoRelayService, relayPid: PeerId, switch: Switch
+ ) {.async: (raises: [CatchableError]).} =
+@@ -46,13 +60,16 @@ proc reserveAndUpdate(
+     if ttl <= 60:
+       # A reservation under a minute is basically useless
+       break
++    await self.checkCircuit(relayPid, switch).wait(chronos.seconds(5))
+     if relayPid notin self.relayAddresses or self.relayAddresses[relayPid] != relayedAddr:
+       self.relayAddresses[relayPid] = relayedAddr
+       await switch.peerInfo.update()
        debug "Updated relay addresses", relayPid, relayedAddr
        if self.running and not self.onReservation.isNil():
          self.onReservation(concat(toSeq(self.relayAddresses.values)))
@@ -21,7 +57,7 @@ index 92ecb2b..66e4933 100644
  
  method setup*(self: AutoRelayService, switch: Switch) {.raises: [].} =
    self.addressMapper = proc(
-@@ -95,6 +98,10 @@ proc innerRun(
+@@ -95,6 +112,10 @@ proc innerRun(
          if self.relayPeers[k].finished():
            self.relayPeers.del(k)
            self.relayAddresses.del(k)
@@ -32,7 +68,7 @@ index 92ecb2b..66e4933 100644
            if self.running and not self.onReservation.isNil():
              self.onReservation(concat(toSeq(self.relayAddresses.values)))
            # To avoid ddosing our peers in certain conditions
-@@ -156,8 +163,11 @@ proc new*(
+@@ -156,8 +177,11 @@ proc new*(
      client: RelayClient,
      onReservation: OnReservationHandler,
      rng: Rng,
@@ -45,10 +81,10 @@ index 92ecb2b..66e4933 100644
      client: client,
      onReservation: onReservation,
 diff --git i/tests/libp2p/services/test_autorelay.nim w/tests/libp2p/services/test_autorelay.nim
-index adf43e5..ed9474f 100644
+index adf43e5..5a99e64 100644
 --- i/tests/libp2p/services/test_autorelay.nim
 +++ w/tests/libp2p/services/test_autorelay.nim
-@@ -159,3 +159,50 @@ suite "Autorelay":
+@@ -159,3 +159,80 @@ suite "Autorelay":
          containsAll(addresses, relay1MAs) and containsAll(addresses, relay3MAs)
  
      await allFutures(switchClient.stop(), rel1.stop(), rel3.stop())
@@ -68,7 +104,7 @@ index adf43e5..ed9474f 100644
 +    try:
 +      await switchClient.connect(switchRelay.peerInfo.peerId, switchRelay.peerInfo.addrs)
 +      checkUntilTimeout:
-+        requests >= 3
++        requests >= 5
 +      check autorelay.getAddresses() == buildRelayMA(switchRelay, switchClient)
 +    finally:
 +      await allFutures(switchClient.stop(), switchRelay.stop())
@@ -79,7 +115,7 @@ index adf43e5..ed9474f 100644
 +    var requests = 0
 +    relay.handler = proc(stream: Connection, proto: string) {.async: (raises: [CancelledError]).} =
 +      inc requests
-+      if requests == 1:
++      if requests <= 2:
 +        await originalHandler(stream, proto)
 +      else:
 +        await stream.close()
@@ -94,8 +130,38 @@ index adf43e5..ed9474f 100644
 +        autorelay.getAddresses().len > 0
 +      let advertised = autorelay.getAddresses()
 +      checkUntilTimeout:
-+        requests >= 2 and autorelay.getAddresses().len == 0
++        requests >= 3 and autorelay.getAddresses().len == 0
 +      for address in advertised:
 +        check address notin switchClient.peerInfo.addrs
++    finally:
++      await allFutures(switchClient.stop(), switchRelay.stop())
++
++  asyncTest "A relay that accepts reservations but cannot forward is not advertised":
++    let relay = Relay.new()
++    let originalHandler = relay.handler
++    var requests = 0
++    relay.handler = proc(stream: Connection, proto: string) {.async: (raises: [CancelledError]).} =
++      inc requests
++      if requests == 1:
++        await originalHandler(stream, proto)
++      else:
++        await stream.close()
++    switchRelay = createSwitch(relay)
++    relayClient = RelayClient.new()
++    var announced = false
++    proc onReservation(addresses: seq[MultiAddress]) =
++      if addresses.len > 0:
++        announced = true
++    autorelay = AutoRelayService.new(1, relayClient, onReservation, rng(), 100.millis)
++    switchClient = createSwitch(relayClient, autorelay)
++    await allFutures(switchClient.start(), switchRelay.start())
++    try:
++      await switchClient.connect(switchRelay.peerInfo.peerId, switchRelay.peerInfo.addrs)
++      checkUntilTimeout:
++        requests >= 2
++      checkUntilTimeout:
++        switchRelay.peerInfo.peerId notin switchClient.connectedPeers(Direction.Out)
++      check not announced
++      check autorelay.getAddresses().len == 0
 +    finally:
 +      await allFutures(switchClient.stop(), switchRelay.stop())
