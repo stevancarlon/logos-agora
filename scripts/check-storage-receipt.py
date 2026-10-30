@@ -24,6 +24,8 @@ def main():
     p.add_argument('--manifest', type=Path, required=True)
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--max-peers', type=int, default=160)
+    p.add_argument('--config-file', type=Path, help='Public fleet configuration; never a provider data directory')
+    p.add_argument('--transport', choices=('direct', 'mix'), default='direct')
     a = p.parse_args()
     if a.max_peers < 1:
         p.error('--max-peers must be positive')
@@ -45,13 +47,19 @@ def main():
               'storageSha256': hashlib.sha256(a.storage.read_bytes()).hexdigest(),
               'manifestSha256': hashlib.sha256(a.manifest.read_bytes()).hexdigest(),
               'files': []}
+    result['transport'] = a.transport
+    if a.config_file:
+        result['configSha256'] = hashlib.sha256(a.config_file.read_bytes()).hexdigest()
     with tempfile.TemporaryDirectory(prefix='agora-storage-receipt-') as work:
         with socket.socket() as sock:
             sock.bind(('127.0.0.1', 0))
             port = sock.getsockname()[1]
         api = f'http://127.0.0.1:{port}/api/storage/v1'
         with (a.output / 'storage.log').open('w') as log:
-            process = subprocess.Popen([str(a.storage.resolve()), '--data-dir=' + work,
+            command = [str(a.storage.resolve())]
+            if a.config_file:
+                command += ['--config-file=' + str(a.config_file.resolve(strict=True))]
+            process = subprocess.Popen(command + ['--data-dir=' + work,
                 '--api-bindaddr=127.0.0.1', '--api-port=' + str(port), '--network=logos.test',
                 '--num-threads=2', '--max-peers=' + str(a.max_peers), '--log-level=INFO;TRACE:storage', '--log-format=nocolors'], stdout=log, stderr=log)
             try:
@@ -76,9 +84,11 @@ def main():
                     digest = hashlib.sha256()
                     count = 0
                     with urllib.request.urlopen(api + '/data/' + fixture['cid'] +
-                                                '/network/stream?advertise=false', timeout=90) as stream:
+                                                '/network/stream?advertise=false&transport=' + a.transport, timeout=90) as stream:
                         while True:
-                            chunk = stream.read(65536)
+                            # Return available bytes so a slow/trickling peer
+                            # cannot hide progress from the overall deadline.
+                            chunk = stream.read1(65536)
                             if not chunk:
                                 break
                             count += len(chunk)

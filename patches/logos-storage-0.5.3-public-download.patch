@@ -1,3 +1,43 @@
+diff --git i/storage/blockexchange/engine/engine.nim w/storage/blockexchange/engine/engine.nim
+index b409c16..fa4a341 100644
+--- i/storage/blockexchange/engine/engine.nim
++++ w/storage/blockexchange/engine/engine.nim
+@@ -429,6 +429,12 @@ proc sendWantBlocksRequest(
+   else:
+     download.completeBatch(start, validCount.uint64, totalBytes)
+ 
++  let network = self.networks.networkFor(download.ctx.transport)
++  if not network.isNil and network.isRelayPeer(peer.id):
++    # A fresh circuit's 128 KiB allowance includes framing and multiplexing.
++    # Retire it after one bounded batch instead of losing the next response.
++    await network.renewRelay(peer.id, not download.isDownloadComplete())
++
+ proc ensureDownloadWorker(
+     self: BlockExcEngine, download: ActiveDownload
+ ) {.gcsafe, raises: [].} =
+@@ -735,6 +741,10 @@ proc downloadWorker(
+         continue
+ 
+       let peer = selection.peer
++      if network.isRelayPeer(peer.id) and peerTracker.count(peer.id) > 0:
++        download.requeueBatch(start, count, front = true)
++        await sleepAsync(10.milliseconds)
++        continue
+ 
+       download.markBatchInFlight(start, count, localBlockCount, peer.id)
+ 
+@@ -1312,9 +1322,9 @@ proc new*(
+     downloadManager: DownloadManager,
+     selectionPolicy = spSequential,
+     directPeerSelectionPolicy: PresencePeerSelectionPolicy =
+-      newPresencePeerSelectionPolicy(),
++      newProviderPriorityPolicy(providersOnly = true),
+     mixPeerSelectionPolicy: PresencePeerSelectionPolicy =
+-      newPresencePeerSelectionPolicy(),
++      newProviderPriorityPolicy(providersOnly = true),
+     directPresenceQueryPolicy: PresenceQueryPolicy =
+       PresenceQueryPolicy.QuerySelectedPeers,
+     mixPresenceQueryPolicy: PresenceQueryPolicy = PresenceQueryPolicy.QuerySelectedPeers,
 diff --git i/storage/blockexchange/engine/swarm.nim w/storage/blockexchange/engine/swarm.nim
 index f74592b..5c30501 100644
 --- i/storage/blockexchange/engine/swarm.nim
@@ -23,6 +63,50 @@ index f74592b..5c30501 100644
    swarm.peers[peerId] = SwarmPeer.new(availability)
    true
  
+diff --git i/storage/blockexchange/network/network.nim w/storage/blockexchange/network/network.nim
+index dd80215..f40d2e7 100644
+--- i/storage/blockexchange/network/network.nim
++++ w/storage/blockexchange/network/network.nim
+@@ -14,6 +14,7 @@ import std/sets
+ import pkg/chronos
+ 
+ import pkg/libp2p
++import pkg/libp2p/protocols/connectivity/relay/relay
+ import pkg/libp2p/connmanager as lp_connmanager
+ import pkg/libp2p/protocols/protocol as lp_protocol
+ import pkg/questionable
+@@ -301,6 +302,12 @@ proc dialPeer*(self: BlockExcNetwork, peer: PeerRecord) {.async.} =
+   else:
+     await self.switch.connect(peer.peerId, peer.addresses.mapIt(it.address))
+ 
++proc isRelayPeer*(self: BlockExcNetwork, peer: PeerId): bool =
++  if self.isMixDownload or self.switch.isNil:
++    return false
++  let connections = self.switch.connManager.getConnections().getOrDefault(peer)
++  connections.len > 0 and connections.allIt(isRelayed(it.connection))
++
+ proc dropPeer*(
+     self: BlockExcNetwork, peer: PeerId
+ ) {.async: (raises: [CancelledError]).} =
+@@ -324,6 +331,18 @@ proc dropPeer*(
+   except CatchableError as error:
+     warn "Error attempting to disconnect from peer", peer = peer, error = error.msg
+ 
++proc renewRelay*(self: BlockExcNetwork, peer: PeerId, reconnect: bool) {.async: (raises: [CancelledError]).} =
++  let addresses = self.switch.peerStore[AddressBook][peer]
++  await self.dropPeer(peer)
++  if reconnect and addresses.len > 0:
++    try:
++      await self.switch.connect(peer, addresses).wait(10.seconds)
++    except CancelledError as exc:
++      raise exc
++    except CatchableError as exc:
++      trace "Relay renewal failed; discovery will retry", peer, error = exc.msg
++
++
+ proc excludeRelays*(self: BlockExcNetwork, peers: openArray[PeerId]) =
+   for p in peers:
+     self.excludedPeers.incl(p)
 diff --git i/storage/blockexchange/utils.nim w/storage/blockexchange/utils.nim
 index db2e51e..b8b4c4e 100644
 --- i/storage/blockexchange/utils.nim
@@ -38,38 +122,20 @@ index db2e51e..b8b4c4e 100644
 +    optimal = min(TargetBatchBytes, 64'u32 * 1024) div blockSize
      maxFromBytes = MaxWantBlocksResponseBytes div blockSize
    return clamp(optimal, MinBatchSize, maxFromBytes)
-diff --git i/storage/nat.nim w/storage/nat.nim
-index dce1cf7..df546db 100644
---- i/storage/nat.nim
-+++ w/storage/nat.nim
-@@ -255,7 +255,7 @@ proc tryStartingDirectConn(
-     try:
-       let isRelayedAddr = address.contains(multiCodec("p2p-circuit"))
-       if not isRelayedAddr.get(false) and address.isPublicMA():
--        return await tryConnect(address)
-+        return await tryConnect(address).wait(3.seconds)
-     except CancelledError as exc:
-       raise exc
-     except CatchableError as err:
-@@ -292,14 +292,16 @@ proc holePunchIfRelayed*(
-   if natAddrs.len == 0:
-     natAddrs = switch.peerInfo.listenAddrs.mapIt(switch.peerStore.guessDialableAddr(it))
-   try:
--    await DcutrClient.new().startSync(switch, peerId, natAddrs)
-+    await DcutrClient.new(connectTimeout = 3.seconds).startSync(switch, peerId, natAddrs)
-     await closeRelayConn(relayedConn)
-   except DcutrError as err:
-     debug "Hole punching failed during dcutr", description = err.msg
+diff --git i/storage/storage.nim w/storage/storage.nim
+index 2a928a8..9bcbcd3 100644
+--- i/storage/storage.nim
++++ w/storage/storage.nim
+@@ -613,7 +613,8 @@ proc new*(
+         engine.advertiser.onAddrChange()
+     )
  
- proc setupHolePunching*(switch: Switch): PeerEventHandler =
-   try:
--    switch.mount(Dcutr.new(switch))
-+    # Failed direct dials hold the per-peer dial lock. Bound them so a live
-+    # relay can carry transfers promptly and reconnect after its byte limit.
-+    switch.mount(Dcutr.new(switch, connectTimeout = 3.seconds))
-   except LPError as err:
-     error "Failed to mount Dcutr protocol", description = err.msg
+-    holePunchHandler = some(setupHolePunching(switch))
++    when not defined(agoraRelayOnly):
++      holePunchHandler = some(setupHolePunching(switch))
  
+   # REST server
+   var restServer: RestServerRef = nil
 diff --git i/tests/storage/blockexchange/engine/testswarm.nim w/tests/storage/blockexchange/engine/testswarm.nim
 index 0e30cbd..bbaf39b 100644
 --- i/tests/storage/blockexchange/engine/testswarm.nim

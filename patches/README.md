@@ -25,3 +25,56 @@ rustc --test logos-rln-module/rust-lib/src/state_candidates.rs -o /tmp/rln-selec
 These passed locally; they do not replace the dependency's full build,
 registry integration tests, or release validation. The full module build needs
 the upstream generated provider, SDK, module builder, and protocol libraries.
+
+# Storage public-download correction
+
+`logos-storage-0.5.3-public-download.patch` targets the official Storage v0.5.3
+source commit `56854f4ebce0cfe68e3557d1be21b758ac62ae0c`.
+
+A download initially samples up to 16 connected peers with unknown availability.
+When those fill its swarm, the upstream admission check rejects subsequently
+advertised providers. After a relay disconnect, replacement unknown peers can
+also prevent the original provider from rejoining. The patch admits a known
+provider by replacing an unknown peer, while retaining the capacity limit and
+explicit bans. It does not evict known providers to admit unknown peers.
+
+The default 128 KiB payload batch also exceeds a default 128 KiB relay allowance
+once framing/proofs are added. The patch requests 64 KiB target batches, leaving
+protocol decoding limits unchanged. This favors progress through constrained
+relays over maximum direct-connection throughput. Existing 64 KiB Agora upload
+blocks fit individually; larger custom block sizes are outside this workaround's
+relay-size guarantee.
+
+The direct download scheduler queries discovered providers first. For relayed
+peers it allows one batch at a time, retires the circuit after the verified
+batch, and reconnects using the already-discovered provider addresses while
+more blocks are needed. This avoids both exhausting the relay allowance with
+concurrent batches and repeating DHT discovery for every block. Reachable direct
+peers retain their normal connections and pipelining.
+
+The `agoraRelayOnly` build option disables automatic NAT hole punching, whose
+connection attempts delay the usable relay on this deployment. Ordinary direct
+connections remain supported. This is an Agora-maintained dependency patch, not
+an official Storage release or a testnet-version claim.
+
+Build and test in a separate checkout (Nim 2.2.10, C/C++ compiler, make, CMake):
+
+```sh
+git checkout 56854f4ebce0cfe68e3557d1be21b758ac62ae0c
+git apply /absolute/path/to/logos-agora/patches/logos-storage-0.5.3-public-download.patch
+make USE_SYSTEM_NIM=1 NIM_PARAMS="-d:release -d:agoraRelayOnly" -j2
+./env.sh nim c -r -d:release --out:build/testswarm tests/storage/blockexchange/engine/testswarm.nim
+```
+
+On 30 October, the patched reader fetched PNG, MP4 and PDF from a separate
+provider through public discovery and relays with exact byte/hash verification.
+Both nodes were on the same computer; this does not establish cross-machine
+receipt. The 556,240-byte MP4 took 120 seconds. Large-file throughput and public
+retention remain limitations. The 35 swarm regressions and isolated native
+PNG/MP4/PDF transfer tests also passed.
+
+The `Patched Storage public receipt` workflow independently builds this source
+and patch, loads current official fleet records, runs swarm regressions, and
+retrieves the public fixture CIDs. It does not copy the provider's store or keys.
+A successful build alone is not receipt evidence: all fixture downloads and
+checksums must pass as well.

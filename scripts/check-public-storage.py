@@ -33,6 +33,7 @@ def main():
     parser.add_argument('--provider-api', default='http://127.0.0.1:18080/api/storage/v1')
     parser.add_argument('--probe', type=Path, default=ROOT / 'build/qt6.9.2-storage-probe/storage-probe')
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--config-file', type=Path, help='Public fleet configuration for the fresh reader')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     result = {'checkedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -43,13 +44,18 @@ def main():
     result['storageSha256'] = hashlib.sha256(binary.read_bytes()).hexdigest()
     result['storageVersion'] = subprocess.check_output([str(binary), '--version'], text=True).strip()
     result['probeSha256'] = hashlib.sha256(args.probe.read_bytes()).hexdigest()
+    if args.config_file:
+        result['configSha256'] = hashlib.sha256(args.config_file.read_bytes()).hexdigest()
     with tempfile.TemporaryDirectory(prefix='agora-public-reader-') as temporary:
         with socket.socket() as sock:
             sock.bind(('127.0.0.1', 0))
             port = sock.getsockname()[1]
         consumer = f'http://127.0.0.1:{port}/api/storage/v1'
         with (args.output / 'consumer.log').open('w') as log:
-            process = subprocess.Popen([str(binary), '--data-dir=' + temporary,
+            command = [str(binary)]
+            if args.config_file:
+                command += ['--config-file=' + str(args.config_file.resolve(strict=True))]
+            process = subprocess.Popen(command + ['--data-dir=' + temporary,
                 '--api-bindaddr=127.0.0.1', '--api-port=' + str(port),
                 '--network=logos.test', '--num-threads=2', '--log-level=info',
                 '--log-format=nocolors'], stdout=log, stderr=log)

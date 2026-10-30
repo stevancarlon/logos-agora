@@ -14,6 +14,22 @@ run a node with a persistent directory and a loopback-only API:
 storage --data-dir="$HOME/.local/share/AgoraStorage" --api-bindaddr=127.0.0.1 --api-port=8080
 ```
 
+For the public `logos.test` network, generate a TOML configuration from the
+[official fleet](https://fleets.logos.co/logos-test/storage-network.json). This
+avoids relying only on bootstrap records bundled with an older binary:
+
+```sh
+python3 scripts/storage-network-config.py --output "$HOME/.config/agora/storage-public.toml"
+storage --config-file="$HOME/.config/agora/storage-public.toml" --data-dir="$HOME/.local/share/AgoraStorage" --api-bindaddr=127.0.0.1 --api-port=8080
+```
+
+The generator refuses to overwrite an existing file. For updates, generate a
+new filename, inspect it, and change the node's `--config-file` argument. Keep
+the same data directory so its identity and attachment blocks survive. `--mix`
+also includes the fleet's Mix pool and DHT proxies; enabling Mix alone without
+these does not configure Mix discovery. Agora's current HTTP downloads use the
+direct transport. Configuration generation does not establish public retrieval.
+
 Keep this process running. Node discovery/bootstrap and network reachability must
 be configured for the network your participants use. Public-network availability
 has not yet been verified for this release. The automatic tests use two private,
@@ -73,6 +89,18 @@ the actual Basecamp bridge plus private Delivery peers, and checks PNG/MP4/PDF
 upload, signed-reference ingestion, fetch and exact export bytes through the native
 backend. The Basecamp portion also verifies restart delivery and Store recovery.
 It does not establish cross-machine connectivity or public-network retention.
+
+To test public retrieval from a fresh reader with current fleet records:
+
+```sh
+python3 scripts/check-storage-receipt.py --storage /absolute/path/to/storage --config-file "$HOME/.config/agora/storage-public.toml" --manifest docs/evidence/storage-fixtures-20261030.json --output /tmp/agora-public-receipt
+```
+
+The fixture publisher must remain online. The report records the exact binary,
+configuration and manifest checksums plus byte/hash agreement. `--transport mix`
+tests Mix explicitly when the node configuration supports it; it never silently
+falls back to direct. `scripts/check-public-storage.py` also accepts
+`--config-file` for its native backend acceptance test.
 
 ## 28 October 2026 verification
 

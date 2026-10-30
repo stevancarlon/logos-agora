@@ -26,7 +26,7 @@ jobs:
           tar -xf "$RUNNER_TEMP/nim.tar.xz" -C "$RUNNER_TEMP"
           export PATH="$RUNNER_TEMP/nim-2.2.10/bin:$PATH"
           echo "$RUNNER_TEMP/nim-2.2.10/bin" >> "$GITHUB_PATH"
-          make USE_SYSTEM_NIM=1 -j2 > "$RUNNER_TEMP/storage-build.log" 2>&1
+          make USE_SYSTEM_NIM=1 NIM_PARAMS="-d:release -d:agoraRelayOnly" -j2 > "$RUNNER_TEMP/storage-build.log" 2>&1
       - name: Run download swarm regressions
         shell: bash
         run: |
@@ -35,7 +35,8 @@ jobs:
       - name: Retrieve public fixtures without manual peer connection
         shell: bash
         run: |
-          python3 scripts/check-storage-receipt.py --storage "$RUNNER_TEMP/storage-source/build/storage" --manifest docs/evidence/storage-fixtures-20261030.json --output "$RUNNER_TEMP/receipt"
+          python3 scripts/storage-network-config.py --mix --output "$RUNNER_TEMP/storage-public.toml" > "$RUNNER_TEMP/storage-fleet.json"
+          python3 scripts/check-storage-receipt.py --config-file "$RUNNER_TEMP/storage-public.toml" --storage "$RUNNER_TEMP/storage-source/build/storage" --manifest docs/evidence/storage-fixtures-20261030.json --output "$RUNNER_TEMP/receipt"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -44,4 +45,6 @@ jobs:
             ${{ runner.temp }}/receipt/
             ${{ runner.temp }}/storage-build.log
             ${{ runner.temp }}/storage-tests.log
+            ${{ runner.temp }}/storage-fleet.json
+            ${{ runner.temp }}/storage-public.toml
           if-no-files-found: warn
