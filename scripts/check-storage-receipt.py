@@ -25,6 +25,7 @@ def main():
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--max-peers', type=int, default=160)
     p.add_argument('--config-file', type=Path, help='Public fleet configuration; never a provider data directory')
+    p.add_argument('--log-level', default='INFO;TRACE:storage')
     p.add_argument('--transport', choices=('direct', 'mix'), default='direct')
     a = p.parse_args()
     if a.max_peers < 1:
@@ -61,7 +62,7 @@ def main():
                 command += ['--config-file=' + str(a.config_file.resolve(strict=True))]
             process = subprocess.Popen(command + ['--data-dir=' + work,
                 '--api-bindaddr=127.0.0.1', '--api-port=' + str(port), '--network=logos.test',
-                '--num-threads=2', '--max-peers=' + str(a.max_peers), '--log-level=INFO;TRACE:storage', '--log-format=nocolors'], stdout=log, stderr=log)
+                '--num-threads=2', '--max-peers=' + str(a.max_peers), '--log-level=' + a.log_level, '--log-format=nocolors'], stdout=log, stderr=log)
             try:
                 deadline = time.monotonic() + 90
                 while time.monotonic() < deadline:

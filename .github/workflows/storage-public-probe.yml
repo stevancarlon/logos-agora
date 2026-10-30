@@ -1,0 +1,51 @@
+name: Public Storage connection probe
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        id: binary
+        with:
+          path: .probe/storage
+          key: storage-probe-ubuntu24-v1-${{ hashFiles('patches/logos-storage-0.5.3-public-download.patch') }}
+      - name: Build pinned Storage probe
+        if: steps.binary.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          git clone --branch v0.5.3 --depth 1 https://github.com/logos-storage/logos-storage-nim.git "$RUNNER_TEMP/storage-source"
+          cd "$RUNNER_TEMP/storage-source"
+          test "$(git rev-parse HEAD)" = 56854f4ebce0cfe68e3557d1be21b758ac62ae0c
+          git submodule update --init --depth 1
+          git submodule foreach 'if [ "$sm_path" != "vendor/nimbus-build-system" ]; then git submodule update --init --recursive --depth 1; fi'
+          git apply "$GITHUB_WORKSPACE/patches/logos-storage-0.5.3-public-download.patch"
+          curl --fail --location --max-time 120 --output "$RUNNER_TEMP/nim.tar.xz" https://nim-lang.org/download/nim-2.2.10-linux_x64.tar.xz
+          echo "0a3a38752e97e9d44aa479b3a7b37336dfe0176daf22ee5b5218ad0991ecd211  $RUNNER_TEMP/nim.tar.xz" | sha256sum --check
+          tar -xf "$RUNNER_TEMP/nim.tar.xz" -C "$RUNNER_TEMP"
+          export PATH="$RUNNER_TEMP/nim-2.2.10/bin:$PATH"
+          make USE_SYSTEM_NIM=1 NIM_PARAMS="-d:release -d:agoraRelayOnly" -j2 > "$RUNNER_TEMP/storage-build.log" 2>&1
+          mkdir -p "$GITHUB_WORKSPACE/.probe"
+          cp build/storage "$GITHUB_WORKSPACE/.probe/storage"
+      - uses: actions/cache/save@v4
+        if: steps.binary.outputs.cache-hit != 'true'
+        with:
+          path: .probe/storage
+          key: ${{ steps.binary.outputs.cache-primary-key }}
+      - name: Receive from independent public provider
+        run: |
+          chmod +x .probe/storage
+          python3 scripts/storage-network-config.py --mix --output "$RUNNER_TEMP/storage-public.toml"
+          python3 scripts/check-storage-receipt.py --log-level 'TRACE' --config-file "$RUNNER_TEMP/storage-public.toml" --storage .probe/storage --manifest docs/evidence/storage-fixtures-20261030.json --output "$RUNNER_TEMP/receipt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: public-storage-probe
+          path: |
+            ${{ runner.temp }}/receipt/
+            ${{ runner.temp }}/storage-build.log
+          if-no-files-found: warn
