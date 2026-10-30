@@ -50,7 +50,7 @@ def main():
         with (a.output / 'storage.log').open('w') as log:
             process = subprocess.Popen([str(a.storage.resolve()), '--data-dir=' + work,
                 '--api-bindaddr=127.0.0.1', '--api-port=' + str(port), '--network=logos.test',
-                '--num-threads=2', '--log-level=debug', '--log-format=nocolors'], stdout=log, stderr=log)
+                '--num-threads=2', '--log-level=INFO;storage:TRACE', '--log-format=nocolors'], stdout=log, stderr=log)
             try:
                 deadline = time.monotonic() + 90
                 while time.monotonic() < deadline:
