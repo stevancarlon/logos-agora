@@ -13,9 +13,9 @@
           "urls": [
             "https://github.com/stevancarlon/logos-agora/releases/download/v0.3.3-alpha.1/logos_forum-0.3.3-linux-amd64.lgx"
           ],
-          "size": 1852778,
-          "sha256": "c14c34e4c39f92be86a346cd32194e0ce41a4775acd9c750f07d23acda88705e",
-          "rootHash": "4c0a4e191f6b167544cbc601b266ed1c9cd86f2b5eaab169dbee52a66f688377",
+          "size": 1852877,
+          "sha256": "fad083ac9e9cbbf1623f4ccf6bb035c0246b001d4febbcfbb3159ecb32c679c5",
+          "rootHash": "abdf9ca17b213ba4989c55c119f15a84c4b2d321c4368d776b5c24a4210e0cce",
           "manifest": {
             "author": "Logos Forum contributors",
             "category": "social",
@@ -30,9 +30,9 @@
             "hashes": {
               "assets": "340c73dc46853fa1a05b08bb24a054c9b3097abdb7a60fca81dbb4f10d499c56",
               "licenses": "097529c41cae003f93ba58e1b078eb3bb831571ebcb8d81ea97eaebc85a2e856",
-              "root": "4c0a4e191f6b167544cbc601b266ed1c9cd86f2b5eaab169dbee52a66f688377",
-              "variants": "1779559092744c4bf268910d89dfd5ddf46cdbcb87deb005bb0de7b6f4910bc6",
-              "variants/linux-amd64": "def7811ddc10d268db086ecab7e671f4c043c66ab72598aad4a1e7be679670ee"
+              "root": "abdf9ca17b213ba4989c55c119f15a84c4b2d321c4368d776b5c24a4210e0cce",
+              "variants": "120d0d735e2a57d595fb2ca17ea7232068f3f83e557991fecf9497ccdee899d1",
+              "variants/linux-amd64": "5e32dcea32cfc3b5b0cdc50b0040605bda44a3380a7f3d8bff0a9f7bb0321fa0"
             },
             "icon": "assets/icon.png",
             "main": {
