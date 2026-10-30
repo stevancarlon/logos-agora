@@ -1,5 +1,11 @@
 # FURPS self-assessment — native 0.3.2 alpha
 
+30 October network recheck: signed/anonymous private Delivery exchange, restart,
+Store recovery and native PNG/MP4/PDF transfers pass. Public native retrieval
+still times out, and testnet 0.4 is not verified. The acceptance harness's
+auto-connect race has been fixed. See the
+[dated verification report](evidence/NETWORK-VERIFICATION-20261030.md).
+
 
 28 October 2026 candidate update: **24 backend and 33 QML tests pass** locally on
 Qt 6.9.2. RLN registration completed; the real welcome thread was acknowledged
@@ -23,7 +29,7 @@ media/restart/Store tests pass. See [Storage verification](STORAGE.md#28-october
 
 Current code evidence (28 October 2026, `860e1ec`): [Linux checks](https://github.com/stevancarlon/logos-agora/actions/runs/40776947729) and [desktop checks](https://github.com/stevancarlon/logos-agora/actions/runs/40776947735) pass. [Windows matching-host playback](https://github.com/stevancarlon/logos-agora/actions/runs/40776972271) passes with current QML. [Intel Mac host playback](https://github.com/stevancarlon/logos-agora/actions/runs/40776118984) passes for the same native binary sources before the QML-only draft fix; the subsequent Intel Qt workflow checks that fix. The release reuses these CI binaries and packages current QML and documentation. See [platform evidence and limits](PLATFORMS.md).
 
-The [current LP-0026 specification](https://github.com/logos-co/lambda-prize/blob/main/prizes/LP-0026.md) requires testnet 0.4. Our receipt identifies LEZ v0.3.1; the installed Delivery module's 0.4.0 version is not the chain/testnet version. Testnet 0.4 end-to-end acceptance is **not verified**.
+The [current LP-0026 specification](https://github.com/logos-co/lambda-prize/blob/master/prizes/LP-0026.md) requires testnet 0.4. Our receipt identifies LEZ v0.3.1; the installed Delivery module's 0.4.0 version is not the chain/testnet version. Testnet 0.4 end-to-end acceptance is **not verified**.
 
 The dated results below are a verification history; earlier test counts and pending states are superseded by this current summary. Publisher signing, backup/restore UI, assistive-technology testing and sustained benchmarks are additional quality work, not claimed as explicit prize requirements. The required narrated end-to-end demo and authentic conversations are still incomplete.
 

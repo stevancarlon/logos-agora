@@ -143,6 +143,9 @@ TestCase {
         dialog.close();
         tryCompare(dialog, "visible", false);
         var profile = findChild(app, "identityDialog");
+        // The simplified profile fits at 540px; exercise overflow at a genuinely
+        // constrained height instead of requiring unnecessary scrolling.
+        app.height = 360;
         profile.open();
         tryCompare(profile, "opened", true);
         verify(profile.height <= app.height - 32);

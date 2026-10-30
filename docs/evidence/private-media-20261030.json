@@ -1,0 +1,48 @@
+{
+  "passed": true,
+  "crossMachineVerified": false,
+  "publicNetworkVerified": false,
+  "files": [
+    {
+      "bytes": 30402,
+      "cid": "zDvZRwzm6Yid44QYnnPrgSNogbART4J4MYDiEfZu2m58h8SHCoTY",
+      "crossMachineVerified": false,
+      "mime": "image/png",
+      "passed": true,
+      "sha256": "ecf8a8131ec9af54d4d09a52a7bc17ad91a3fbd918f9cde29ebb2d957f1d0d40"
+    },
+    {
+      "bytes": 556240,
+      "cid": "zDvZRwzkzCVx4N3ns41nsZEQ6ecGmTxa9ebm4X2o5fsEyETyYRHm",
+      "crossMachineVerified": false,
+      "mime": "video/mp4",
+      "passed": true,
+      "sha256": "5d395c12d311528a4ab3a4c8993ad18dbb55492794daa2148b264b52f413b98a"
+    },
+    {
+      "bytes": 2345,
+      "cid": "zDvZRwzkwvPvFqL2Lyi53hojJkJiQKp2bh1kPWKDNX5LYV7ftP1z",
+      "crossMachineVerified": false,
+      "mime": "application/pdf",
+      "passed": true,
+      "sha256": "5217541bd04fb275fe93fe2aa3432d17f9922b81cb841fa13edaa6c24dc19641"
+    }
+  ],
+  "basecamp": {
+    "passed": true,
+    "transport": "private loopback relay",
+    "crossMachineVerified": false,
+    "mixRoutingVerified": false,
+    "storeRecoveryVerified": true,
+    "offlineRestartVerified": true,
+    "topic": "/logos-forum/1/commons/json",
+    "identityMode": "alias",
+    "receivedThread": "6f426f604c3aa737bb5ee9d6c05124436ab4749d18ceaa3b94a1c00118bedc8b",
+    "receivedReply": "5a7efbd5ffc7126d33919e987706c96195bd35fd28f6fb6c9c000e1be67eaad2",
+    "independentDatabasesVerified": true,
+    "identityModeVerified": true,
+    "basecampMediaTransferVerified": true
+  },
+  "checkedAt": "2026-10-30T13:52:30.438759+00:00",
+  "forumBackendSha256": "8bf9539627b624bed4d5f0993c9465aff71b86096ac1db08d0737e414478a28b"
+}

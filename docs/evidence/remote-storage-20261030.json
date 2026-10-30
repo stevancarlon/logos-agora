@@ -1,0 +1,23 @@
+{
+  "checkedAt": "2026-10-30T13:52:54.840180+00:00",
+  "networkPreset": "logos.test",
+  "passed": false,
+  "testnet04Verified": false,
+  "manualPeerConnection": false,
+  "scope": "Public Storage byte/hash receipt; no Delivery or Basecamp UI claim",
+  "githubRun": "41066916644",
+  "storageVersion": "Storage version:  v0.5.3\nStorage revision: 56854f4\n\n\u001b[0m",
+  "storageSha256": "94bb14c2c563b8458e6548686be3e42d1b3ebe7758d19a1f8128d5e6f89add6b",
+  "manifestSha256": "ab44402a95054b114d83d37a62070b2dccd4c286309b7c12f151830d59065ca1",
+  "files": [],
+  "readerPeerId": "16Uiu2HAmF4ajfdFGWrYLYDeoLmxqGSf3eBo59FuZpcuMjVHC4rm2",
+  "readerAddresses": [
+    "/ip4/128.140.55.128/tcp/8299/p2p/16Uiu2HAkwUMRUmXgY1gkUvkfEfxw52oRD2CgVRxa7F8kJW2hw5et/p2p-circuit",
+    "/ip4/128.140.55.128/tcp/8299/mix-transport/Ah5nIjds2Lq96ZrE5WSb16M6IBueTodW3rcXAd1zfqJ1koY24AFukOQ5aQb36QhpdSXE1DZw-aHpVGfq_A7ahi4=/p2p/16Uiu2HAkwUMRUmXgY1gkUvkfEfxw52oRD2CgVRxa7F8kJW2hw5et/p2p-circuit",
+    "/ip4/128.140.55.128/tcp/8199/p2p/16Uiu2HAm9MihmCFk6rY2YdkNa78LU5xrdj4wBn5jUUea5ABqCVa8/p2p-circuit"
+  ],
+  "error": "timed out",
+  "workflowUrl": "https://github.com/stevancarlon/logos-agora/actions/runs/41066916644",
+  "independentMachineAttempt": true,
+  "crossMachineTransferVerified": false
+}

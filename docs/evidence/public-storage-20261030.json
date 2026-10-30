@@ -1,0 +1,34 @@
+{
+  "checkedAt": "2026-10-30T13:52:30.439066+00:00",
+  "networkPreset": "logos.test",
+  "testnet04Verified": false,
+  "sameMachine": true,
+  "crossMachineVerified": false,
+  "manualPeerConnection": false,
+  "passed": false,
+  "files": [],
+  "storageSha256": "94bb14c2c563b8458e6548686be3e42d1b3ebe7758d19a1f8128d5e6f89add6b",
+  "storageVersion": "Storage version:  v0.5.3\nStorage revision: 56854f4\n\n\u001b[0m",
+  "probeSha256": "8df6e31101af6f50aae28e5c00dd9aa56f3304ac72dbd8b0739e3df070711b9d",
+  "provider": {
+    "peerId": "16Uiu2HAkyZpWpvj6qcriGsdY1op31rECysyU2LaVKwpFzPTLDeur",
+    "addresses": [
+      "/ip4/178.128.140.206/tcp/8070/p2p/16Uiu2HAm3xPbYz2zsq5XVGDCMqKhhNXZWyYV6WLVv3yzzUiRJWnW/p2p-circuit",
+      "/ip4/178.128.140.206/tcp/8070/mix-transport/An67-cPFkDpqyeTEjDPbhtN8NUxt9S-niBc5QRLyc2xrfadHgJmHjhbhrmTY2S86xaAz0wkgJnLzjEsjWAApyTU=/p2p/16Uiu2HAm3xPbYz2zsq5XVGDCMqKhhNXZWyYV6WLVv3yzzUiRJWnW/p2p-circuit",
+      "/ip4/128.140.55.128/tcp/8199/p2p/16Uiu2HAm9MihmCFk6rY2YdkNa78LU5xrdj4wBn5jUUea5ABqCVa8/p2p-circuit"
+    ],
+    "discoveredPeers": 50
+  },
+  "consumer": {
+    "peerId": "16Uiu2HAkxNQnemRxskvBNiQoUt594HmpvPHDkUB98pkNHmva4568",
+    "addresses": [
+      "/ip4/128.140.55.128/tcp/8399/p2p/16Uiu2HAmEVspg4pqvhZUp82QCFJKpgxg9EaUGukdKor6eWcWJC9N/p2p-circuit",
+      "/ip4/128.140.55.128/tcp/8399/mix-transport/Axthw_gIbJw6xaiEGmDaL5u3-M0ADrymoazjKNkwYn-J-VpRjMM84W485haSKLGlNMpyfBfsF5jBs39j5yqSrww=/p2p/16Uiu2HAmEVspg4pqvhZUp82QCFJKpgxg9EaUGukdKor6eWcWJC9N/p2p-circuit",
+      "/ip4/47.76.168.186/tcp/8070/p2p/16Uiu2HAm89p258CC7dWuHBvhK7oXK7d37oCsVH8kFsa2nxH6rT9Z/p2p-circuit",
+      "/ip4/47.76.168.186/tcp/8070/mix-transport/Ar0XuiYSeu54D9yrXkzAhdOMfB8HB7ym0kzrGxL7-8fQdS5frXlbh5XV2xRCFIpk_iHH_7VAF-42Vq5CtPEC8hc=/p2p/16Uiu2HAm89p258CC7dWuHBvhK7oXK7d37oCsVH8kFsa2nxH6rT9Z/p2p-circuit"
+    ],
+    "discoveredPeers": 50
+  },
+  "error": "workshop-diagram.png: FORUM_BACKEND_READY SQLite and Ed25519 initialized\nFORUM_BACKEND_READY SQLite and Ed25519 initialized\nStorage node did not respond in time. Check its peer connection and retry.",
+  "forumBackendSha256": "8bf9539627b624bed4d5f0993c9465aff71b86096ac1db08d0737e414478a28b"
+}

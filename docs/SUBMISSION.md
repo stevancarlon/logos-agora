@@ -4,7 +4,7 @@
 community conversations, confirmed end-to-end operation on **testnet 0.4**, and
 public attachment retrieval remain open. The current prize added the 0.4 criterion
 on 12 October; Delivery module version 0.4.0 does not establish testnet 0.4 support.
-See the [current specification](https://github.com/logos-co/lambda-prize/blob/main/prizes/LP-0026.md)
+See the [current specification](https://github.com/logos-co/lambda-prize/blob/master/prizes/LP-0026.md)
 and the [filled submission draft](submission/LP-0026.md).
 
 ## Project

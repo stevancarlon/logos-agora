@@ -76,6 +76,11 @@ It does not establish cross-machine connectivity or public-network retention.
 
 ## 28 October 2026 verification
 
+For the newer network, NAT and independent-runner checks, see
+[30 October verification](evidence/NETWORK-VERIFICATION-20261030.md).
+The independent GitHub-hosted reader also timed out; public attachment retrieval
+is still a failing acceptance gate, while private native transfer passes.
+
 The updated candidate passes image, MP4 and PDF transfer with exact hashes between
 two isolated Storage nodes, including an MP4 through Basecamp, offline restart
 and Store recovery. [Private integration result](evidence/private-media-20261028.json).

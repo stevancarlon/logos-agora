@@ -1,0 +1,47 @@
+{
+  "checkedAt": "2026-10-30T13:48:36.867616+00:00",
+  "endpoint": "https://testnet.lez.logos.co",
+  "testnet04Verified": false,
+  "scope": "Read-only RPC observations, not transaction or testnet 0.4 compatibility proof. Official deployment documentation identifies testnet v0.3.",
+  "sources": [
+    "https://docs.logos.co/run-a-node",
+    "https://github.com/logos-co/lez-faucet#networks",
+    "https://github.com/logos-blockchain/logos-execution-zone/releases/tag/v0.4.0-rc1"
+  ],
+  "reads": {
+    "checkHealth": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": null
+    },
+    "getChannelId": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": "0101010101010101010101010101010101010101010101010101010101010101"
+    },
+    "getProgramIds": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "result": {
+        "privacy_preserving_circuit": [
+          3943929112,
+          3682468618,
+          2822605667,
+          1764660516,
+          290278025,
+          2512717227,
+          411457898,
+          556249114
+        ]
+      }
+    },
+    "getVersion": {
+      "jsonrpc": "2.0",
+      "id": 1,
+      "error": {
+        "code": -32601,
+        "message": "Method not found"
+      }
+    }
+  }
+}

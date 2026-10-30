@@ -1,0 +1,19 @@
+{
+  "checkedAt": "2026-10-30T13:53:35.608554+00:00",
+  "scope": "Local Storage provider diagnostics; NAT status is reported by the node, not an independent port scan.",
+  "peerId": "16Uiu2HAkyZpWpvj6qcriGsdY1op31rECysyU2LaVKwpFzPTLDeur",
+  "nat": {
+    "reachability": "NotReachable",
+    "clientMode": true,
+    "relayRunning": true,
+    "portMapping": "none"
+  },
+  "addresses": [
+    "/ip4/47.76.168.186/tcp/8070/p2p/16Uiu2HAm89p258CC7dWuHBvhK7oXK7d37oCsVH8kFsa2nxH6rT9Z/p2p-circuit",
+    "/ip4/47.76.168.186/tcp/8070/mix-transport/Ar0XuiYSeu54D9yrXkzAhdOMfB8HB7ym0kzrGxL7-8fQdS5frXlbh5XV2xRCFIpk_iHH_7VAF-42Vq5CtPEC8hc=/p2p/16Uiu2HAm89p258CC7dWuHBvhK7oXK7d37oCsVH8kFsa2nxH6rT9Z/p2p-circuit",
+    "/ip4/47.76.178.164/tcp/8070/p2p/16Uiu2HAmFKREVxCD89jkdEw8oBJo3WHXr9esmuDoKGWi63i66rfD/p2p-circuit",
+    "/ip4/47.76.178.164/tcp/8070/mix-transport/AyePlG8L_W6LpMHk-0xMY0tkMEWSNT5Mhe44ppPkaG9EfccfucmnggvzCplJyLSqimv8ciTYSGT1mzT1zDDJkGg=/p2p/16Uiu2HAmFKREVxCD89jkdEw8oBJo3WHXr9esmuDoKGWi63i66rfD/p2p-circuit"
+  ],
+  "discoveredPeers": 50,
+  "connectionCount": 43
+}

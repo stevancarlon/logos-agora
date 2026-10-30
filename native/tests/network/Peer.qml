@@ -7,6 +7,8 @@ Item {
     property bool replied: false
     ForumController {
         id: forum
+        // This harness owns node startup; never race the public auto-connect path.
+        startupConnectionChecked: true
         onReadyChanged: if (ready) {
             function begin() {
             if (root.role === "prepare") {
@@ -26,7 +28,7 @@ Item {
                 moduleCall("start", [], function () {});
             });
             }
-            call({op: "settings", storageEndpoint: STORAGE_API_JSON, mode: TEST_MODE_JSON}, function () {
+            call({op: "settings", autoConnect: false, storageEndpoint: STORAGE_API_JSON, mode: TEST_MODE_JSON}, function () {
                 call({op: "snapshot"}, function (r) { state = r; begin(); });
             });
         }
