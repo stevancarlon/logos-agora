@@ -1,6 +1,9 @@
 name: Patched Storage public receipt
 on:
   workflow_dispatch:
+  push:
+    branches: [codex/public-network-verification]
+    paths: [patches/logos-storage-0.5.3-public-download.patch, .github/workflows/storage-patch-receipt.yml]
 permissions:
   contents: read
 jobs:
