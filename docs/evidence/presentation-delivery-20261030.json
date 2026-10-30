@@ -1,0 +1,118 @@
+{
+  "network": "public logos.test",
+  "evidence": "Matching Delivery messageSent events through the normal ForumController handler",
+  "posts": [
+    {
+      "id": "aee26bfb54113aa298819e17930f099864dbcf317227dba4358189fc45e58448",
+      "title": "Welcome to Agora \u2014 introduce yourself",
+      "status": "sent",
+      "requestId": "9a749f1d9e0a491b788f",
+      "attachments": []
+    },
+    {
+      "id": "581b163a1015c67fe5f09cd96c27d08a7993d564beecf52b287facbc839f516b",
+      "title": "",
+      "status": "sent",
+      "requestId": "8fd497226f31eeb9e3a8",
+      "attachments": []
+    },
+    {
+      "id": "b8e8e3aaf0ca92e5d54d737ce997ed6809720131a67eb80007b7baa5a5712430",
+      "title": "What should we build next?",
+      "status": "sent",
+      "requestId": "d330f87cde6a402a6a54",
+      "attachments": []
+    },
+    {
+      "id": "10732b1123c3142481aa982359cab0ad893af9c5b815d28fda7b366538280ad6",
+      "title": "Build something worth sharing",
+      "status": "sent",
+      "requestId": "3ad203d3cf575acacd1e",
+      "attachments": [
+        {
+          "name": "35440fbd-cab8-47dd-8766-309d87ffa955.png",
+          "mime": "image/png",
+          "bytes": 30402,
+          "cid": "zDvZRwzm6Yid44QYnnPrgSNogbART4J4MYDiEfZu2m58h8SHCoTY",
+          "sha256": "ecf8a8131ec9af54d4d09a52a7bc17ad91a3fbd918f9cde29ebb2d957f1d0d40"
+        }
+      ]
+    },
+    {
+      "id": "d8fbb22a4a13c01d91889da48e914d64af16d6232b2aae5c7a289559fc7eb491",
+      "title": "Ideas in motion",
+      "status": "sent",
+      "requestId": "ceaa638d1a190162342d",
+      "attachments": [
+        {
+          "name": "daa102a0-93f4-4862-8ec6-b4d07d85f866.mp4",
+          "mime": "video/mp4",
+          "bytes": 48408,
+          "cid": "zDvZRwzmBYJVN3W7ob3uGVcUb3hheRpvPH2EaGhk4bMot495saDj",
+          "sha256": "c44b5fd74e172e67a085a9e9274f6f41b1eb7931ade3823b00b5025a7e8bf897"
+        }
+      ]
+    },
+    {
+      "id": "4e4f4b0be88baf61f4ca31c98a7b3321d4b2bb74f8ca1a4ce4a26cf85effaf42",
+      "title": "From first sketch to working prototype",
+      "status": "sent",
+      "requestId": "12991fb70ecd38d626c2",
+      "attachments": [
+        {
+          "name": "387811c6-5754-4aa3-abde-4e28f7dc339d.png",
+          "mime": "image/png",
+          "bytes": 22623,
+          "cid": "zDvZRwzkw5oVL4fLWCE1xwWErtypYg2NXXiMHiqrrruLPiZTvE36",
+          "sha256": "6d535e377ea760e2ac47fc3e20f67b2167adca4bcbeebce03896f82cc65c69b2"
+        },
+        {
+          "name": "897fdcc1-4d5c-4980-bb9d-cd8f99f7bf4f.png",
+          "mime": "image/png",
+          "bytes": 18291,
+          "cid": "zDvZRwzm4uezPbF4DAx93TVTSxNE4co2MoUEqb2ki1oBBJ9fk7XR",
+          "sha256": "2e42c84890c92cf83e6fc9930c20bbbabbd6bb47e5bb5f3ba40450869d02ded2"
+        },
+        {
+          "name": "d4a1533e-7bb0-471a-8c38-7b6b1e8dd502.png",
+          "mime": "image/png",
+          "bytes": 14054,
+          "cid": "zDvZRwzm3jXtTfGCr1BjC78wdZRxN1XgULB4sTsZeY42EWcBfesy",
+          "sha256": "55ca9292f91d14afbba980b362e765ef1c155913eac1adc14a18e59ea6a749e6"
+        }
+      ]
+    },
+    {
+      "id": "d24c59053cb7958b241e01558c3f416c6ad87bcccba8f564ae8e09496d5072c1",
+      "title": "A sketch and a plan",
+      "status": "sent",
+      "requestId": "c226df1c1b592228e8c7",
+      "attachments": [
+        {
+          "name": "c7093888-5414-44f3-83c2-7ef5494119d9.png",
+          "mime": "image/png",
+          "bytes": 18291,
+          "cid": "zDvZRwzm4uezPbF4DAx93TVTSxNE4co2MoUEqb2ki1oBBJ9fk7XR",
+          "sha256": "2e42c84890c92cf83e6fc9930c20bbbabbd6bb47e5bb5f3ba40450869d02ded2"
+        },
+        {
+          "name": "893de0fb-f97c-429f-8c29-f48f4fd16f83.pdf",
+          "mime": "application/pdf",
+          "bytes": 2345,
+          "cid": "zDvZRwzkwvPvFqL2Lyi53hojJkJiQKp2bh1kPWKDNX5LYV7ftP1z",
+          "sha256": "5217541bd04fb275fe93fe2aa3432d17f9922b81cb841fa13edaa6c24dc19641"
+        }
+      ]
+    },
+    {
+      "id": "12aa64309193aea17164bfecfe6e886426400ed4ef319bf77e726eb880b2ccca",
+      "title": "What would you like to explore?",
+      "status": "sent",
+      "requestId": "e9d7932d2583853b7010",
+      "attachments": []
+    }
+  ],
+  "publicAttachmentRetrievalVerified": false,
+  "crossMachineReceiptVerified": false,
+  "postCount": 8
+}

@@ -1,11 +1,50 @@
 {
   "schemaVersion": 2,
   "repositoryName": "stevancarlon-agora",
-  "generatedAt": "2026-10-28T22:14:43.528147+00:00",
+  "generatedAt": "2026-10-30T17:46:16.685660+00:00",
   "packages": [
     {
       "name": "logos_forum",
       "versions": [
+        {
+          "releasedAt": "2026-10-30T17:46:16.685660+00:00",
+          "publisherRef": "v0.3.3-alpha.1",
+          "url": "https://github.com/stevancarlon/logos-agora/releases/download/v0.3.3-alpha.1/logos_forum-0.3.3-linux-amd64.lgx",
+          "urls": [
+            "https://github.com/stevancarlon/logos-agora/releases/download/v0.3.3-alpha.1/logos_forum-0.3.3-linux-amd64.lgx"
+          ],
+          "size": 1852778,
+          "sha256": "c14c34e4c39f92be86a346cd32194e0ce41a4775acd9c750f07d23acda88705e",
+          "rootHash": "4c0a4e191f6b167544cbc601b266ed1c9cd86f2b5eaab169dbee52a66f688377",
+          "manifest": {
+            "author": "Logos Forum contributors",
+            "category": "social",
+            "dependencies": [
+              {
+                "name": "delivery_module",
+                "version": ">=0.3.0"
+              }
+            ],
+            "description": "Public discussions, local drafts and deliberate identity choices.",
+            "display_name": "Agora",
+            "hashes": {
+              "assets": "340c73dc46853fa1a05b08bb24a054c9b3097abdb7a60fca81dbb4f10d499c56",
+              "licenses": "097529c41cae003f93ba58e1b078eb3bb831571ebcb8d81ea97eaebc85a2e856",
+              "root": "4c0a4e191f6b167544cbc601b266ed1c9cd86f2b5eaab169dbee52a66f688377",
+              "variants": "1779559092744c4bf268910d89dfd5ddf46cdbcb87deb005bb0de7b6f4910bc6",
+              "variants/linux-amd64": "def7811ddc10d268db086ecab7e671f4c043c66ab72598aad4a1e7be679670ee"
+            },
+            "icon": "assets/icon.png",
+            "main": {
+              "linux-amd64": "forum_backend.so"
+            },
+            "manifestVersion": "0.6.0",
+            "name": "logos_forum",
+            "type": "ui_qml",
+            "version": "0.3.3",
+            "view": "qml/Main.qml"
+          }
+        },
         {
           "releasedAt": "2026-10-28T22:14:43.528147+00:00",
           "publisherRef": "v0.3.2-alpha.1",

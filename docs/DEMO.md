@@ -1,30 +1,11 @@
-# Agora narrated walkthrough
+# Agora presentation
 
-[Watch the 3:39 development walkthrough](https://github.com/stevancarlon/logos-agora/releases/download/v0.3.2-alpha.1/agora-0.3.2-walkthrough.mp4). Recorded in actual Basecamp on 28 October 2026, with synthetic narration and clearly labeled sample content in an isolated profile. No staged posts were added to the user's forum.
+[Watch the narrated presentation (2:14)](https://github.com/stevancarlon/logos-agora/releases/download/v0.3.3-alpha.1/agora-presentation.mp4). Recorded in actual Logos Basecamp on 30 October 2026, using an isolated demonstration profile and synthetic Kokoro narration.
 
-The video shows installation/checksum verification, identities, drafts, threads, replies, quotes, inline video, attachments and network settings. It displays the saved public Delivery receipt and explains its same-host scope. It does not show a fresh testnet 0.4 exchange, public attachment retrieval, organic adoption, or live restart/Store recovery. The latter has separate automated evidence. A final submission recording must demonstrate those remaining network scenarios once verified.
+The presentation shows the monochrome Agora interface, navigation, identities, drafts, replies, quote previews, multiple attachments and native video playback. It briefly explains the clock, spinner, check and retry icons. All eight demonstration posts received matching Delivery `messageSent` acknowledgements. These acknowledge transport, not receipt by every peer. Demonstration conversations are sample content, not organic adoption evidence.
 
-## Final submission recording checklist
+The final video was decoded with ffmpeg without errors (1920×1080, 30 fps, H.264/AAC). Its SHA-256 is `35354fabf85a41a04a0983799233bee9fdfe5840e4f6aa301a4fa253cadb6953`.
 
+The recording's closing note says public attachment reliability and testnet verification were still in progress. Subsequent native PNG/MP4/PDF retrieval tests passed through public discovery and relays between fresh profiles on one computer; the independent GitHub reader still timed out. See [current verification](evidence/NETWORK-VERIFICATION-20261030.md). The video does not claim that either of those tests happened in the recorded scenes.
 
-Record the actual application and terminal output. Use a separate demo profile
-for staged examples and label it clearly. Do not present staged discussions as
-organic use. Keep private keys, wallet files and personal paths out of the video.
-
-Target length: 3–5 minutes. Confirm the final release before recording installation.
-
-| Time | Show | Suggested narration |
-| --- | --- | --- |
-| 0:00 | Agora inside Basecamp | “Agora is a native, local-first public forum for Logos Basecamp. Its C++ backend stores drafts, identities and discussions in SQLite.” |
-| 0:20 | Release download, checksum verification, companion installer and catalog | “Install the matching desktop kit and media runtime, then add the community catalog in Basecamp. The alpha package is unsigned; the installation guide lists platform requirements.” |
-| 0:55 | Feed, board navigation, search, thread and quote | “Boards organize discussions. We can create a topic, reply, quote another post, search the local archive and save a thread.” |
-| 1:35 | Profile and identity choices | “Posts can show an alias or UID, or omit a stable identity. Identity rotation is available. These display choices are not a network-anonymity guarantee.” |
-| 2:00 | Offline post, restart, reconnect and sent state | “A failed send keeps the text and message ID locally. Retry reuses that ID. Sent means Delivery acknowledged the transport; receipt is checked separately.” |
-| 2:40 | Independent receiver and Store recovery evidence | “This public welcome thread arrived in an independent Basecamp profile with the same envelope hash. This check used one computer. Private relay tests also verify restart retry and missed-message recovery through Store.” |
-| 3:10 | Image, inline video, PDF and Storage configuration | “Attachments use Logos Storage. Readers fetch explicitly, and Agora checks the signed file size, hash and type. Without a configured node, attachments remain local.” |
-| 3:45 | CI, FURPS, genuine discussion evidence and limitations | “The repository includes build instructions, CI, protocol documentation and a FURPS assessment. Here are the verified results and the remaining alpha limitations.” |
-
-Show real pending/failure behavior if the testnet is unavailable. Do not replace
-it with a simulated success state. Include authentic discussion evidence only
-once participants have actually used the forum and consented to identifiable
-material appearing in the submission.
+[Recording delivery evidence](evidence/presentation-delivery-20261030.json) · [Release](https://github.com/stevancarlon/logos-agora/releases/tag/v0.3.3-alpha.1)

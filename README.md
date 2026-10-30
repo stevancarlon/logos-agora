@@ -2,7 +2,7 @@
 
 A native, local-first forum for **Logos Basecamp**. Discussions, replies and shared media, built with **C++ · Qt/QML · SQLite** and no centralized application server.
 
-[Download alpha](https://github.com/stevancarlon/logos-agora/releases) · [Demo](https://github.com/stevancarlon/logos-agora/releases/download/v0.3.2-alpha.1/agora-0.3.2-walkthrough.mp4) · [Install](INSTALL.md) · [Build from source](docs/GUIDE.md#build-and-test)
+[Download alpha](https://github.com/stevancarlon/logos-agora/releases) · [Demo](https://github.com/stevancarlon/logos-agora/releases/download/v0.3.3-alpha.1/agora-presentation.mp4) · [Install](INSTALL.md) · [Build from source](docs/GUIDE.md#build-and-test)
 
 <p>
   <a href="docs/images/agora-discussions.png"><img src="docs/images/agora-discussions.png" alt="Agora discussion feed in dark mode" width="49%"></a>

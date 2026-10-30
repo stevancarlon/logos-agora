@@ -1,9 +1,9 @@
-# FURPS self-assessment — native 0.3.2 alpha
+# FURPS self-assessment — native 0.3.3 alpha
 
 30 October update: signed/anonymous private Delivery exchange, restart and Store
 recovery pass. Public PNG/MP4/PDF retrieval now passes through the native backend
 with a fresh reader and patched Storage; both nodes used one computer. Independent
-hosted receipt of the final patch is pending. Testnet 0.4 remains unverified.
+hosted receipt of the final patch timed out fetching the manifest; cross-machine public attachment reliability remains unverified. Testnet 0.4 remains unverified.
 26 backend and 67 QML tests pass. The acceptance harness's auto-connect race is fixed. See the
 [dated verification report](evidence/NETWORK-VERIFICATION-20261030.md).
 
@@ -15,10 +15,10 @@ by Delivery and received by an independent Basecamp profile on the public
 Linux host. [Receipt evidence](evidence/public-delivery-20261028.json).
 
 The user reported successful Intel Mac installation on Sequoia 15.1. No additional
-cross-machine exchange is claimed. A [development walkthrough](DEMO.md) is recorded. Authentic community discussions,
-verified testnet 0.4 operation and a final end-to-end recording remain open; see
+cross-machine exchange is claimed. The [final narrated presentation](DEMO.md) is published. Authentic community discussions and
+verified testnet 0.4 operation remain unverified and outside the author’s remaining preparation scope; see
 [submission preparation](SUBMISSION.md). Earlier public Storage retrieval timeouts are superseded by the patched native
-receipt above; private transfer and Basecamp media/restart/Store tests also pass. See [Storage verification](STORAGE.md#28-october-2026-verification).
+receipt above; private transfer and Basecamp media/restart/Store tests also pass. See [Storage verification](STORAGE.md#30-october-2026-public-download-correction).
 
 | Area | Evidence | Remaining acceptance work |
 | --- | --- | --- |
@@ -26,13 +26,13 @@ receipt above; private transfer and Basecamp media/restart/Store tests also pass
 | Usability | Compact native QML UI, persistent composers, plain text selection, keyboard-accessible controls, narrow layout tests | User usability feedback and assistive technology validation |
 | Reliability | SQLite WAL/transactions, crash recovery, durable outbox, signature rejection, deduplication, early-ack and failure tests | Long-running loss/reconnect tests against real peers; backup/restore UI |
 | Performance | Single in-flight send, five-second pacing, exponential retry, 50-message history pages, 64 KiB envelopes, live intake budget, coalesced snapshots and database-backed feed/reply pages | Sustained resource measurements, stronger moderation |
-| Supportability | C++17/QML source, build/install scripts, green default-branch CI, published unsigned desktop alpha/catalog, dual license, verified Linux/Windows/Apple Silicon Basecamp loading and media | Full narrated demo and cross-machine acceptance |
+| Supportability | C++17/QML source, build/install scripts, green default-branch CI, published unsigned desktop alpha/catalog, dual license, verified Linux/Windows/Apple Silicon Basecamp loading and media | Cross-machine acceptance |
 
-Current code evidence (28 October 2026, `860e1ec`): [Linux checks](https://github.com/stevancarlon/logos-agora/actions/runs/40776947729) and [desktop checks](https://github.com/stevancarlon/logos-agora/actions/runs/40776947735) pass. [Windows matching-host playback](https://github.com/stevancarlon/logos-agora/actions/runs/40776972271) passes with current QML. [Intel Mac host playback](https://github.com/stevancarlon/logos-agora/actions/runs/40776118984) passes for the same native binary sources before the QML-only draft fix; the subsequent Intel Qt workflow checks that fix. The release reuses these CI binaries and packages current QML and documentation. See [platform evidence and limits](PLATFORMS.md).
+Earlier desktop code evidence (28 October 2026, `860e1ec`): [Linux checks](https://github.com/stevancarlon/logos-agora/actions/runs/40776947729) and [desktop checks](https://github.com/stevancarlon/logos-agora/actions/runs/40776947735) pass. [Windows matching-host playback](https://github.com/stevancarlon/logos-agora/actions/runs/40776972271) passes with current QML. [Intel Mac host playback](https://github.com/stevancarlon/logos-agora/actions/runs/40776118984) passes for the same native binary sources before the QML-only draft fix; the subsequent Intel Qt workflow checks that fix. The release reuses these CI binaries and packages current QML and documentation. See [platform evidence and limits](PLATFORMS.md).
 
 The [current LP-0026 specification](https://github.com/logos-co/lambda-prize/blob/master/prizes/LP-0026.md) requires testnet 0.4. Our receipt identifies LEZ v0.3.1; the installed Delivery module's 0.4.0 version is not the chain/testnet version. Testnet 0.4 end-to-end acceptance is **not verified**.
 
-The dated results below are a verification history; earlier test counts and pending states are superseded by this current summary. Publisher signing, backup/restore UI, assistive-technology testing and sustained benchmarks are additional quality work, not claimed as explicit prize requirements. The required narrated end-to-end demo and authentic conversations are still incomplete.
+The dated results below are a verification history; earlier test counts and pending states are superseded by this current summary. Publisher signing, backup/restore UI, assistive-technology testing and sustained benchmarks are additional quality work, not claimed as explicit prize requirements. The narrated presentation is published; authentic community conversations remain unverified.
 
 Local verification: Basecamp 0.3.2 on Linux x86_64 loads the native module and its SQLite state through Qt Remote Objects. Tests execute on Qt 6.9.2 and system Qt 6.11.2. Three independent Basecamp processes now exchange signed envelopes over an isolated loopback relay and recover them through a real Store query; this is not cross-machine or public mix-routing evidence. Synthetic screenshot discussions are visibly labeled and isolated in a temporary database.
 

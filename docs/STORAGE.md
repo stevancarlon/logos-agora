@@ -35,7 +35,7 @@ direct transport. Configuration generation does not establish public retrieval.
 
 Keep this process running. Node discovery/bootstrap and network reachability must
 be configured for the network your participants use. Public PNG/MP4/PDF retrieval now passes with fresh readers through public
-discovery and relays on one host; independent hosted verification is pending.
+discovery and relays on one host; the independent hosted reader still timed out fetching the manifest.
 The separate private integration checks use loopback-connected nodes.
 
 Set the forum profile’s `storageEndpoint` through the backend `settings`
@@ -149,6 +149,6 @@ inactivity window. [Public attempt](evidence/public-storage-20261028.json). Publ
 attachment discovery and retrieval are **not verified** here. Do not treat local
 upload success or a peer count as proof another reader can fetch the file.
 
-Downloads allow 90 seconds without data for discovery and 180 seconds overall.
+Native downloads allow 150 seconds without data for discovery and 180 seconds overall.
 Failures preserve the source attachment and offer a retry; no corrupt download
 is inserted into the local archive.

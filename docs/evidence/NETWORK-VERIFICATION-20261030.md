@@ -47,7 +47,7 @@ public fixtures through fresh independent reader profiles, without manual peer
 connections or copied blocks. [Native result](public-storage-native-20261030.json):
 PNG 30,402 bytes in 18.987s, MP4 556,240 bytes in 70.802s, PDF 2,345 bytes in 9.401s.
 Every signed size, SHA-256 and MIME check passed before export. Both nodes ran on
-one computer; independent hosted verification of the final patch is pending.
+one computer; the independent hosted reader timed out, as recorded below.
 A second run after installing and restarting the persistent Storage service also
 passed all three files: [installed-build receipt](public-storage-installed-20261030.json).
 Its timings were 13.889s, 59.513s and 66.386s. Cold discovery remains variable;
@@ -113,3 +113,7 @@ python3 scripts/check-storage-receipt.py --storage /absolute/path/to/patched-sto
 
 The fixture manifest contains only synthetic files already distributed with the
 project. It is not proof of receipt; only a successful size/hash comparison is.
+
+## Final independent reader result
+
+[Hosted run 41097790580](https://github.com/stevancarlon/logos-agora/actions/runs/41097790580) built the pinned patched Storage source and passed 35 swarm plus two address-fallback/cancellation tests. The independent reader discovered the provider but timed out fetching the first manifest. [Machine-readable result](public-storage-ci-final-20261030.json). This does not invalidate the recorded same-host public-relay successes, but cross-machine public retrieval remains unverified. No further success is claimed from a build or peer count alone.
