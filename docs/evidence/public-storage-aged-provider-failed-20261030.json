@@ -1,0 +1,25 @@
+{
+  "checkedAt": "2026-10-30T18:51:22.527959+00:00",
+  "networkPreset": "logos.test",
+  "passed": false,
+  "maxPeers": 160,
+  "testnet04Verified": false,
+  "manualPeerConnection": false,
+  "scope": "Public Storage byte/hash receipt; no Delivery or Basecamp UI claim",
+  "githubRun": null,
+  "storageVersion": "Storage version:  v0.5.3\nStorage revision: 56854f4\n\n\u001b[0m",
+  "storageSha256": "6bc3933594584f80afff55f17f2ea2cc2a36f091c120c4bd4c9dc6b776bd5cc3",
+  "manifestSha256": "ab44402a95054b114d83d37a62070b2dccd4c286309b7c12f151830d59065ca1",
+  "files": [],
+  "transport": "direct",
+  "configSha256": "065db3602e130cb42e1cab1f5eea7c9eb57058e5b6d00c068d44ae30abcf1228",
+  "readerPeerId": "16Uiu2HAmBw8cuxMmoFNQHsfzDAj4wEN1BWMKYrS9ofsu1fCfjUxk",
+  "readerAddresses": [
+    "/ip4/34.70.60.201/tcp/8070/p2p/16Uiu2HAm5gxGojS6RFjK9jUm6QiKb1Vjnx81iQkfhSTXTzXWmJd4/p2p-circuit",
+    "/ip4/34.70.60.201/tcp/8070/mix-transport/Aph_ARtkKQwuVAqmTaccbMpF5q2Ub3rOI8AO8jNJPqU_iCJShu0awGv6pVemEA0WydIx1Dhc7GOXi9r88D1QPi8=/p2p/16Uiu2HAm5gxGojS6RFjK9jUm6QiKb1Vjnx81iQkfhSTXTzXWmJd4/p2p-circuit",
+    "/ip4/47.76.178.164/tcp/8070/p2p/16Uiu2HAmFKREVxCD89jkdEw8oBJo3WHXr9esmuDoKGWi63i66rfD/p2p-circuit",
+    "/ip4/47.76.178.164/tcp/8070/mix-transport/AyePlG8L_W6LpMHk-0xMY0tkMEWSNT5Mhe44ppPkaG9EfccfucmnggvzCplJyLSqimv8ciTYSGT1mzT1zDDJkGg=/p2p/16Uiu2HAmFKREVxCD89jkdEw8oBJo3WHXr9esmuDoKGWi63i66rfD/p2p-circuit",
+    "/ip4/34.70.60.201/tcp/8070/p2p/16Uiu2HAm5gxGojS6RFjK9jUm6QiKb1Vjnx81iQkfhSTXTzXWmJd4/p2p-circuit/mix-transport/AvVG9MvOU-ghtt397DRa4J9BAC-M9sFZ3wBhNBfRTBW93OwJQsjD-9wsK4DxmTFXi6cSG76l8m_ED4PQXYjhtxk="
+  ],
+  "error": "timed out"
+}

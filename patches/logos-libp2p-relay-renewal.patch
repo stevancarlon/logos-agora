@@ -1,0 +1,101 @@
+diff --git i/libp2p/services/autorelayservice.nim w/libp2p/services/autorelayservice.nim
+index 92ecb2b..66e4933 100644
+--- i/libp2p/services/autorelayservice.nim
++++ w/libp2p/services/autorelayservice.nim
+@@ -16,6 +16,7 @@ type
+     running: bool
+     runner: Future[void]
+     client: RelayClient
++    renewalInterval: chronos.Duration
+     maxNumRelays: int # maximum number of relays we can reserve at the same time
+     relayPeers: Table[PeerId, Future[void]]
+     relayAddresses: Table[PeerId, seq[MultiAddress]]
+@@ -52,7 +53,9 @@ proc reserveAndUpdate(
+       debug "Updated relay addresses", relayPid, relayedAddr
+       if self.running and not self.onReservation.isNil():
+         self.onReservation(concat(toSeq(self.relayAddresses.values)))
+-    await sleepAsync chronos.seconds(ttl - 30)
++    # A reservation can outlive the TCP/NAT path that carries inbound circuits.
++    # Renew it periodically rather than trusting its expiry timestamp alone.
++    await sleepAsync min(chronos.seconds(ttl - 30), self.renewalInterval)
+ 
+ method setup*(self: AutoRelayService, switch: Switch) {.raises: [].} =
+   self.addressMapper = proc(
+@@ -95,6 +98,10 @@ proc innerRun(
+         if self.relayPeers[k].finished():
+           self.relayPeers.del(k)
+           self.relayAddresses.del(k)
++          await switch.peerInfo.update()
++          # A failed renewal may leave a half-open connection in the manager.
++          # Retire it before another reservation reuses the same dead path.
++          await switch.disconnect(k)
+           if self.running and not self.onReservation.isNil():
+             self.onReservation(concat(toSeq(self.relayAddresses.values)))
+           # To avoid ddosing our peers in certain conditions
+@@ -156,8 +163,11 @@ proc new*(
+     client: RelayClient,
+     onReservation: OnReservationHandler,
+     rng: Rng,
++    renewalInterval: chronos.Duration = chronos.seconds(30),
+ ): T =
++  doAssert renewalInterval > chronos.ZeroDuration
+   T(
++    renewalInterval: renewalInterval,
+     maxNumRelays: maxNumRelays,
+     client: client,
+     onReservation: onReservation,
+diff --git i/tests/libp2p/services/test_autorelay.nim w/tests/libp2p/services/test_autorelay.nim
+index adf43e5..ed9474f 100644
+--- i/tests/libp2p/services/test_autorelay.nim
++++ w/tests/libp2p/services/test_autorelay.nim
+@@ -159,3 +159,50 @@ suite "Autorelay":
+         containsAll(addresses, relay1MAs) and containsAll(addresses, relay3MAs)
+ 
+     await allFutures(switchClient.stop(), rel1.stop(), rel3.stop())
++
++  asyncTest "Long-lived reservations are renewed before the connection goes idle":
++    let relay = Relay.new()
++    let originalHandler = relay.handler
++    var requests = 0
++    relay.handler = proc(stream: Connection, proto: string) {.async: (raises: [CancelledError]).} =
++      inc requests
++      await originalHandler(stream, proto)
++    switchRelay = createSwitch(relay)
++    relayClient = RelayClient.new()
++    autorelay = AutoRelayService.new(1, relayClient, nil, rng(), 100.millis)
++    switchClient = createSwitch(relayClient, autorelay)
++    await allFutures(switchClient.start(), switchRelay.start())
++    try:
++      await switchClient.connect(switchRelay.peerInfo.peerId, switchRelay.peerInfo.addrs)
++      checkUntilTimeout:
++        requests >= 3
++      check autorelay.getAddresses() == buildRelayMA(switchRelay, switchClient)
++    finally:
++      await allFutures(switchClient.stop(), switchRelay.stop())
++
++  asyncTest "Failed renewal withdraws addresses before the reservation expires":
++    let relay = Relay.new()
++    let originalHandler = relay.handler
++    var requests = 0
++    relay.handler = proc(stream: Connection, proto: string) {.async: (raises: [CancelledError]).} =
++      inc requests
++      if requests == 1:
++        await originalHandler(stream, proto)
++      else:
++        await stream.close()
++    switchRelay = createSwitch(relay)
++    relayClient = RelayClient.new()
++    autorelay = AutoRelayService.new(1, relayClient, nil, rng(), 100.millis)
++    switchClient = createSwitch(relayClient, autorelay)
++    await allFutures(switchClient.start(), switchRelay.start())
++    try:
++      await switchClient.connect(switchRelay.peerInfo.peerId, switchRelay.peerInfo.addrs)
++      checkUntilTimeout:
++        autorelay.getAddresses().len > 0
++      let advertised = autorelay.getAddresses()
++      checkUntilTimeout:
++        requests >= 2 and autorelay.getAddresses().len == 0
++      for address in advertised:
++        check address notin switchClient.peerInfo.addrs
++    finally:
++      await allFutures(switchClient.stop(), switchRelay.stop())

@@ -71,6 +71,7 @@ Build and test in a separate checkout (Nim 2.2.10, C/C++ compiler, make, CMake):
 git checkout 56854f4ebce0cfe68e3557d1be21b758ac62ae0c
 git apply /absolute/path/to/logos-agora/patches/logos-storage-0.5.3-public-download.patch
 git -C vendor/nim-libp2p apply /absolute/path/to/logos-agora/patches/logos-libp2p-provider-addresses.patch
+git -C vendor/nim-libp2p apply /absolute/path/to/logos-agora/patches/logos-libp2p-relay-renewal.patch
 make USE_SYSTEM_NIM=1 NIM_PARAMS="-d:release -d:agoraRelayOnly" -j2
 ./env.sh nim c -r -d:release --out:build/testswarm tests/storage/blockexchange/engine/testswarm.nim
 ./env.sh nim c -r -d:release --out:build/testdirectconnect tests/storage/testdirectconnect.nim
@@ -115,3 +116,24 @@ USE_SYSTEM_NIM=1 ./env.sh nim c -r -d:release --warningAsError:UnusedImport:off 
 The unused-import override is needed by the upstream test logger under the
 Storage checkout's compiler configuration; it does not disable assertions.
 Remote receipt results are recorded separately from build/regression results.
+
+## Relay renewal
+
+`logos-libp2p-relay-renewal.patch` applies to the same pinned nim-libp2p
+revision. Relay reservations can remain valid longer than the idle TCP/NAT
+connection that carries incoming circuits. Renewing every 30 seconds checks
+the path as well as the reservation; each renewal retains the existing
+five-second timeout. Failed renewals withdraw their addresses from PeerInfo,
+disconnect the unusable path and let the existing backoff choose a replacement.
+The patch does not restart Storage or change stored files, keys or identities.
+
+Two regressions use real relay/client switches to verify renewal before expiry
+and address withdrawal after a failed renewal. Run alongside the upstream
+AutoRelay tests:
+
+```sh
+USE_SYSTEM_NIM=1 ./env.sh nim c -r -d:release --warningAsError:UnusedImport:off --out:build/test_autorelay vendor/nim-libp2p/tests/libp2p/services/test_autorelay.nim
+```
+
+Independent receipt must also be checked after the publisher has been idle;
+a download immediately after restart is insufficient evidence of reliability.

@@ -40,3 +40,14 @@ permanent retention or large-file throughput. Public relay latency remains
 variable; the 556 KB video took approximately one minute. The native 180-second
 transfer deadline and integrity checks remain unchanged. Older failures are
 retained in [the verification history](NETWORK-VERIFICATION-20261030.md).
+
+## Subsequent idle-provider failure
+
+The first independent pass below is retained, but a repeat on the same
+provider later failed before receiving the PNG:
+[run 41108441951](https://github.com/stevancarlon/logos-agora/actions/runs/41108441951).
+The [repeat result](public-storage-independent-repeat-failed-20261030.json)
+and a [fresh local reader result](public-storage-aged-provider-failed-20261030.json)
+both record the timeout. The provider-address merge fixes a demonstrated DHT
+bug; that first pass alone did not establish sustained availability. Relay
+renewal/recovery is being tested separately before marking reliability resolved.
