@@ -9,9 +9,16 @@ build/
 aqtinstall.log
 artifacts/*.lgx
 artifacts/*.log
+artifacts/local-network-setup/
 __pycache__/
 
 .venv/
+.tools/
+artifacts/agora-*.tar.gz
+artifacts/agora-*.tar.gz.sha256
+store.sqlite3*
+artifacts/submission-20261028/
 
 artifacts/
+
 .runtime-tools/

@@ -9,18 +9,33 @@ Rectangle {
     required property var controller
     readonly property bool available: attachment.available !== false
     property var preview: null
+    property bool previewOnly: false
+    property bool imageOnly: false
+    property real imageHeight: 180
     property color ink: "#ededed"
     property color muted: "#a3a3a3"
     property color surface: "#181818"
     property color outline: "#333333"
     signal downloadRequested(string attachmentId, string filename)
     width: Math.min(parent ? parent.width : 320, video ? 480 : 320)
-    height: content.implicitHeight + (video ? 0 : 20)
-    color: video ? "#080808" : surface
-    border.color: video ? "transparent" : outline
+    height: content.implicitHeight + (video || imageOnly ? 0 : 20)
+    color: imageOnly ? "transparent" : video ? "#080808" : surface
+    border.color: video || imageOnly ? "transparent" : outline
     radius: 6
     readonly property bool video: attachment.mime.indexOf("video/") === 0
     readonly property bool pdf: attachment.mime === "application/pdf"
+    activeFocusOnTab: imageOnly && available
+    Accessible.role: imageOnly ? Accessible.Button : Accessible.Pane
+    Accessible.name: attachment.name
+    Accessible.onPressAction: openFile()
+    Keys.onReturnPressed: if (imageOnly && available) openFile()
+    Keys.onSpacePressed: if (imageOnly && available) openFile()
+    Keys.onMenuPressed: if (imageOnly && available) imageMenu.popup()
+    Menu {
+        id: imageMenu
+        MenuItem { text: "Open image"; onTriggered: card.openFile() }
+        MenuItem { text: "Download"; onTriggered: card.downloadRequested(card.attachment.id, card.attachment.name) }
+    }
     function openFile() {
         controller.call({
             op: "attachmentOpen",
@@ -42,16 +57,16 @@ Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.margins: card.video ? 0 : 10
+        anchors.margins: card.video || card.imageOnly ? 0 : 10
         spacing: 8
         Item {
             Layout.fillWidth: true
-            Layout.preferredHeight: card.video ? width * 9 / 16 : card.pdf ? 104 : 160
+            Layout.preferredHeight: card.imageOnly ? card.imageHeight : card.previewOnly ? 112 : card.video ? width * 9 / 16 : card.pdf ? 104 : 160
             Canvas {
                 id: thumb
                 anchors.top: parent.top
                 width: parent.width
-                height: card.video ? width * 9 / 16 : parent.height
+                height: card.previewOnly ? parent.height : card.video ? width * 9 / 16 : parent.height
                 visible: !videoLoader.item || !videoLoader.item.hasVideo
                 onWidthChanged: requestPaint()
                 onHeightChanged: requestPaint()
@@ -79,7 +94,7 @@ Rectangle {
             }
             Text {
                 anchors.centerIn: parent
-                visible: !card.preview && !card.video && card.available
+                visible: !card.preview && (card.previewOnly || !card.video) && card.available
                 text: card.pdf ? "PDF" : card.video ? "VIDEO" : "IMAGE"
                 color: card.muted
                 font.pixelSize: 22
@@ -87,13 +102,21 @@ Rectangle {
             MouseArea {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
-                enabled: !card.video && card.available
-                onClicked: card.openFile()
+                enabled: !card.previewOnly && !card.video && card.available
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                hoverEnabled: true
+                ToolTip.visible: containsMouse && card.imageOnly
+                ToolTip.delay: 600
+                ToolTip.text: card.attachment.name
+                onClicked: function(mouse) {
+                    if (mouse.button === Qt.RightButton) imageMenu.popup();
+                    else card.openFile();
+                }
             }
             Loader {
                 id: videoLoader
                 anchors.fill: parent
-                active: card.video && card.available
+                active: !card.previewOnly && card.video && card.available
                 function loadVideo() { if (active && String(source) === "")
                     setSource("InlineVideo.qml", {
                         attachmentId: card.attachment.id,
@@ -130,7 +153,7 @@ Rectangle {
             }
         }
         Text {
-            visible: !card.video
+            visible: !card.imageOnly && !card.previewOnly && !card.video
             Layout.fillWidth: true
             text: card.attachment.name
             textFormat: Text.PlainText
@@ -140,18 +163,18 @@ Rectangle {
             font.pixelSize: 12
         }
         Text {
-            visible: !card.video
+            visible: !card.imageOnly && !card.previewOnly && !card.video
             Layout.fillWidth: true
-            text: (card.pdf ? "PDF" : card.video ? "Video" : "Image") + " · " + (card.attachment.bytes >= 1048576 ? (card.attachment.bytes / 1048576).toFixed(1) + " MB" : Math.ceil(card.attachment.bytes / 1024) + " KB") + (card.available ? " · On this device" : " · Logos Storage")
+            text: (card.pdf ? "PDF" : card.video ? "Video" : "Image") + " · " + (card.attachment.bytes >= 1048576 ? (card.attachment.bytes / 1048576).toFixed(1) + " MB" : Math.ceil(card.attachment.bytes / 1024) + " KB")
             color: card.muted
             font.family: "Adwaita Sans"
             font.pixelSize: 11
         }
         RowLayout {
-            visible: !card.video && card.available
+            visible: !card.imageOnly && !card.previewOnly && !card.video && card.available
             Layout.fillWidth: true
             ForumButton {
-                visible: !card.video
+                visible: !card.imageOnly && !card.previewOnly && !card.video
                 text: "Open"
                 flat: true
                 onClicked: card.openFile()

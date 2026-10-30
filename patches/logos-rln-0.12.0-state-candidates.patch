@@ -1,0 +1,87 @@
+diff --git i/logos-rln-module/rust-lib/src/lib.rs w/logos-rln-module/rust-lib/src/lib.rs
+index a14f707..8435daa 100644
+--- i/logos-rln-module/rust-lib/src/lib.rs
++++ w/logos-rln-module/rust-lib/src/lib.rs
+@@ -63,6 +63,7 @@ mod registry_id;
+ mod roots;
+ mod sealed_store;
+ mod select;
++mod state_candidates;
+ mod views;
+ mod wallet_home;
+ mod worker;
+@@ -858,7 +859,9 @@ pub(crate) fn register_scoped(
+ 
+ /// Spec get_membership_state(scope): a live registry read overlaid on the
+ /// local record of the membership backing the scope (scope_candidates). No
+-/// candidate → UNKNOWN; more than one → AmbiguousSelection. Transitions the
++/// candidate → UNKNOWN; more than one usable candidate → AmbiguousSelection.
++/// Historical records cannot shadow a usable replacement. Without a usable
++/// record, retain the existing diagnostic behavior. Transitions the
+ /// merged view implies are persisted.
+ ///
+ /// Takes NO register claim: this is the module's most-polled read and the
+@@ -883,10 +886,13 @@ fn get_membership_state_impl(
+         );
+     };
+     let records = records_for_registry(&store, &registry);
+-    let candidates: Vec<_> = scope_candidates(&records, &rln_id_hex)
+-        .into_iter()
+-        .filter(|r| !r.quarantined)
+-        .collect();
++    let candidates = state_candidates::prefer_usable(
++        scope_candidates(&records, &rln_id_hex)
++            .into_iter()
++            .filter(|r| !r.quarantined)
++            .collect(),
++        |r: &MembershipRecord| r.cache.state.is_usable(),
++    );
+     if candidates.is_empty() {
+         return ok_json(
+             views::MembershipStateView::unknown(&registry.canonical)
+diff --git i/logos-rln-module/rust-lib/src/state_candidates.rs w/logos-rln-module/rust-lib/src/state_candidates.rs
+new file mode 100644
+index 0000000..f00c73e
+--- /dev/null
++++ w/logos-rln-module/rust-lib/src/state_candidates.rs
+@@ -0,0 +1,40 @@
++//! Keep membership-state selection consistent with proof selection. Historical
++//! records must not make a single usable replacement ambiguous. If none are
++//! usable, retain records so callers can still report pending/terminal states.
++
++pub(crate) fn prefer_usable<T>(records: Vec<T>, usable: impl Fn(&T) -> bool) -> Vec<T> {
++    if records.iter().any(&usable) {
++        records.into_iter().filter(usable).collect()
++    } else {
++        records
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    #[derive(Debug, PartialEq, Eq)]
++    enum State { Active, Grace, Erased, Expired, Pending, Failed }
++    fn candidates(records: Vec<State>) -> Vec<State> {
++        prefer_usable(records, |s| matches!(s, State::Active | State::Grace))
++    }
++    #[test]
++    fn erased_legacy_record_does_not_block_active_replacement() {
++        assert_eq!(candidates(vec![State::Erased, State::Active]), vec![State::Active]);
++        assert_eq!(candidates(vec![State::Active, State::Erased]), vec![State::Active]);
++    }
++    #[test]
++    fn only_usable_candidates_survive_when_a_replacement_exists() {
++        assert_eq!(candidates(vec![State::Expired, State::Pending, State::Failed, State::Grace]), vec![State::Grace]);
++    }
++    #[test]
++    fn multiple_usable_records_remain_ambiguous() {
++        assert_eq!(candidates(vec![State::Erased, State::Active, State::Grace]), vec![State::Active, State::Grace]);
++    }
++    #[test]
++    fn no_usable_record_preserves_diagnostic_states() {
++        assert_eq!(candidates(vec![State::Pending]), vec![State::Pending]);
++        assert_eq!(candidates(vec![State::Erased, State::Failed]), vec![State::Erased, State::Failed]);
++        assert!(candidates(vec![]).is_empty());
++    }
++}

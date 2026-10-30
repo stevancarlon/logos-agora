@@ -40,6 +40,53 @@ private slots:
     QVERIFY(backend->lastError().isEmpty());
   }
   void cleanup() { backend.reset(); }
+  void resolvesPostReferencesWithoutGuessing() {
+    const auto root = post("Original post")["id"].toString();
+    const auto reply = post("Referenced reply", root)["id"].toString();
+    const auto found = call({{"op", "postReference"}, {"reference", reply.left(8).toUpper()}});
+    QCOMPARE(found["state"].toString(), QString("found"));
+    QCOMPARE(found["post"].toObject()["id"].toString(), reply);
+    QCOMPARE(found["post"].toObject()["thread"].toString(), root);
+    QVERIFY(found["threadAvailable"].toBool());
+    QCOMPARE(call({{"op", "postReference"}, {"reference", QString(64, 'f')}})["state"].toString(), QString("missing"));
+    QVERIFY(!call({{"op", "postReference"}, {"reference", "*"}})["ok"].toBool());
+    QVERIFY(!call({{"op", "postReference"}, {"reference", "abc"}})["ok"].toBool());
+
+    // Controlled prefix collision in the temporary test database only.
+    const QString connection = "reference-fixture";
+    {
+      auto db = QSqlDatabase::addDatabase("QSQLITE", connection);
+      db.setDatabaseName(qEnvironmentVariable("LOGOS_FORUM_DATA_DIR") + "/forum.sqlite");
+      QVERIFY(db.open());
+      QSqlQuery insert(db);
+      QVERIFY(insert.prepare("INSERT INTO posts(id,thread,board,title,body,author,mode,pub,created,received,wire,status,search_text) VALUES(?,'','general','fixture','fixture','','anonymous','',1,1,'','local','fixture')"));
+      for (const auto suffix : {'a', 'b'}) {
+        insert.bindValue(0, QString("12345678") + QString(56, suffix));
+        QVERIFY(insert.exec());
+      }
+      db.close();
+    }
+    QSqlDatabase::removeDatabase(connection);
+    const auto ambiguous = call({{"op", "postReference"}, {"reference", "12345678"}});
+    QCOMPARE(ambiguous["state"].toString(), QString("ambiguous"));
+    QVERIFY(!ambiguous.contains("post"));
+    QCOMPARE(call({{"op", "postReference"}, {"reference", QString("12345678") + QString(56, 'a')}})["state"].toString(), QString("found"));
+  }
+  void retryTargetsOneStoredEnvelope() {
+    auto a = post("First")["id"].toString();
+    auto b = post("Second")["id"].toString();
+    const QJsonValue wire = call({{"op","wire"},{"id",a}})["wire"];
+    for (const auto &id : {a,b})
+      QVERIFY(call({{"op","delivery"},{"id",id},{"status","failed"},{"error","timeout"}})["ok"].toBool());
+    QVERIFY(call({{"op","retry"},{"id",a}})["ok"].toBool());
+    QCOMPARE(call({{"op","postInfo"},{"id",a}})["post"].toObject()["status"].toString(), QString("queued"));
+    QCOMPARE(call({{"op","postInfo"},{"id",b}})["post"].toObject()["status"].toString(), QString("failed"));
+    QCOMPARE(call({{"op","wire"},{"id",a}})["wire"], wire);
+    QVERIFY(!call({{"op","retry"},{"id",""}})["ok"].toBool());
+    call({{"op","delivery"},{"id",a},{"status","sent"}});
+    call({{"op","retry"},{"id",a}});
+    QCOMPARE(call({{"op","postInfo"},{"id",a}})["post"].toObject()["status"].toString(), QString("sent"));
+  }
   void canonicalizesMp4ContentAcrossMimeDatabases() {
     QFile sample(QFINDTESTDATA("../../design/agora/demo-media/playback-test.mp4"));
     QVERIFY(sample.open(QIODevice::ReadOnly));
@@ -139,6 +186,8 @@ private slots:
   }
   void avatarPersistsAndStaysWithIdentity() {
     const auto firstId=call({{"op","snapshot"}})["active"].toString();
+    const auto original=post("Written before uploading a photo")["id"].toString();
+    const QJsonValue wire=call({{"op","wire"},{"id",original}})["wire"];
     const auto file=dir.path()+"/avatar.png";
     QImage picture(180,100,QImage::Format_RGB32); picture.fill(Qt::red); QVERIFY(picture.save(file));
     QVERIFY(call({{"op","avatar"},{"file",QUrl::fromLocalFile(file).toString()}})["ok"].toBool());
@@ -146,13 +195,20 @@ private slots:
     auto avatar=call({{"op","snapshot"}})["avatar"].toObject();
     QCOMPARE(avatar["size"].toInt(),64); QCOMPARE(avatar["pixels"].toArray().size(),4096);
     QCOMPARE(avatar["pixels"].toArray()[0].toDouble(),static_cast<double>(qRgb(255,0,0)));
-    call({{"op","identity"},{"alias","second"}});
-    QVERIFY(call({{"op","snapshot"}})["avatar"].isNull());
+    const auto secondId=call({{"op","identity"},{"alias","wanderer"}})["id"].toString();
+    post("Same alias, different signing identity");
+    auto snapshot=call({{"op","snapshot"}});
+    QVERIFY(snapshot["avatar"].isNull());
+    QCOMPARE(snapshot["avatars"].toObject()[firstId].toObject(), avatar);
+    QVERIFY(snapshot["avatars"].toObject()[secondId].isNull());
+    QCOMPARE(snapshot["avatars"].toObject().size(), 2);
+    QCOMPARE(call({{"op","wire"},{"id",original}})["wire"], wire);
     call({{"op","settings"},{"active",firstId}});
     QVERIFY(call({{"op","snapshot"}})["avatar"].isObject());
     QVERIFY(!call({{"op","avatar"},{"file","https://example.com/photo.png"}})["ok"].toBool());
     QVERIFY(call({{"op","avatar"},{"remove",true}})["ok"].toBool());
     QVERIFY(call({{"op","snapshot"}})["avatar"].isNull());
+    QVERIFY(call({{"op","snapshot"}})["avatars"].toObject()[firstId].isNull());
     QImage large(4097,1,QImage::Format_RGB32);large.fill(Qt::blue);QVERIFY(large.save(file));
     QVERIFY(!call({{"op","avatar"},{"file",QUrl::fromLocalFile(file).toString()}})["ok"].toBool());
   }
@@ -305,13 +361,14 @@ private slots:
     QCOMPARE(call({{"op","snapshot"}})["theme"].toString(), QString("light"));
     QVERIFY(!call({{"op","settings"},{"theme","invalid"}})["ok"].toBool());
   }
-  void autoConnectIsOptInAndPersists() {
-    QVERIFY(!call({{"op","snapshot"}})["autoConnect"].toBool());
+  void autoConnectDefaultsOnAndRespectsPersistedOptOut() {
+    QVERIFY(call({{"op","snapshot"}})["autoConnect"].toBool());
     QVERIFY(call({{"op","settings"},{"autoConnect",true}})["ok"].toBool());
     backend.reset(); backend = std::make_unique<ForumBackend>();
     QVERIFY(call({{"op","snapshot"}})["autoConnect"].toBool());
     QVERIFY(!call({{"op","settings"},{"autoConnect","true"}})["ok"].toBool());
     QVERIFY(call({{"op","settings"},{"autoConnect",false}})["ok"].toBool());
+    backend.reset(); backend = std::make_unique<ForumBackend>();
     QVERIFY(!call({{"op","snapshot"}})["autoConnect"].toBool());
   }
   void validatesHistoryAndPersistsCursor() {

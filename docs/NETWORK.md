@@ -10,7 +10,7 @@ while a local Logos Storage node transfers attachment files.
 2. In Basecamp's module manager, install compatible Delivery and RLN modules.
    The verified Linux combination is Delivery **0.4.0**, RLN **0.12.0** and
    LEZ RLN **5.1.0**, running in Basecamp **0.3.2**.
-3. Open Agora → profile → **Network & delivery**, then start/connect Delivery.
+3. Open Agora. It connects to Delivery automatically, starting the node if needed.
    Initial chain synchronization and membership provisioning may take several minutes.
 4. If membership provisioning requests funds, use the public payer address reported
    by your local RLN provider. Request tokens on the **LEZ v0.3 testnet** with the
@@ -24,9 +24,10 @@ while a local Logos Storage node transfers attachment files.
    choose **Retry** on that post. It retains the same message ID. Connection or
    subscription alone does not mean the membership or a send is ready.
 
-**Connect when Agora opens** is optional and off by default. When enabled, queued
-public posts are sent automatically after connecting. It reuses an existing
-Delivery node rather than replacing another app's configuration.
+Connection is automatic by default. An existing `autoConnect: false` backend
+setting is respected for local-only profiles. Queued public posts are sent after
+connecting. Agora reuses an existing Delivery node without replacing another
+app’s configuration. There is no separate Network settings screen.
 
 Agora requests required mix routing when it creates its node. It does not silently
 fall back to direct routing if that path fails. A shared node keeps its existing

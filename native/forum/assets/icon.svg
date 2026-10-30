@@ -1,4 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-  <rect width="256" height="256" rx="48" fill="#141a17"/>
+  <rect width="256" height="256" rx="48" fill="#000000"/>
   <path fill="#e8e4d8" d="M130 30 204 200Q213 220 235 221V226H140V221Q164 219 158 204L138 157Q108 144 81 161L65 202Q58 219 84 221V226H23V221Q46 219 56 198L128 30ZM85 151Q111 135 135 149L111 90Z" fill-rule="evenodd"/>
 </svg>

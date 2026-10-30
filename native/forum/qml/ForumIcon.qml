@@ -30,7 +30,53 @@ Canvas {
             c.arc(x, y, r, 0, Math.PI * 2);
             c.stroke();
         }
-        if (name === "back") {
+        if (name === "clock") {
+            circle(12, 12, 9);
+            line([12, 6, 12, 12, 16, 14]);
+        } else if (name === "check") {
+            line([4, 12, 9, 17, 20, 6]);
+        } else if (name === "sending") {
+            c.beginPath();
+            c.arc(12, 12, 9, -Math.PI / 2, Math.PI * 0.85);
+            c.stroke();
+        } else if (name === "warning") {
+            circle(12, 12, 9);
+            line([12, 6, 12, 13]);
+            line([12, 17, 12, 17.2]);
+        } else if (name === "device") {
+            line([6, 3, 18, 3, 18, 21, 6, 21, 6, 3]);
+            line([10, 17, 14, 17]);
+        } else if (name === "minus") {
+            line([5, 12, 19, 12]);
+        } else if (name === "trash") {
+            line([4, 6, 20, 6]);
+            line([9, 6, 9, 3, 15, 3, 15, 6]);
+            line([6, 6, 7, 21, 17, 21, 18, 6]);
+            line([10, 10, 10, 17]);
+            line([14, 10, 14, 17]);
+        } else if (name === "close") {
+            line([7, 7, 17, 17]); line([17, 7, 7, 17]);
+        } else if (name === "chevron-down") {
+            line([6, 9, 12, 15, 18, 9]);
+        } else if (name === "attach") {
+            c.beginPath();
+            c.moveTo(9, 12);
+            c.lineTo(14, 7);
+            c.bezierCurveTo(17, 4, 21, 8, 18, 11);
+            c.lineTo(10, 19);
+            c.bezierCurveTo(5, 24, -1, 18, 4, 13);
+            c.lineTo(13, 4);
+            c.bezierCurveTo(19, -2, 27, 6, 21, 12);
+            c.lineTo(13, 20);
+            c.stroke();
+        } else if (name === "reply") {
+            line([9, 5, 3, 11, 9, 17]);
+            c.beginPath();
+            c.moveTo(3, 11);
+            c.lineTo(13, 11);
+            c.bezierCurveTo(18, 11, 21, 14, 21, 19);
+            c.stroke();
+        } else if (name === "back") {
             line([14, 5, 7, 12, 14, 19]);
             line([7, 12, 21, 12]);
         } else if (name === "sun") {

@@ -102,7 +102,7 @@ messages, so use agreed test conversations for shared evidence.
 1. Introduce Agora and its local-first C++/QML/SQLite architecture.
 2. Install the candidate on a clean profile; explain the companion runtime.
 3. Choose an identity, create a thread, and reply from a second machine.
-4. Quote a reply, search, bookmark, rotate identity and show anonymous display.
+4. Quote a reply, search, rotate identity and show anonymous display.
 5. Disconnect, compose, restart and reconnect; demonstrate durable delivery.
 6. Recover missed messages from Store and compare IDs on both machines.
 7. Demonstrate attachments honestly, including which data remains device-local.

@@ -55,9 +55,19 @@ Pane {
     property string board: "all"
     property string selected: ""
     property string pendingReplyScroll: ""
+    property string pendingQuoteJump: ""
+    property string highlightedPost: ""
+    property int quoteNavigationEpoch: 0
+    Timer { id: quoteHighlightTimer; interval: 1800; onTriggered: root.highlightedPost = "" }
     property string searchText: ""
     property string sorting: "activity"
     property bool replyExpanded: false
+    property var replyTrigger: null
+    property string replyDraftStatus: ""
+    property int replyDraftGeneration: 0
+    readonly property bool hasReplyDraft: replyInput.text.trim().length > 0 || replyAttachments.length > 0
+    readonly property string replyIdentity: forum.state.mode === "anonymous" ? "Anonymous" : forum.state.mode === "uid" ? "Unique ID" : forum.activeAlias()
+    readonly property bool replyLocalOnly: (replyAttachments.length > 0 && !forum.state.storageEndpoint) || (!!current && current.status === "local")
     property var newAttachments: []
     property var newDraftCache: null
     property var replyAttachments: []
@@ -65,7 +75,6 @@ Pane {
     property string attachmentTarget: "new"
     property string downloadingAttachment: ""
     property var replyDraftCache: ({})
-    property bool showingSaved: false
     property var boards: [
         {
             id: "general",
@@ -107,14 +116,17 @@ Pane {
     onBoardChanged: resetFeedPages()
     onSearchTextChanged: resetFeedPages()
     onSortingChanged: resetFeedPages()
-    onShowingSavedChanged: resetFeedPages()
-    onSelectedChanged: { pendingReplyScroll = ""; replyCursor = ""; replyHistory = []; }
+    onSelectedChanged: {
+        pendingReplyScroll = ""; replyCursor = ""; replyHistory = [];
+        pendingQuoteJump = ""; highlightedPost = ""; ++quoteNavigationEpoch;
+    }
     function resetFeedPages() {
         feedCursor = ""; feedHistory = []; feedScrollY = 0; restoreFeedScroll = false;
         threadListView.positionViewAtBeginning();
     }
     function nextPage() {
         if (!forum.state.hasMore || forum.loading) return;
+        pendingQuoteJump = ""; ++quoteNavigationEpoch;
         if (selected) { replyHistory = replyHistory.concat([replyCursor]); replyCursor = forum.state.nextCursor; }
         else { feedHistory = feedHistory.concat([feedCursor]); feedCursor = forum.state.nextCursor; }
         threadListView.positionViewAtBeginning(); postsView.positionViewAtBeginning();
@@ -122,6 +134,7 @@ Pane {
     function previousPage() {
         var history = (selected ? replyHistory : feedHistory).slice();
         if (!history.length || forum.loading) return;
+        pendingQuoteJump = ""; ++quoteNavigationEpoch;
         var cursor = history.pop();
         if (selected) { replyHistory = history; replyCursor = cursor; }
         else { feedHistory = history; feedCursor = cursor; }
@@ -153,11 +166,19 @@ Pane {
                 Qt.callLater(function () { if (root) threadListView.contentY = root.feedScrollY; });
             }
         } else if (forum.state.view === "thread" && forum.state.threadId === selected && discussionFingerprint !== fingerprint) {
+            var firstSnapshot = discussionFingerprint === "";
             var postY = postsView.contentY;
             discussionFingerprint = fingerprint;
             discussionPosts = data;
             Qt.callLater(function () {
-                if (root && !root.pendingReplyScroll) postsView.contentY = Math.max(0, Math.min(postY, Math.max(0, postsView.contentHeight - postsView.height)));
+                if (root && root.pendingQuoteJump) root.finishQuoteJump();
+                else if (root && !root.pendingReplyScroll) {
+                    if (firstSnapshot) postsView.positionViewAtBeginning();
+                    else {
+                        var start = postsView.originY;
+                        postsView.contentY = Math.max(start, Math.min(postY, Math.max(start, postsView.originY + postsView.contentHeight - postsView.height)));
+                    }
+                }
             });
         }
     }
@@ -166,6 +187,7 @@ Pane {
         onStateChanged: root.syncViewData()
         onLoadingChanged: {
             if (!loading) loadingIndicator.visible = false;
+            if (!loading && root.pendingQuoteJump) Qt.callLater(root.finishQuoteJump);
             if (!loading && root.pendingReplyScroll && root.findPost(root.pendingReplyScroll)) {
                 root.pendingReplyScroll = "";
                 Qt.callLater(function () { postsView.positionViewAtEnd(); });
@@ -173,7 +195,7 @@ Pane {
         }
         browseQuery: ({view: root.selected ? "thread" : "feed", thread: root.selected,
             board: root.selected ? "all" : root.board, search: root.selected ? "" : root.searchText,
-            sort: root.selected ? "activity" : root.sorting, saved: root.selected ? false : root.showingSaved,
+            sort: root.selected ? "activity" : root.sorting,
             cursor: root.selected ? root.replyCursor : root.feedCursor, limit: root.selected ? 50 : 30})
     }
     function findPost(pid) {
@@ -189,6 +211,9 @@ Pane {
     }
     function shortId(pid) {
         return pid ? pid.substring(0, 8) : "";
+    }
+    function authorName(p) {
+        return p.mode === "anonymous" ? "Anonymous" : p.mode === "uid" ? shortId(p.author) : p.author;
     }
     function displayAuthor(p) {
         return p.mode === "anonymous" ? "Anonymous" : p.mode === "uid" ? shortId(p.author) : p.author + " · " + shortId(p.authorId);
@@ -218,10 +243,23 @@ Pane {
     function saveReplyDraft() {
         replyDraftTimer.stop();
         if (selected) {
-            replyDraftCache[selected] = replyInput.text;
-            replyAttachmentCache[selected] = replyAttachments;
-            forum.draft("files/" + selected, JSON.stringify(replyAttachments));
-            forum.draft(selected, replyInput.text);
+            var threadId = selected, body = replyInput.text, files = JSON.stringify(replyAttachments);
+            var generation = ++replyDraftGeneration, remaining = 2;
+            replyDraftCache[threadId] = body;
+            replyAttachmentCache[threadId] = replyAttachments;
+            replyDraftStatus = "Saving draft…";
+            function stillCurrent() { return root.selected === threadId && root.replyDraftGeneration === generation; }
+            function saved() {
+                remaining--;
+                if (remaining === 0 && stillCurrent()) root.replyDraftStatus = root.hasReplyDraft ? "Draft saved" : "";
+            }
+            function failed(message) {
+                remaining = -1;
+                if (stillCurrent()) root.replyDraftStatus = "Draft not saved";
+                forum.error = message;
+            }
+            forum.draft("files/" + threadId, files, saved, failed);
+            forum.draft(threadId, body, saved, failed);
         }
     }
     function leaveThread() {
@@ -236,7 +274,6 @@ Pane {
         leaveThread();
         resetFeedPages();
         board = id;
-        showingSaved = false;
     }
     function openThread(pid) {
         saveReplyDraft();
@@ -252,6 +289,9 @@ Pane {
             replyAttachments = [];
         }
         replyExpanded = false;
+        replyDraftStatus = "";
+        // Reconfirm restored drafts, including any cached write that failed earlier.
+        if (hasReplyDraft) saveReplyDraft();
         postsView.positionViewAtBeginning();
     }
     function showPostedReply(threadId, replyId) {
@@ -267,6 +307,48 @@ Pane {
     function beginReply() {
         replyExpanded = true;
         replyInput.forceActiveFocus();
+    }
+    function finishQuoteJump() {
+        if (!pendingQuoteJump || forum.loading) return;
+        var index = discussionPosts.findIndex(function(p) { return p.id === root.pendingQuoteJump; });
+        if (index < 0) return;
+        postsView.forceLayout();
+        if (index === 0) postsView.positionViewAtBeginning();
+        else postsView.positionViewAtIndex(index, ListView.Beginning);
+        highlightedPost = pendingQuoteJump;
+        pendingQuoteJump = "";
+        quoteHighlightTimer.restart();
+        postsView.forceActiveFocus();
+    }
+    function navigateToQuotedPost(post) {
+        var threadId = post.thread || post.id;
+        if (selected !== threadId) openThread(threadId);
+        var epoch = ++quoteNavigationEpoch;
+        pendingReplyScroll = "";
+        pendingQuoteJump = post.id;
+        if (discussionPosts.some(function(p) { return p.id === post.id; })) {
+            Qt.callLater(root.finishQuoteJump);
+            return;
+        }
+        if (!post.thread) { forum.refresh(); return; }
+        forum.call({op: "replyPage", id: post.id}, function(page) {
+            if (root.quoteNavigationEpoch !== epoch || root.selected !== threadId) return;
+            root.replyHistory = page.pageCursor ? [""] : [];
+            if (root.replyCursor !== page.pageCursor) root.replyCursor = page.pageCursor;
+            else forum.refresh();
+        }, function(message) {
+            if (root.quoteNavigationEpoch !== epoch) return;
+            root.pendingQuoteJump = "";
+            forum.error = message;
+        });
+    }
+    function minimizeReply() {
+        saveReplyDraft();
+        replyExpanded = false;
+        if (replyTrigger && replyTrigger.visible)
+            replyTrigger.forceActiveFocus(Qt.TabFocusReason);
+        else
+            postsView.forceActiveFocus(Qt.TabFocusReason);
     }
     function quote(p) {
         replyInput.text += (replyInput.text ? "\n\n" : "") + ">>" + shortId(p.id) + "\n> " + p.body.split("\n").slice(0, 3).join("\n> ") + "\n\n";
@@ -367,7 +449,7 @@ Pane {
                     NavigationTab {
                         objectName: "discussionsTab"
                         text: "/all/"
-                        selected: root.board === "all" && !root.showingSaved
+                        selected: root.board === "all"
                         palette.text: theme.text
                         palette.placeholderText: theme.muted
                         onClicked: root.goBoard("all")
@@ -378,7 +460,7 @@ Pane {
                             required property var modelData
                             objectName: "board-" + modelData.id
                             text: "/" + modelData.id + "/"
-                            selected: root.board === modelData.id && !root.showingSaved
+                            selected: root.board === modelData.id
                             palette.text: theme.text
                             palette.placeholderText: theme.muted
                             onClicked: root.goBoard(modelData.id)
@@ -594,7 +676,7 @@ Pane {
                 Layout.bottomMargin: 12
                 spacing: 12
                 RowLayout {
-                    visible: root.selected !== "" || root.showingSaved
+                    visible: root.selected !== ""
                     Layout.fillWidth: true
                     Layout.topMargin: 12
                     Layout.leftMargin: root.rowInset
@@ -627,10 +709,7 @@ Pane {
                                 Behavior on color { ColorAnimation { duration: 100 } }
                             }
                         }
-                        onClicked: {
-                            if (root.selected) root.leaveThread();
-                            else root.showingSaved = false;
-                        }
+                        onClicked: root.leaveThread()
                     }
                     Text {
                         text: "/"
@@ -638,7 +717,7 @@ Pane {
                         font.pixelSize: 13
                     }
                     Text {
-                        text: root.showingSaved ? "Saved threads" : root.boardName(root.current ? root.current.board : root.board)
+                        text: root.boardName(root.current ? root.current.board : root.board)
                         color: theme.muted
                         font.family: "Adwaita Sans"
                         font.pixelSize: 14
@@ -669,6 +748,7 @@ Pane {
                     Item {
                         ListView {
                             id: threadListView
+                            footer: LogosFooter { view: threadListView; rightInset: root.rowInset }
                             objectName: "threadListView"
                             anchors.fill: parent
                             clip: true
@@ -710,11 +790,29 @@ Pane {
                                     anchors.top: parent.top
                                     anchors.topMargin: 16
                                     spacing: root.narrow ? 12 : 28 * root.uiScale
+                                    Loader {
+                                        objectName: "feed-preview-" + row.modelData.id
+                                        active: (row.modelData.attachments || []).length > 0
+                                        visible: active
+                                        Layout.preferredWidth: root.narrow ? 80 : 136
+                                        Layout.preferredHeight: root.narrow ? 72 : 106
+                                        Layout.alignment: Qt.AlignTop
+                                        sourceComponent: FeedAttachmentPreview {
+                                            attachment: (row.modelData.attachments || [])[0] || null
+                                            count: (row.modelData.attachments || []).length
+                                            controller: forum
+                                            ink: theme.text
+                                            muted: theme.muted
+                                            surface: theme.surface
+                                            outline: theme.border
+                                        }
+                                    }
                                     ColumnLayout {
+                                        objectName: "feed-text-" + row.modelData.id
+                                        Layout.alignment: Qt.AlignTop
                                         Layout.fillWidth: true
                                         Layout.minimumWidth: 0
                                         Layout.preferredWidth: 0
-                                        Layout.maximumWidth: Math.max(150, threadContents.width - (root.narrow ? 86 : 280 * root.uiScale))
                                         spacing: 5 * root.uiScale
                                         Text {
                                             Layout.fillWidth: true
@@ -727,14 +825,31 @@ Pane {
                                             maximumLineCount: 2
                                             elide: Text.ElideRight
                                         }
-                                        Text {
+                                        Row {
+                                            id: feedMetadata
                                             Layout.fillWidth: true
-                                            text: "/" + row.modelData.board + "/  ·  " + (row.modelData.mode === "anonymous" ? "Anonymous" : row.modelData.mode === "uid" ? root.shortId(row.modelData.author) : row.modelData.author) + "  ·  " + root.activityAge(row.modelData.created) + (root.narrow ? "  ·  " + row.modelData.replyCount + (row.modelData.replyCount === 1 ? " reply" : " replies") : "") + (row.modelData.status === "queued" ? "  ·  Pending" : row.modelData.status === "failed" ? "  ·  Retry pending" : row.modelData.status === "sending" ? "  ·  Sending…" : "")
-                                            textFormat: Text.PlainText
-                                            color: theme.muted
-                                            font.family: "Adwaita Sans"
-                                            font.pixelSize: root.narrow ? 11 : 14 * root.uiScale
-                                            wrapMode: Text.Wrap
+                                            spacing: 6
+                                            Text {
+                                                width: Math.min(implicitWidth, Math.max(0, feedMetadata.width - (feedDelivery.visible ? feedDelivery.width + 6 : 0)))
+                                                text: "/" + row.modelData.board + "/  ·  " + (row.modelData.mode === "anonymous" ? "Anonymous" : row.modelData.mode === "uid" ? root.shortId(row.modelData.author) : row.modelData.author) + "  ·  " + root.activityAge(row.modelData.created) + (row.modelData.replyCount > 0 ? "  ·  " + row.modelData.replyCount + (row.modelData.replyCount === 1 ? " reply" : " replies") : "")
+                                                textFormat: Text.PlainText
+                                                color: theme.muted
+                                                font.family: "Adwaita Sans"
+                                                font.pixelSize: root.narrow ? 11 : 14 * root.uiScale
+                                                wrapMode: Text.Wrap
+                                            }
+                                            DeliveryStatus {
+                                                publishingDetail: forum.connection === "online" && !forum.publishingReady ? forum.publishingDetail : ""
+                                                id: feedDelivery
+                                                y: Math.round((feedMetadata.height - height) / 2)
+                                                objectName: "feed-status-" + row.modelData.id
+                                                status: row.modelData.status || ""
+                                                error: row.modelData.error || ""
+                                                ink: theme.muted
+                                                surface: theme.surface
+                                                outline: theme.border
+                                                textColor: theme.text
+                                            }
                                         }
                                         Text {
                                             Layout.fillWidth: true
@@ -750,6 +865,7 @@ Pane {
                                             lineHeight: 1.3
                                         }
                                         Rectangle {
+                                            id: latestPreview
                                             property var replyPosts: root.feedPosts.filter(function (p) { return p.thread === row.modelData.id; })
                                             property var latestReply: replyPosts.length ? replyPosts[replyPosts.length - 1] : null
                                             visible: latestReply !== null
@@ -769,14 +885,31 @@ Pane {
                                                 anchors.right: parent.right
                                                 anchors.leftMargin: 20 * root.uiScale
                                                 spacing: 6
-                                                Text {
+                                                Row {
+                                                    id: previewMetadata
                                                     Layout.fillWidth: true
-                                                    text: parent.parent.latestReply ? (parent.parent.latestReply.mode === "anonymous" ? "Anonymous" : parent.parent.latestReply.mode === "uid" ? root.shortId(parent.parent.latestReply.author) : parent.parent.latestReply.author) + "  ·  " + root.activityAge(parent.parent.latestReply.created) : ""
-                                                    textFormat: Text.PlainText
-                                                    elide: Text.ElideRight
-                                                    color: theme.accent
-                                                    font.family: "Adwaita Sans"
-                                                    font.pixelSize: root.narrow ? 11 : 14 * root.uiScale
+                                                    spacing: 6
+                                                    Text {
+                                                        width: Math.min(implicitWidth, Math.max(0, previewMetadata.width - (previewDelivery.visible ? previewDelivery.width + 6 : 0)))
+                                                        text: latestPreview.latestReply ? (latestPreview.latestReply.mode === "anonymous" ? "Anonymous" : latestPreview.latestReply.mode === "uid" ? root.shortId(latestPreview.latestReply.author) : latestPreview.latestReply.author) + "  ·  " + root.activityAge(latestPreview.latestReply.created) : ""
+                                                        textFormat: Text.PlainText
+                                                        elide: Text.ElideRight
+                                                        color: theme.accent
+                                                        font.family: "Adwaita Sans"
+                                                        font.pixelSize: root.narrow ? 11 : 14 * root.uiScale
+                                                    }
+                                                    DeliveryStatus {
+                                                publishingDetail: forum.connection === "online" && !forum.publishingReady ? forum.publishingDetail : ""
+                                                        id: previewDelivery
+                                                        y: Math.round((previewMetadata.height - height) / 2)
+                                                        objectName: "preview-status-" + (latestPreview.latestReply ? latestPreview.latestReply.id : "")
+                                                        status: latestPreview.latestReply ? latestPreview.latestReply.status : ""
+                                                        error: latestPreview.latestReply ? latestPreview.latestReply.error || "" : ""
+                                                        ink: theme.muted
+                                                        surface: theme.surface
+                                                        outline: theme.border
+                                                        textColor: theme.text
+                                                    }
                                                 }
                                                 Text {
                                                     Layout.fillWidth: true
@@ -790,38 +923,20 @@ Pane {
                                             }
                                         }
                                     }
-                                    ColumnLayout {
-                                        visible: !root.narrow
-                                        Layout.minimumWidth: 170 * root.uiScale
-                                        Layout.maximumWidth: 170 * root.uiScale
+                                    RowLayout {
                                         Layout.alignment: Qt.AlignTop
-                                        Layout.topMargin: 5
-                                        spacing: 6
-                                        Text {
-                                            text: row.modelData.replyCount + (row.modelData.replyCount === 1 ? " reply" : " replies")
-                                            color: theme.text
-                                            font.family: "Adwaita Sans"
-                                            font.pixelSize: 14 * root.uiScale
-                                        }
-                                        Text {
-                                            text: "Active " + root.activityAge(row.modelData.lastActivity || row.modelData.created)
-                                            color: theme.muted
-                                            font.family: "Adwaita Sans"
-                                            font.pixelSize: 14 * root.uiScale
-                                        }
-                                    }
-                                    ForumButton {
-                                        objectName: "reply-" + row.modelData.id
-                                        Layout.alignment: Qt.AlignTop
-                                        Layout.topMargin: 0
-                                        implicitWidth: root.narrow ? 72 : 82 * root.uiScale
-                                        implicitHeight: 40
-                                        text: "Reply"
-                                        font.pixelSize: 14
-                                        font.weight: Font.Medium
-                                        onClicked: {
-                                            root.openThread(row.modelData.id);
-                                            root.beginReply();
+                                        spacing: 0
+                                        PostAction {
+                                            id: replyAction
+                                            objectName: "reply-" + row.modelData.id
+                                            text: "Reply"
+                                            ink: theme.muted
+                                            activeInk: theme.text
+                                            Accessible.name: "Reply to " + row.modelData.title
+                                            onClicked: {
+                                                root.openThread(row.modelData.id);
+                                                root.beginReply();
+                                            }
                                         }
                                     }
                                 }
@@ -834,7 +949,7 @@ Pane {
                             spacing: 14
                             Text {
                                 font.family: "Adwaita Sans"
-                                text: root.searchText ? "No matching discussions." : root.showingSaved ? "Good threads are worth keeping." : "A good forum starts with a question."
+                                text: root.searchText ? "No matching discussions." : "A good forum starts with a question."
                                 Layout.fillWidth: true
                                 wrapMode: Text.Wrap
                                 font.pixelSize: 25
@@ -843,7 +958,7 @@ Pane {
                             }
                             Text {
                                 font.family: "Adwaita Sans"
-                                text: root.searchText ? "Try another phrase or change boards." : root.showingSaved ? "Save a thread from its discussion page to find it here." : "What are you working on? What do you disagree with? What would you like to understand better?"
+                                text: root.searchText ? "Try another phrase or change boards." : "What are you working on? What do you disagree with? What would you like to understand better?"
                                 Layout.fillWidth: true
                                 wrapMode: Text.Wrap
                                 font.pixelSize: 14
@@ -867,255 +982,522 @@ Pane {
                     }
                     ColumnLayout {
                         spacing: 10
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: threadTitle.implicitHeight + 22
-                            color: "transparent"
-                            radius: 4
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.topMargin: 11
-                                anchors.bottomMargin: 11
-                                anchors.leftMargin: root.rowInset
-                                anchors.rightMargin: root.rowInset
-                                Text {
-                                    id: threadTitle
-                                    font.family: "Liberation Serif"
-                                    Layout.fillWidth: true
-                                    text: root.current ? root.current.title : forum.loading ? "Loading discussion…" : "Thread not found"
-                                    wrapMode: Text.Wrap
-                                    font.pixelSize: root.narrow ? 25 : 34
-                                    font.weight: Font.DemiBold
-                                    color: theme.text
-                                    textFormat: Text.PlainText
-                                }
-                                ForumButton {
-                                    text: forum.state.saved.indexOf(root.selected) >= 0 ? "★ Saved" : "☆ Save"
-                                    onClicked: forum.mutate({
-                                        op: "bookmark",
-                                        id: root.selected
-                                    })
-                                }
-                            }
-                        }
                         ListView {
                             id: postsView
+                            footer: LogosFooter { view: postsView; rightInset: root.rowInset }
                             objectName: "postsView"
                             Layout.fillWidth: true
                             Layout.fillHeight: true
+                            Layout.minimumHeight: 40
                             clip: true
-                            spacing: 6
+                            spacing: 12
                             boundsBehavior: Flickable.StopAtBounds
                             ScrollBar.vertical: ScrollBar {}
                             model: root.discussionPosts
-                            delegate: Rectangle {
+                            header: Item {
+                                width: postsView.width
+                                height: threadTitle.implicitHeight + 16
+                                property real previousHeight: 0
+                                onHeightChanged: {
+                                    // Keep the title's first line visible when a top-of-thread
+                                    // viewport gets narrower and the heading wraps.
+                                    var wasAtTop = postsView.contentY <= postsView.originY + height - previousHeight + 1;
+                                    previousHeight = height;
+                                    if (wasAtTop)
+                                        Qt.callLater(function () { postsView.forceLayout(); postsView.positionViewAtBeginning(); });
+                                }
+                                Text {
+                                    id: threadTitle
+                                    objectName: "threadTitle"
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.leftMargin: root.rowInset
+                                    anchors.rightMargin: root.rowInset
+                                    font.family: "Liberation Serif"
+                                    text: root.current ? root.current.title : forum.loading ? "Loading discussion…" : "Thread not found"
+                                    wrapMode: Text.Wrap
+                                    font.pixelSize: root.width < 600 ? 26 : 30
+                                    font.weight: Font.Normal
+                                    color: theme.text
+                                    textFormat: Text.PlainText
+                                }
+                            }
+                            delegate: Item {
                                 id: post
                                 required property var modelData
                                 required property int index
+                                objectName: "post-card-" + modelData.id
+                                readonly property bool originalPost: modelData.id === root.selected
+                                readonly property var imageAttachments: (modelData.attachments || []).filter(function(a) { return a.mime.indexOf("image/") === 0; })
+                                readonly property var otherAttachments: (modelData.attachments || []).filter(function(a) { return a.mime.indexOf("image/") !== 0; })
+                                readonly property bool sideImage: imageAttachments.length === 1 && postColumn.width >= 800
+                                readonly property real contentPadding: root.width < 600 ? 16 : 20
                                 width: ListView.view.width
-                                height: postColumn.implicitHeight + 24
-                                color: "transparent"
-                                radius: 0
-                                border.width: 0
-                                ColumnLayout {
+                                height: postColumn.implicitHeight + 2 * contentPadding
+                                Rectangle {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: root.rowInset
+                                    anchors.rightMargin: root.rowInset
+                                    color: root.highlightedPost === post.modelData.id ? theme.alternate : post.originalPost ? theme.surface : root.darkTheme ? "#131313" : "#fcfcfc"
+                                    radius: 12
+                                    border.width: 1
+                                    border.color: root.highlightedPost === post.modelData.id ? theme.muted : root.darkTheme ? "#292929" : "#e3e3e3"
+                                    Behavior on color { ColorAnimation { duration: 180 } }
+                                    Behavior on border.color { ColorAnimation { duration: 180 } }
+                                }
+                                GridLayout {
                                     id: postColumn
                                     anchors.left: parent.left
                                     anchors.right: parent.right
                                     anchors.top: parent.top
-                                    anchors.topMargin: 12
-                                    anchors.leftMargin: root.rowInset
-                                    anchors.rightMargin: root.rowInset
-                                    spacing: 8
-                                    RowLayout {
-                                        Layout.fillWidth: true
-                                        Text {
-                                            font.family: "Adwaita Sans"
-                                            text: root.displayAuthor(post.modelData)
-                                            font.pixelSize: 12
-                                            font.weight: Font.DemiBold
-                                            color: theme.accent
-                                            textFormat: Text.PlainText
-                                            elide: Text.ElideRight
-                                            Layout.maximumWidth: 180
-                                        }
-                                        Text {
-                                            font.family: "Adwaita Sans"
-                                            text: post.index === 0 ? "OP" : ""
-                                            font.pixelSize: 10
-                                            color: theme.quote
-                                        }
-                                        Text {
-                                            font.family: "Adwaita Sans"
-                                            text: ">>" + root.shortId(post.modelData.id)
-                                            font.pixelSize: 11
-                                            color: theme.quote
-                                        }
-                                        Item {
-                                            Layout.fillWidth: true
-                                        }
-                                        Text {
-                                            font.family: "Adwaita Sans"
-                                            text: root.age(post.modelData.created)
-                                            font.pixelSize: 11
-                                            color: theme.muted
-                                        }
-                                        ForumButton {
-                                            text: "Quote"
-                                            flat: true
-                                            implicitHeight: 30
-                                            implicitWidth: 65
-                                            onClicked: root.quote(post.modelData)
-                                        }
-                                    }
-                                    TextArea {
-                                        objectName: "post-body-" + post.modelData.id
-                                        Layout.fillWidth: true
-                                        text: post.modelData.body
-                                        readOnly: true
-                                        selectByMouse: true
-                                        wrapMode: TextEdit.Wrap
-                                        textFormat: TextEdit.PlainText
-                                        font.pixelSize: 15
-                                        Layout.maximumWidth: 780
-                                        color: theme.text
-                                        padding: 0
-                                        background: null
-                                    }
+                                    anchors.topMargin: post.contentPadding
+                                    anchors.leftMargin: root.rowInset + post.contentPadding
+                                    anchors.rightMargin: root.rowInset + post.contentPadding
+                                    columns: post.sideImage ? 2 : 1
+                                    columnSpacing: 24
+                                    rowSpacing: 18
                                     Flow {
-                                        Layout.fillWidth: true
+                                        objectName: "post-images-" + post.modelData.id
+                                        Layout.fillWidth: !post.sideImage
+                                        Layout.preferredWidth: post.sideImage ? 260 : -1
+                                        Layout.alignment: Qt.AlignTop | Qt.AlignLeft
+                                        visible: post.imageAttachments.length > 0
                                         spacing: 12
                                         Repeater {
-                                            model: post.modelData.attachments || []
+                                            model: post.imageAttachments
                                             AttachmentCard {
                                                 required property var modelData
+                                                width: Math.min(260, parent ? parent.width : 260)
+                                                imageOnly: true
+                                                imageHeight: post.imageAttachments.length === 1 ? 220 : 180
                                                 attachment: modelData
                                                 controller: forum
                                                 ink: theme.text
                                                 muted: theme.muted
                                                 surface: theme.surface
                                                 outline: theme.border
-                                                onDownloadRequested: function (aid, filename) {
+                                                onDownloadRequested: function(aid, filename) {
                                                     root.downloadingAttachment = aid;
                                                     attachmentSaver.open();
                                                 }
                                             }
                                         }
                                     }
-                                    Text {
-                                        font.family: "Adwaita Sans"
+                                    ColumnLayout {
+                                        objectName: "post-text-" + post.modelData.id
                                         Layout.fillWidth: true
-                                        text: root.statusLabel(post.modelData.status) + (post.modelData.error ? " · " + post.modelData.error : "")
-                                        wrapMode: Text.Wrap
-                                        font.pixelSize: 10
-                                        color: post.modelData.status === "failed" ? theme.error : theme.muted
-                                        textFormat: Text.PlainText
+                                        Layout.alignment: Qt.AlignTop
+                                        spacing: 10
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 10
+                                            PostAvatar {
+                                                objectName: "post-avatar-" + post.modelData.id
+                                                Layout.preferredWidth: 28
+                                                Layout.preferredHeight: 28
+                                                color: theme.alternate
+                                                ink: theme.muted
+                                                initial: post.modelData.mode === "anonymous" ? "·" : root.authorName(post.modelData).substring(0, 1).toUpperCase()
+                                                avatar: forum.avatarForPost(post.modelData)
+                                            }
+                                            Text {
+                                                Layout.maximumWidth: Math.max(40, parent.width - 240)
+                                                text: root.authorName(post.modelData)
+                                                font.family: "Adwaita Sans"
+                                                font.pixelSize: 14
+                                                font.weight: Font.DemiBold
+                                                color: theme.text
+                                                textFormat: Text.PlainText
+                                                elide: Text.ElideRight
+                                                HoverHandler { id: authorHover }
+                                                ToolTip.visible: authorHover.hovered
+                                                ToolTip.delay: 500
+                                                ToolTip.text: root.displayAuthor(post.modelData) + "\nPost >>" + root.shortId(post.modelData.id) + " · " + root.statusLabel(post.modelData.status)
+                                                Accessible.description: root.displayAuthor(post.modelData) + ". Post " + root.shortId(post.modelData.id) + ". " + root.statusLabel(post.modelData.status)
+                                            }
+                                            Text {
+                                                text: root.activityAge(post.modelData.created)
+                                                font.family: "Adwaita Sans"
+                                                font.pixelSize: 13
+                                                color: theme.muted
+                                            }
+                                            DeliveryStatus {
+                                                    publishingDetail: forum.connection === "online" && !forum.publishingReady ? forum.publishingDetail : ""
+                                                id: postDeliveryStatus
+                                                objectName: "post-status-" + post.modelData.id
+                                                status: post.modelData.status || ""
+                                                error: post.modelData.error || ""
+                                                ink: theme.muted
+                                                surface: theme.surface
+                                                outline: theme.border
+                                                textColor: theme.text
+                                            }
+                                            ForumButton {
+                                                objectName: "retry-post-" + post.modelData.id
+                                                visible: post.modelData.status === "failed"
+                                                text: "Retry sending"
+                                                implicitHeight: 40
+                                                palette.buttonText: postDeliveryStatus.ink
+                                                Accessible.description: "Retry this post without creating a duplicate. Publishing checks still apply."
+                                                onClicked: forum.retryPost(post.modelData.id)
+                                            }
+                                            Item { Layout.fillWidth: true }
+                                            RowLayout {
+                                                spacing: 0
+                                                PostAction {
+                                                    id: postReplyButton
+                                                    objectName: post.originalPost ? "beginReplyButton" : "reply-" + post.modelData.id
+                                                    text: "Reply"
+                                                    ink: theme.muted
+                                                    activeInk: theme.text
+                                                    Accessible.name: "Reply to " + root.authorName(post.modelData)
+                                                    Accessible.description: "Reply with this message quoted for context"
+                                                    onClicked: {
+                                                        root.replyTrigger = postReplyButton;
+                                                        root.quote(post.modelData);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        PostBody {
+                                            objectName: "post-body-" + post.modelData.id
+                                            Layout.fillWidth: true
+                                            text: post.modelData.body
+                                            controller: forum
+                                            onPostActivated: function(target) { root.navigateToQuotedPost(target); }
+                                            ink: theme.text
+                                            quoteInk: theme.quote
+                                            muted: theme.muted
+                                            quoteSurface: root.darkTheme ? "#222222" : "#eeeeee"
+                                            quoteOutline: root.darkTheme ? "#2b2b2b" : "#e1e1e1"
+                                        }
+                                        Flow {
+                                            Layout.fillWidth: true
+                                            visible: post.otherAttachments.length > 0
+                                            spacing: 12
+                                            Repeater {
+                                                model: post.otherAttachments
+                                                AttachmentCard {
+                                                    required property var modelData
+                                                    attachment: modelData
+                                                    controller: forum
+                                                    ink: theme.text
+                                                    muted: theme.muted
+                                                    surface: theme.surface
+                                                    outline: theme.border
+                                                    onDownloadRequested: function (aid, filename) {
+                                                        root.downloadingAttachment = aid;
+                                                        attachmentSaver.open();
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
-                        ForumButton {
-                            objectName: "beginReplyButton"
-                            visible: !root.replyExpanded
+                        Item {
+                            id: replyArea
+                            objectName: "replyArea"
+                            visible: !!root.current && (root.replyExpanded || progress > 0)
                             Layout.fillWidth: true
-                            text: replyInput.text.trim() ? "Continue your draft…" : "Write a reply…"
-                            onClicked: root.beginReply()
-                        }
-                        Rectangle {
-                            visible: root.replyExpanded
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: replyBox.implicitHeight + 20
-                            color: theme.surface
-                            radius: 4
-                            border.color: theme.border
-                            ColumnLayout {
-                                id: replyBox
-                                anchors.fill: parent
-                                anchors.margins: 10
-                                spacing: 7
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    Text {
-                                        font.family: "Adwaita Sans"
+                            Layout.topMargin: 12 * progress
+                            Layout.preferredHeight: replyComposer.height * progress
+                            clip: true
+                            property real progress: root.replyExpanded ? 1 : 0
+                            Behavior on progress {
+                                enabled: !!root.current
+                                NumberAnimation {
+                                    duration: root.replyExpanded ? 220 : 160
+                                    easing.type: Easing.OutCubic
+                                }
+                            }
+                            Rectangle {
+                                id: replyComposer
+                                objectName: "replyComposer"
+                                visible: root.replyExpanded || replyArea.progress > 0
+                                enabled: root.replyExpanded
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                anchors.bottom: parent.bottom
+                                width: Math.min(880, parent.width - 2 * root.rowInset)
+                                height: replyBox.implicitHeight + 40
+                                opacity: Math.max(0, (replyArea.progress - 0.2) / 0.8)
+                                transform: Translate { y: 12 * (1 - replyArea.progress) }
+                                color: theme.surface
+                                radius: 20
+                                border.width: 1
+                                border.color: theme.border
+                                ColumnLayout {
+                                    id: replyBox
+                                    anchors.fill: parent
+                                    anchors.margins: root.width < 600 ? 16 : 20
+                                    spacing: 14
+                                    RowLayout {
                                         Layout.fillWidth: true
-                                        text: "Your reply"
-                                        font.pixelSize: 12
-                                        color: theme.muted
-                                    }
-                                    ForumButton {
-                                        text: "Collapse"
-                                        flat: true
-                                        implicitHeight: 28
-                                        onClicked: {
-                                            root.saveReplyDraft();
-                                            root.replyExpanded = false;
+                                        spacing: 8
+                                        ForumButton {
+                                            id: replyIdentityButton
+                                            objectName: "replyIdentityButton"
+                                            Layout.maximumWidth: replyBox.width - 48
+                                            implicitWidth: identityContents.implicitWidth + 12
+                                            implicitHeight: 40
+                                            flat: true
+                                            padding: 0
+                                            cornerRadius: 14
+                                            enabled: !forum.posting
+                                            Accessible.name: "Replying as " + root.replyIdentity + ". Change posting identity"
+                                            onClicked: identityDialog.open()
+                                            contentItem: RowLayout {
+                                                id: identityContents
+                                                spacing: 10
+                                                PostAvatar {
+                                                    objectName: "replyIdentityAvatar"
+                                                    Layout.preferredWidth: 32
+                                                    Layout.preferredHeight: 32
+                                                    color: theme.alternate
+                                                    ink: theme.text
+                                                    initial: forum.state.mode === "anonymous" ? "·" : root.replyIdentity.substring(0, 1).toUpperCase()
+                                                    avatar: forum.state.mode === "anonymous" ? null : forum.state.avatar || null
+                                                }
+                                                Text {
+                                                    visible: replyComposer.width >= 380
+                                                    text: "Replying as"
+                                                    font.family: "Adwaita Sans"
+                                                    font.pixelSize: 14
+                                                    color: theme.muted
+                                                }
+                                                Text {
+                                                    Layout.maximumWidth: Math.max(60, replyComposer.width - (replyComposer.width >= 380 ? 250 : 170))
+                                                    text: root.replyIdentity
+                                                    elide: Text.ElideRight
+                                                    textFormat: Text.PlainText
+                                                    font.family: "Adwaita Sans"
+                                                    font.pixelSize: 14
+                                                    font.weight: Font.Medium
+                                                    color: theme.text
+                                                }
+                                                ForumIcon {
+                                                    name: "chevron-down"
+                                                    ink: theme.muted
+                                                    Layout.preferredWidth: 16
+                                                    Layout.preferredHeight: 16
+                                                }
+                                            }
+                                        }
+                                        Item { Layout.fillWidth: true }
+                                        ForumButton {
+                                            id: minimizeReplyButton
+                                            objectName: "minimizeReplyButton"
+                                            implicitWidth: 40
+                                            implicitHeight: 40
+                                            padding: 10
+                                            cornerRadius: 12
+                                            flat: true
+                                            Accessible.name: "Minimize reply"
+                                            ToolTip.visible: hovered
+                                            ToolTip.delay: 600
+                                            ToolTip.text: "Minimize · Esc"
+                                            contentItem: ForumIcon {
+                                                name: "minus"
+                                                ink: minimizeReplyButton.hovered || minimizeReplyButton.visualFocus ? theme.text : theme.muted
+                                            }
+                                            onClicked: root.minimizeReply()
                                         }
                                     }
-                                }
-                                TextArea {
-                                    id: replyInput
-                                    objectName: "replyInput"
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: 64
-                                    placeholderText: "Add a thought. Ask a follow-up. Challenge an idea."
-                                    wrapMode: TextEdit.Wrap
-                                    font.pixelSize: 14
-                                    selectByMouse: true
-                                    onTextChanged: replyDraftTimer.restart()
-                                    Accessible.name: "Reply text"
-                                }
-                                AttachmentPickerRow {
-                                    ink: theme.text
-                                    muted: theme.muted
-                                    Layout.fillWidth: true
-                                    uploadAvailable: !!forum.state.storageEndpoint && (!root.current || root.current.status !== "local")
-                                    files: root.replyAttachments
-                                    onAddRequested: {
-                                        root.attachmentTarget = root.selected;
-                                        attachmentPicker.open();
+                                    ScrollView {
+                                        id: replyScroll
+                                        objectName: "replyScroll"
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: root.height < 650 ? 64 : 112
+                                        clip: true
+                                        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                                        TextArea {
+                                            id: replyInput
+                                            objectName: "replyInput"
+                                            width: replyScroll.availableWidth
+                                            placeholderText: "What would you like to share?"
+                                            wrapMode: TextEdit.Wrap
+                                            font.family: "Adwaita Sans"
+                                            font.pixelSize: 16
+                                            color: theme.text
+                                            placeholderTextColor: theme.muted
+                                            padding: 4
+                                            background: null
+                                            selectByMouse: true
+                                            readOnly: forum.posting
+                                            Keys.onPressed: function (event) {
+                                                if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
+                                                        && (event.modifiers & ~Qt.KeypadModifier) === Qt.ControlModifier) {
+                                                    event.accepted = true;
+                                                    if (!event.isAutoRepeat && submitReplyButton.enabled)
+                                                        submitReplyButton.clicked();
+                                                }
+                                            }
+                                            cursorDelegate: Rectangle {
+                                                objectName: "replyCaret"
+                                                width: 2
+                                                height: replyInput.cursorRectangle.height
+                                                color: theme.text
+                                                // A steady, high-contrast caret is easier to find at
+                                                // column zero, including on an otherwise empty line.
+                                                visible: replyInput.activeFocus && !replyInput.readOnly && replyInput.selectionStart === replyInput.selectionEnd
+                                            }
+                                            onTextChanged: {
+                                                root.replyDraftGeneration++;
+                                                root.replyDraftStatus = "Saving draft…";
+                                                replyDraftTimer.restart();
+                                            }
+                                            Accessible.name: "Reply text"
+                                            Accessible.description: "Your draft is saved on this device. Ctrl+Enter posts your reply. Escape minimizes the editor."
+                                        }
                                     }
-                                    onRemoveRequested: function (index) {
-                                        var f = root.replyAttachments.slice();
-                                        f.splice(index, 1);
-                                        root.replyAttachments = f;
-                                        root.saveReplyDraft();
-                                    }
-                                }
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    ForumButton {
-                                        text: forum.state.mode === "anonymous" ? "Anonymous" : forum.state.mode === "uid" ? "Unique ID" : forum.activeAlias()
-                                        onClicked: identityDialog.open()
+                                    ListView {
+                                        objectName: "replyAttachmentTray"
+                                        visible: root.replyAttachments.length > 0
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: 40
+                                        orientation: ListView.Horizontal
+                                        clip: true
+                                        spacing: 8
+                                        boundsBehavior: Flickable.StopAtBounds
+                                        model: root.replyAttachments
+                                        delegate: Rectangle {
+                                            id: attachedFile
+                                            required property var modelData
+                                            required property int index
+                                            width: Math.min(replyBox.width, fileName.implicitWidth + 64)
+                                            height: 40
+                                            radius: 10
+                                            color: theme.alternate
+                                            Text {
+                                                id: fileName
+                                                anchors.left: parent.left
+                                                anchors.leftMargin: 12
+                                                anchors.right: removeFile.left
+                                                anchors.rightMargin: 8
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                text: attachedFile.modelData.name
+                                                elide: Text.ElideMiddle
+                                                textFormat: Text.PlainText
+                                                font.family: "Adwaita Sans"
+                                                font.pixelSize: 12
+                                                color: theme.text
+                                            }
+                                            ForumButton {
+                                                id: removeFile
+                                                objectName: "removeReplyAttachment-" + attachedFile.index
+                                                anchors.right: parent.right
+                                                implicitWidth: 40
+                                                implicitHeight: 40
+                                                padding: 12
+                                                flat: true
+                                                enabled: !forum.posting
+                                                Accessible.name: "Remove " + attachedFile.modelData.name
+                                                contentItem: ForumIcon { name: "close"; ink: theme.muted }
+                                                onClicked: {
+                                                    var files = root.replyAttachments.slice();
+                                                    files.splice(attachedFile.index, 1);
+                                                    root.replyAttachments = files;
+                                                    root.saveReplyDraft();
+                                                }
+                                            }
+                                        }
                                     }
                                     Text {
-                                        font.family: "Adwaita Sans"
+                                        visible: root.replyLocalOnly || replyInput.text.length > 12000
                                         Layout.fillWidth: true
-                                        text: (root.replyAttachments.length && !forum.state.storageEndpoint) || (root.current && root.current.status === "local") ? "Local only · not published" : "Saved locally · public when sent"
-                                        font.pixelSize: 10
-                                        color: theme.muted
+                                        text: replyInput.text.length > 12000 ? "Reply is too long. Use 12,000 characters or fewer." : "Local only · this reply will stay on this device"
+                                        font.family: "Adwaita Sans"
+                                        font.pixelSize: 12
                                         wrapMode: Text.Wrap
+                                        color: theme.muted
                                     }
-                                    ForumButton {
-                                        text: forum.posting ? (forum.transferBusy ? "Uploading…" : "Saving…") : (root.replyAttachments.length && !forum.state.storageEndpoint) || (root.current && root.current.status === "local") ? "Save reply" : "Post reply"
-                                        primary: true
-                                        enabled: forum.ready && !forum.posting && replyInput.text.trim().length > 0 && replyInput.text.length <= 12000
-                                        onClicked: {
-                                            replyDraftTimer.stop();
-                                            var threadId = root.selected;
-                                            if (forum.posting) return;
-                                            forum.savePost(threadId, root.current.board, "", replyInput.text, function (result) {
-                                                root.replyDraftCache[threadId] = "";
-                                                root.replyAttachmentCache[threadId] = [];
-                                                forum.draft("files/" + threadId, "[]");
-                                                if (root.selected === threadId) {
-                                                    replyInput.text = "";
-                                                    root.replyAttachments = [];
-                                                    replyDraftTimer.stop();
-                                                    root.replyExpanded = false;
-                                                    root.showPostedReply(threadId, result.id);
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 14
+                                        ForumButton {
+                                            id: attachReplyButton
+                                            objectName: "attachReplyButton"
+                                            flat: true
+                                            padding: 2
+                                            implicitWidth: 74
+                                            implicitHeight: 44
+                                            cornerRadius: 12
+                                            enabled: !forum.posting && root.replyAttachments.length < 4
+                                            Accessible.name: "Attach an image, video or PDF"
+                                            ToolTip.visible: hovered
+                                            ToolTip.delay: 600
+                                            ToolTip.text: "Images, video or PDF · up to 64 MB"
+                                            contentItem: RowLayout {
+                                                spacing: 8
+                                                ForumIcon {
+                                                    name: "attach"
+                                                    ink: attachReplyButton.hovered || attachReplyButton.visualFocus ? theme.text : theme.muted
+                                                    Layout.preferredWidth: 20
+                                                    Layout.preferredHeight: 20
                                                 }
-                                            }, root.replyAttachments.map(function (f) {
-                                                return f.id;
-                                            }));
+                                                Text {
+                                                    text: "Attach"
+                                                    color: attachReplyButton.hovered || attachReplyButton.visualFocus ? theme.text : theme.muted
+                                                    font.family: "Adwaita Sans"
+                                                    font.pixelSize: 13
+                                                }
+                                            }
+                                            onClicked: {
+                                                root.attachmentTarget = root.selected;
+                                                attachmentPicker.open();
+                                            }
+                                        }
+                                        Rectangle {
+                                            visible: draftStatus.visible && draftStatus.text.length > 0
+                                            Layout.preferredWidth: 1
+                                            Layout.preferredHeight: 18
+                                            color: theme.border
+                                        }
+                                        Text {
+                                            id: draftStatus
+                                            objectName: "replyDraftStatus"
+                                            visible: replyComposer.width >= 340
+                                            text: root.replyDraftStatus
+                                            font.family: "Adwaita Sans"
+                                            font.pixelSize: 12
+                                            color: theme.muted
+                                            Accessible.name: text
+                                        }
+                                        Item { Layout.fillWidth: true }
+                                        ForumButton {
+                                            id: submitReplyButton
+                                            objectName: "submitReplyButton"
+                                            text: forum.posting ? (forum.transferBusy ? "Uploading…" : "Saving…") : "Post reply"
+                                            primary: true
+                                            implicitHeight: 44
+                                            font.pixelSize: 14
+                                            cornerRadius: 14
+                                            ToolTip.visible: hovered
+                                            ToolTip.delay: 600
+                                            ToolTip.text: "Post reply · Ctrl+Enter"
+                                            enabled: !!root.current && forum.ready && !forum.posting && replyInput.text.trim().length > 0 && replyInput.text.length <= 12000
+                                            onClicked: {
+                                                replyDraftTimer.stop();
+                                                var threadId = root.selected;
+                                                if (forum.posting) return;
+                                                forum.savePost(threadId, root.current.board, "", replyInput.text, function (result) {
+                                                    root.replyDraftCache[threadId] = "";
+                                                    root.replyAttachmentCache[threadId] = [];
+                                                    forum.draft("files/" + threadId, "[]");
+                                                    if (root.selected === threadId) {
+                                                        replyInput.text = "";
+                                                        root.replyAttachments = [];
+                                                        replyDraftTimer.stop();
+                                                        root.replyDraftStatus = "";
+                                                        root.replyExpanded = false;
+                                                        postsView.forceActiveFocus();
+                                                        root.showPostedReply(threadId, result.id);
+                                                    }
+                                                }, root.replyAttachments.map(function (f) {
+                                                    return f.id;
+                                                }));
+                                            }
                                         }
                                     }
                                 }
@@ -1142,32 +1524,58 @@ Pane {
                         onClicked: root.nextPage()
                     }
                 }
-                AbstractButton {
-                    id: logosReference
-                    HoverHandler { cursorShape: Qt.PointingHandCursor }
-                    Layout.rightMargin: root.rowInset
-                    Layout.alignment: Qt.AlignRight
-                    implicitWidth: 40
-                    implicitHeight: 32
-                    hoverEnabled: true
-                    Accessible.name: "Logos — open logos.co"
-                    ToolTip.visible: hovered
-                    ToolTip.delay: 700
-                    ToolTip.text: "Logos"
-                    background: Item {}
-                    contentItem: Item {
-                        Image {
-                            anchors.centerIn: parent
-                            source: "brand/logos-mark.png"
-                            sourceSize: Qt.size(24, 24)
-                            width: 24
-                            height: 24
-                            opacity: logosReference.hovered || logosReference.activeFocus ? 1 : 0.65
-                        }
-                    }
-                    onClicked: Qt.openUrlExternally("https://logos.co/")
+
+            }
+        }
+    }
+    component LogosFooter: Item {
+        id: footerRoot
+        objectName: "logosFooter"
+        required property ListView view
+        property real rightInset: 16
+        width: view.width
+        height: 64
+        // Measure after ListView lays out its items; a direct height/y binding
+        // feeds back into ListView's own positioning during model changes.
+        function fitPage() {
+            var needed = Math.max(64, view.height - (y - view.originY));
+            if (Math.abs(height - needed) > 0.5) height = needed;
+        }
+        onYChanged: Qt.callLater(fitPage)
+        Component.onCompleted: Qt.callLater(fitPage)
+        Connections {
+            target: footerRoot.view
+            function onHeightChanged() { Qt.callLater(footerRoot.fitPage); }
+            function onOriginYChanged() { Qt.callLater(footerRoot.fitPage); }
+            function onContentHeightChanged() { Qt.callLater(footerRoot.fitPage); }
+        }
+        AbstractButton {
+            id: logosReference
+            objectName: "logosReference"
+            HoverHandler { cursorShape: Qt.PointingHandCursor }
+            anchors.right: parent.right
+            anchors.rightMargin: footerRoot.rightInset
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 12
+            implicitWidth: 40
+            implicitHeight: 40
+            hoverEnabled: true
+            Accessible.name: "Logos — open logos.co"
+            ToolTip.visible: hovered
+            ToolTip.delay: 700
+            ToolTip.text: "Logos"
+            background: Item {}
+            contentItem: Item {
+                Image {
+                    anchors.centerIn: parent
+                    source: "brand/logos-mark.png"
+                    sourceSize: Qt.size(24, 24)
+                    width: 24
+                    height: 24
+                    opacity: logosReference.hovered || logosReference.activeFocus ? 1 : 0.65
                 }
             }
+            onClicked: Qt.openUrlExternally("https://logos.co/")
         }
     }
     Timer {
@@ -1190,7 +1598,7 @@ Pane {
     }
     Shortcut {
         sequences: [StandardKey.Find]
-        enabled: !composeDialog.visible && !identityDialog.visible && !networkDialog.visible
+        enabled: !composeDialog.visible && !identityDialog.visible
         onActivated: {
             root.leaveThread();
             (root.narrow ? compactSearch : headerSearch).forceActiveFocus();
@@ -1198,13 +1606,13 @@ Pane {
     }
     Shortcut {
         sequences: [StandardKey.Back]
-        enabled: !!root.selected && !composeDialog.visible && !identityDialog.visible && !networkDialog.visible
+        enabled: !!root.selected && !composeDialog.visible && !identityDialog.visible
         onActivated: root.leaveThread()
     }
     Shortcut {
         sequence: "Escape"
-        enabled: root.replyExpanded && !composeDialog.visible && !identityDialog.visible && !networkDialog.visible
-        onActivated: { root.saveReplyDraft(); root.replyExpanded = false; postsView.forceActiveFocus(); }
+        enabled: root.replyExpanded && !composeDialog.visible && !identityDialog.visible
+        onActivated: root.minimizeReply()
     }
     Timer {
         id: replyDraftTimer
@@ -1282,7 +1690,7 @@ Pane {
                 id: titleInput
                 objectName: "titleInput"
                 Layout.fillWidth: true
-                placeholderText: "A question, an idea, a work in progress…"
+                placeholderText: "Thread title"
                 maximumLength: 160
                 font.pixelSize: 15
                 selectByMouse: true
@@ -1296,7 +1704,7 @@ Pane {
                 TextArea {
                     id: bodyInput
                     objectName: "bodyInput"
-                    placeholderText: "What is the context? What would you like others to weigh in on?"
+                    placeholderText: "Write your post…"
                     wrapMode: TextEdit.Wrap
                     font.pixelSize: 14
                     selectByMouse: true
@@ -1306,11 +1714,12 @@ Pane {
             }
             Text {
                 font.family: "Adwaita Sans"
-                text: bodyInput.length + " / 12000 · " + (root.newAttachments.length && !forum.state.storageEndpoint ? "Local-only thread · attachments stay here" : forum.connection === "online" ? "Saved on this device before sending" : "Offline · saved here, sent when connected")
+                text: bodyInput.length + " / 12000" + (root.newAttachments.length && !forum.state.storageEndpoint ? " · Local-only thread · attachments stay here" : forum.connection === "online" ? "" : " · Offline · saved here, sent when connected")
                 font.pixelSize: 11
                 color: bodyInput.length > 12000 ? theme.error : theme.muted
             }
             AttachmentPickerRow {
+                controller: forum
                 ink: theme.text
                 muted: theme.muted
                 Layout.fillWidth: true
@@ -1450,31 +1859,6 @@ Pane {
             spacing: 12
             RowLayout {
                 Layout.fillWidth: true
-                ForumButton {
-                    objectName: "savedTab"
-                    text: "Saved threads"
-                    flat: true
-                    Layout.fillWidth: true
-                    onClicked: {
-                        identityDialog.close();
-                        root.goBoard("all");
-                        root.showingSaved = true;
-                    }
-                }
-                ForumButton {
-                    objectName: "networkStatus"
-                    text: "Network settings"
-                    flat: true
-                    Layout.fillWidth: true
-                    Accessible.name: "Network and delivery settings"
-                    onClicked: {
-                        identityDialog.close();
-                        networkDialog.open();
-                    }
-                }
-            }
-            RowLayout {
-                Layout.fillWidth: true
                 spacing: 16
                 ProfileButton {
                     implicitWidth: 64
@@ -1514,7 +1898,7 @@ Pane {
             Text {
                 font.family: "Adwaita Sans"
                 Layout.fillWidth: true
-                text: forum.error || "PNG or JPEG · up to 8 MB. Saved on this device for this identity."
+                text: forum.error || "PNG or JPEG · up to 8 MB"
                 wrapMode: Text.Wrap
                 font.pixelSize: 11
                 color: forum.error ? theme.error : theme.muted
@@ -1580,182 +1964,10 @@ Pane {
                     })
                 }
             }
-            Text {
-                font.family: "Adwaita Sans"
-                Layout.fillWidth: true
-                text: "Keys remain in your local database. Aliases are not unique: use the public ID to verify continuity. Identity rotation does not conceal network metadata."
-                wrapMode: Text.Wrap
-                font.pixelSize: 11
-                color: theme.muted
-            }
             ForumButton {
                 text: "Done"
                 Layout.alignment: Qt.AlignRight
                 onClicked: identityDialog.close()
-            }
-                    }
-        }
-    }
-    ForumDialog {
-        id: networkDialog
-        objectName: "networkDialog"
-        palette: root.palette
-        background: Rectangle {
-            color: theme.surface
-            border.color: theme.border
-            radius: 10
-        }
-        title: "Network & delivery"
-        property bool advanced: false
-        modal: true
-        anchors.centerIn: parent
-        width: Math.min(root.width - 30, 520)
-        contentItem: ScrollView {
-            id: networkDialogScroll
-            clip: true
-            implicitHeight: networkDialogContents.implicitHeight
-            contentWidth: availableWidth
-            contentHeight: networkDialogContents.implicitHeight
-            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
-            ColumnLayout {
-                id: networkDialogContents
-                width: networkDialogScroll.availableWidth
-
-            spacing: 14
-            Text {
-                visible: !!forum.notice
-                text: forum.notice
-                Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                font.family: "Adwaita Sans"
-                font.pixelSize: 12
-                color: theme.muted
-            }
-            Text {
-                font.family: "Adwaita Sans"
-                text: forum.connectionDetail
-                Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                font.pixelSize: 14
-                color: theme.accent
-            }
-            Text {
-                font.family: "Adwaita Sans"
-                Layout.fillWidth: true
-                text: "Your posts are saved on this device before sending. Delivery confirmation means the network acknowledged the post."
-                wrapMode: Text.Wrap
-                font.pixelSize: 12
-                color: theme.muted
-            }
-            Text {
-                font.family: "Adwaita Sans"
-                Layout.fillWidth: true
-                text: "Connect using Basecamp’s Delivery node, or start one here. Going offline keeps your drafts and queued posts."
-                wrapMode: Text.Wrap
-                font.pixelSize: 12
-                color: theme.muted
-            }
-            CheckBox {
-                objectName: "autoConnectSetting"
-                HoverHandler { cursorShape: Qt.PointingHandCursor }
-                text: "Connect when Agora opens"
-                checked: !!forum.state.autoConnect
-                onToggled: forum.mutate({op: "settings", autoConnect: checked}, function () {
-                    if (checked) forum.connectNetwork(true);
-                })
-            }
-            Text {
-                Layout.fillWidth: true
-                text: "Starts Delivery if needed. Queued public posts send automatically while connected."
-                font.family: "Adwaita Sans"
-                font.pixelSize: 12
-                color: theme.muted
-                wrapMode: Text.Wrap
-            }
-            Text {
-                font.family: "Adwaita Sans"
-                Layout.fillWidth: true
-                visible: networkDialog.advanced
-                text: "Content topic: " + forum.contentTopic
-                wrapMode: Text.Wrap
-                font.pixelSize: 11
-                color: theme.muted
-            }
-            ForumField {
-                id: storageEndpoint
-                objectName: "storageEndpoint"
-                visible: networkDialog.advanced
-                Layout.fillWidth: true
-                placeholderText: "Local Logos Storage URL (optional)"
-                text: forum.state.storageEndpoint || ""
-                Accessible.name: "Local Logos Storage endpoint"
-            }
-            ForumButton {
-                visible: networkDialog.advanced
-                text: "Save media connection"
-                onClicked: forum.mutate({op: "settings", storageEndpoint: storageEndpoint.text})
-            }
-            Text {
-                visible: networkDialog.advanced
-                Layout.fillWidth: true
-                text: "Use http://127.0.0.1:PORT/api/storage/v1 for your own Storage node. New attachments are published when you post. Without this connection, attachments stay local."
-                wrapMode: Text.Wrap
-                color: theme.muted
-                font.pixelSize: 11
-            }
-            ForumField {
-                id: storePeer
-                visible: networkDialog.advanced
-                Layout.fillWidth: true
-                placeholderText: "Store peer multiaddress (optional)"
-                text: forum.state.historyPeer || ""
-                Accessible.name: "Store peer"
-            }
-            ForumButton {
-                visible: networkDialog.advanced
-                text: "Recover next history page"
-                enabled: storePeer.text.length > 0 && typeof logos !== "undefined"
-                onClicked: forum.loadHistory(storePeer.text)
-            }
-            Text {
-                font.family: "Adwaita Sans"
-                Layout.fillWidth: true
-                visible: networkDialog.advanced
-                text: "Manual recovery is paginated and resumes from its saved cursor. Invalid signatures and duplicate messages are rejected. Peer retention determines how far back history is available."
-                wrapMode: Text.Wrap
-                font.pixelSize: 11
-                color: theme.muted
-            }
-            GridLayout {
-                Layout.fillWidth: true
-                columns: 2
-                columnSpacing: 8
-                rowSpacing: 8
-                ForumButton {
-                    Layout.fillWidth: true
-                    text: forum.connection === "online" ? "Go offline" : "Connect"
-                    primary: true
-                    enabled: typeof logos !== "undefined"
-                    onClicked: forum.connection === "online" ? forum.disconnect() : forum.connectNetwork()
-                }
-                ForumButton {
-                    Layout.fillWidth: true
-                    text: "Start node"
-                    enabled: forum.connection !== "online" && typeof logos !== "undefined"
-                    onClicked: forum.startNode()
-                }
-                ForumButton {
-                    Layout.fillWidth: true
-                    text: "Retry failed posts"
-                    onClicked: forum.mutate({
-                        op: "retry"
-                    })
-                }
-                ForumButton {
-                    Layout.fillWidth: true
-                    text: networkDialog.advanced ? "Hide advanced settings" : "Advanced"
-                    onClicked: networkDialog.advanced = !networkDialog.advanced
-                }
             }
                     }
         }

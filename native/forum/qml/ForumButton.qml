@@ -6,6 +6,7 @@ Button {
     property bool primary: false
     property bool selected: false
     property bool navigation: false
+    property real cornerRadius: 6
     implicitHeight: 36
     implicitWidth: Math.max(70, contentItem.implicitWidth + 24)
     scale: down ? 0.96 : 1
@@ -30,7 +31,7 @@ Button {
     background: Rectangle {
         Behavior on color { ColorAnimation { duration: 110 } }
         Behavior on border.color { ColorAnimation { duration: 110 } }
-        radius: 6
+        radius: control.cornerRadius
         color: control.primary ? (control.down ? Qt.darker(control.palette.accent, 1.25) : control.hovered ? Qt.lighter(control.palette.accent, 1.15) : control.palette.accent) : control.selected || control.hovered ? control.palette.highlight : control.flat || control.navigation ? "transparent" : control.palette.button
         border.width: control.visualFocus || (!control.flat && !control.navigation && !control.primary) ? 1 : 0
         border.color: control.visualFocus ? control.palette.accent : control.palette.mid

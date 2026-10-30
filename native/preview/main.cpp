@@ -25,6 +25,9 @@ int main(int argc, char **argv) {
                                         QStandardPaths::AppLocalDataLocation)
                                         .toUtf8());
   ForumBackend backend;
+  // Example profiles must remain offline even when opened later in Basecamp.
+  if (args.contains("--screenshot") || args.contains("--demo"))
+    backend.dispatch(QStringLiteral("{\"op\":\"settings\",\"autoConnect\":false}"));
   QString exampleThread;
   if ((args.contains("--screenshot") || args.contains("--demo")) && !args.contains("--empty")) {
     auto call = [&](QJsonObject c) {
@@ -75,6 +78,7 @@ int main(int argc, char **argv) {
     const auto data = qEnvironmentVariable("LOGOS_FORUM_DATA_DIR");
     if (!args.contains("--screenshot") && !args.contains("--demo") &&
         !data.endsWith("/AgoraExamples/module_data/logos_forum")) return 6;
+    backend.dispatch(QStringLiteral("{\"op\":\"settings\",\"autoConnect\":false}"));
     auto call = [&](QJsonObject c) {
       auto result = QJsonDocument::fromJson(backend.dispatch(QString::fromUtf8(QJsonDocument(c).toJson())).toUtf8()).object();
       if (!result["ok"].toBool()) qFatal("Demo media operation failed: %s", qPrintable(result["error"].toString()));

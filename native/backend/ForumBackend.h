@@ -38,6 +38,7 @@ private:
   QJsonObject snapshot(const QJsonObject &options = {});
   QJsonObject browse(const QJsonObject &options);
   QJsonObject postRecord(const QString &id);
+  QJsonValue avatarImage(const QString &identity);
   QJsonObject attachment(const QJsonObject &cmd);
   QJsonObject post(const QJsonObject &cmd);
   QJsonObject receive(const QString &wire);

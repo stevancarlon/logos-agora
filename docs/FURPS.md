@@ -15,7 +15,7 @@ media/restart/Store tests pass. See [Storage verification](STORAGE.md#28-october
 
 | Area | Evidence | Remaining acceptance work |
 | --- | --- | --- |
-| Functionality | Native threads/replies/quotes, boards/search/bookmarks, signed alias/UID and anonymous posts, identity rotation, Delivery adapter, paged Store ingestion, signed v2 attachment references and Logos Storage transfer | Live cross-machine Delivery and Store validation; authentic community discussions |
+| Functionality | Native threads/replies/quotes, boards/search, signed alias/UID and anonymous posts, identity rotation, Delivery adapter, paged Store ingestion, signed v2 attachment references and Logos Storage transfer | Live cross-machine Delivery and Store validation; authentic community discussions |
 | Usability | Compact native QML UI, persistent composers, plain text selection, keyboard-accessible controls, narrow layout tests | User usability feedback and assistive technology validation |
 | Reliability | SQLite WAL/transactions, crash recovery, durable outbox, signature rejection, deduplication, early-ack and failure tests | Long-running loss/reconnect tests against real peers; backup/restore UI |
 | Performance | Single in-flight send, five-second pacing, exponential retry, 50-message history pages, 64 KiB envelopes, live intake budget, coalesced snapshots and database-backed feed/reply pages | Sustained resource measurements, stronger moderation |

@@ -274,6 +274,19 @@ QString ForumBackend::dispatch(const QString &request) {
     return json({{"ok", false}, {"error", QString::fromUtf8(e.what())}});
   }
 }
+QJsonValue ForumBackend::avatarImage(const QString &identity) {
+  if (identity.isEmpty()) return {};
+  const auto stored = setting("avatar/" + identity);
+  if (stored.isEmpty()) return {};
+  const auto image = QImage::fromData(QByteArray::fromBase64(stored.section(',', 1).toLatin1()))
+                         .scaled(64, 64, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)
+                         .convertToFormat(QImage::Format_ARGB32);
+  if (image.isNull()) return {};
+  QJsonArray pixels;
+  for (int y = 0; y < 64; ++y)
+    for (int x = 0; x < 64; ++x) pixels.append(static_cast<double>(image.pixel(x, y)));
+  return QJsonObject{{"size", 64}, {"pixels", pixels}};
+}
 QJsonObject ForumBackend::postRecord(const QString &pid) {
   auto q = query(
       m_db,
@@ -396,15 +409,16 @@ QJsonObject ForumBackend::snapshot(const QJsonObject &options) {
   q = query(m_db, "SELECT id,body FROM drafts");
   while (q.next())
     drafts[q.value(0).toString()] = q.value(1).toString();
-  QJsonValue avatarValue;
-  const auto storedAvatar = setting("avatar/" + setting("active"));
-  if (!storedAvatar.isEmpty()) {
-    const auto image = QImage::fromData(QByteArray::fromBase64(storedAvatar.section(',',1).toLatin1())).scaled(64,64,Qt::IgnoreAspectRatio,Qt::SmoothTransformation).convertToFormat(QImage::Format_ARGB32);
-    if (!image.isNull()) {
-      QJsonArray pixels;
-      for (int y=0;y<64;++y) for(int x=0;x<64;++x) pixels.append(static_cast<double>(image.pixel(x,y)));
-      avatarValue = QJsonObject{{"size",64},{"pixels",pixels}};
-    }
+  const auto active = setting("active");
+  const auto avatarValue = avatarImage(active);
+  // Send each visible author's pixels once, keyed by signing identity rather
+  // than display alias. Older posts retain their own identity's portrait.
+  QJsonObject avatars{{active, avatarValue}};
+  for (const auto &value : posts) {
+    const auto post = value.toObject();
+    const auto author = post["authorId"].toString();
+    if (post["mode"].toString() != "anonymous" && !author.isEmpty() && !avatars.contains(author))
+      avatars[author] = avatarImage(author);
   }
   return {{"posts", posts},{"view",listing["view"]},{"threadId",listing["threadId"]},{"hasMore",listing["hasMore"]},{"nextCursor",listing["nextCursor"]},
           {"liveMessagesDeferred",double(m_rateLimited)},
@@ -415,8 +429,9 @@ QJsonObject ForumBackend::snapshot(const QJsonObject &options) {
           {"mode", setting("mode", "alias")},
           {"theme", setting("theme", "dark")},
           {"avatar", avatarValue},
+          {"avatars", avatars},
           {"rotate", setting("rotate", "false") == "true"},
-          {"autoConnect", setting("autoConnect", "false") == "true"},
+          {"autoConnect", setting("autoConnect", QFileInfo(m_db.databaseName()).absolutePath().endsWith("/AgoraExamples/module_data/logos_forum") ? "false" : "true") == "true"},
           {"storageEndpoint",setting("storageEndpoint")},
           {"historyPeer", setting("historyPeer")},
           {"historyCursor", setting("historyCursor")}};
@@ -732,6 +747,20 @@ QJsonObject ForumBackend::receive(const QString &wire) {
 }
 QJsonObject ForumBackend::execute(const QJsonObject &c) {
   auto op = c["op"].toString();
+  if (op == "postReference") {
+    const auto prefix = c["reference"].toString().toLower();
+    require(QRegularExpression("^[a-f0-9]{8,64}$").match(prefix).hasMatch(), "Invalid post reference");
+    // Search the whole local archive, not just the currently loaded UI page.
+    // Never guess when two hashes share the displayed prefix.
+    auto matches = query(m_db, "SELECT id FROM posts WHERE id GLOB ? LIMIT 2", {prefix + "*"});
+    if (!matches.next()) return {{"state", "missing"}};
+    const auto id = matches.value(0).toString();
+    if (matches.next()) return {{"state", "ambiguous"}};
+    const auto post = postRecord(id);
+    const auto thread = post["thread"].toString().isEmpty() ? post : postRecord(post["thread"].toString());
+    return {{"state", "found"}, {"post", post},
+            {"threadAvailable", !thread.isEmpty() && thread["thread"].toString().isEmpty() && thread["board"] == post["board"]}};
+  }
   if(op=="postInfo") return {{"post",postRecord(c["id"].toString())}};
   if(op=="replyPage") {
     const auto reply=postRecord(c["id"].toString());
@@ -907,8 +936,15 @@ QJsonObject ForumBackend::execute(const QJsonObject &c) {
     return {};
   }
   if (op == "retry") {
-    query(m_db, "UPDATE posts SET status='queued',next_try=0,error='' WHERE "
-                "status='failed'");
+    if (c.contains("id")) {
+      const auto id = c["id"].toString();
+      require(!id.isEmpty(), "Missing post ID");
+      query(m_db, "UPDATE posts SET status='queued',next_try=0,error='' WHERE "
+                  "status='failed' AND id=?", {id});
+    } else {
+      query(m_db, "UPDATE posts SET status='queued',next_try=0,error='' WHERE "
+                  "status='failed'");
+    }
     emit changed();
     return {};
   }

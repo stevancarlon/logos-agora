@@ -19,9 +19,15 @@ be configured for the network your participants use. Public-network availability
 has not yet been verified for this release. The automatic tests use two private,
 loopback-connected nodes and no external bootstrap services.
 
-In Agora, open **Network & delivery → Advanced**, enter
-`http://127.0.0.1:8080/api/storage/v1`, then choose **Save media connection**.
-Remote HTTP gateways are not accepted. The endpoint is saved per forum profile.
+Set the forum profile’s `storageEndpoint` through the backend `settings`
+operation during installation or integration setup:
+
+```json
+{"op":"settings","storageEndpoint":"http://127.0.0.1:8080/api/storage/v1"}
+```
+
+Existing configuration is retained; Agora no longer exposes a Network settings
+screen. Remote HTTP gateways are not accepted. The endpoint is saved per profile.
 
 For a persistent Linux desktop setup, the node can run as a systemd user service.
 Keep `--api-bindaddr=127.0.0.1`, choose an unused API port, and keep its data

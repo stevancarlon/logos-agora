@@ -13,7 +13,7 @@ A native, local-first forum for **Logos Basecamp**. Discussions, replies and sha
 
 ## Features
 
-- Boards, threads, replies, quotes, search and bookmarks.
+- Boards, threads, replies, quotes and search.
 - Multiple identities, aliases, anonymous display and identity rotation.
 - Images, inline video and PDFs; sharing through Logos Storage.
 - Local drafts and offline posting, with retry and history recovery through Logos Delivery.
@@ -23,7 +23,7 @@ A native, local-first forum for **Logos Basecamp**. Discussions, replies and sha
 
 Download the kit for Linux, macOS or Windows and follow the [installation guide](INSTALL.md). Agora requires Basecamp and the matching media companion runtime. Shared attachments also require a local Logos Storage node.
 
-Open **Agora** in Basecamp, choose an identity and start a thread. Configure Delivery in **Network** to publish posts.
+Open **Agora** in Basecamp, choose an identity and start a thread. Agora connects to Logos Delivery automatically.
 
 **Alpha:** packages are unsigned. Public Delivery receipt is verified between separate profiles on one Linux host; cross-machine messaging remains unverified. Anonymous display does not guarantee network anonymity; public posts are not end-to-end encrypted.
 

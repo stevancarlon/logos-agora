@@ -91,6 +91,7 @@ QtObject {
             posts: [],
             hasMore: false, nextCursor: "", view: "recent", threadId: "",
             identities: [],
+            avatars: {},
             saved: [],
             drafts: {},
             active: "",
@@ -99,9 +100,79 @@ QtObject {
         })
     property string connection: "offline"
     property string connectionDetail: "Local mode · posts stay in your outbox"
+    // Subscription is not publishing readiness. Read the shared node's scope;
+    // never infer it from our preferred preset or mutate its credentials.
+    property string publishingState: "unknown"
+    property string publishingDetail: "Checking publishing availability…"
+    property bool publishingCheckBusy: false
+    property double publishingCheckedAt: 0
+    property double publishingCheckStarted: 0
+    onPublishingStateChanged: console.log("FORUM_PUBLISHING_STATE", publishingState)
+    property int publishingCheckEpoch: 0
+    readonly property bool publishingReady: publishingState === "ready"
+    function invalidatePublishing() {
+        publishingCheckEpoch++;
+        publishingCheckBusy = false;
+        publishingCheckedAt = 0;
+        publishingState = "unknown";
+        publishingDetail = "Checking publishing availability…";
+    }
+    function publishingResult(raw) {
+        // Rust module responses can contain a JSON string inside the host wrapper.
+        for (var n = 0; n < 6; n++) {
+            if (typeof raw === "string") { raw = JSON.parse(raw); continue; }
+            if (!raw || raw.error || raw.success === false)
+                throw Error(raw ? JSON.stringify(raw.error || "Module call failed") : "Empty module response");
+            if (raw.success === true) { raw = raw.value; continue; }
+            return raw;
+        }
+        throw Error("Invalid publishing readiness response");
+    }
+    function checkPublishing() {
+        if (!bridge || connection !== "online" || publishingCheckBusy) return;
+        publishingCheckBusy = true;
+        publishingCheckStarted = Date.now();
+        var token = ++publishingCheckEpoch;
+        var epoch = connectionEpoch;
+        function current() { return token === publishingCheckEpoch && epoch === connectionEpoch && connection === "online"; }
+        function finish(ok, detail) {
+            if (!current()) return;
+            publishingCheckBusy = false;
+            publishingCheckedAt = Date.now();
+            publishingState = ok ? "ready" : "blocked";
+            publishingDetail = ok ? "" : "Publishing unavailable · posts remain queued. " + detail;
+        }
+        function invoke(module, method, args, done, timeout) {
+            try {
+                bridge.callModuleAsync(module, method, args, function(raw) {
+                    if (!current()) return;
+                    try { done(publishingResult(raw)); }
+                    catch (e) { finish(false, String(e)); }
+                }, timeout);
+            } catch (e) { finish(false, String(e)); }
+        }
+        invoke("delivery_module", "rlnState", [], function(node) {
+            if (node.state === "Disabled") { finish(true, ""); return; }
+            if (node.state !== "Ready") {
+                finish(false, node.message || "Delivery credentials are not ready."); return;
+            }
+            if (!node.registryId || !node.rlnIdentifier) {
+                finish(false, "Update Logos Delivery to expose its publishing scope."); return;
+            }
+            invoke("liblogos_rln_module", "get_membership_state", [node.registryId, node.rlnIdentifier], function(membership) {
+                var usable = membership.state === "active" || membership.state === "grace_period";
+                finish(usable, usable ? "" : "Delivery credentials need attention (" + String(membership.state || "unknown") + ").");
+            }, 90000);
+        }, 15000);
+    }
     property string inFlight: ""
+    property int sendEpoch: 0
+    property bool claimingPost: false
     property string requestId: ""
     property double started: 0
+    // Delivery's retry window can report its result after 60 seconds.
+    // Leave room for that terminal event before applying our watchdog.
+    readonly property int acknowledgementTimeoutMs: 90000
     readonly property string contentTopic: "/logos-forum/1/commons/json"
     property var eventNames: ["messageSent", "messageError", "messageReceived", "connectionStateChanged", "nodeStarted"]
     function parse(raw) {
@@ -188,12 +259,16 @@ QtObject {
                 done(r);
         });
     }
-    function draft(key, body) {
+    function draft(key, body, done, failed) {
         call({
             op: "draft",
             id: key,
             body: body
-        });
+        }, done, failed);
+    }
+    function avatarForPost(post) {
+        return post && post.mode !== "anonymous" && post.authorId && state.avatars
+            ? state.avatars[post.authorId] || null : null;
     }
     function activeAlias() {
         for (var i = 0; i < state.identities.length; i++)
@@ -301,6 +376,8 @@ QtObject {
         moduleCall("subscribe", [contentTopic], function () {
             if (epoch !== connectionEpoch) return;
             connection = "online";
+            invalidatePublishing();
+            checkPublishing();
             connectionDetail = "Subscribed via Logos Delivery · public discussions";
             notice = "Connected. Queued messages will be sent gradually.";
         });
@@ -354,6 +431,7 @@ QtObject {
     }
     function disconnect() {
         connectionEpoch++;
+        invalidatePublishing();
         connection = "offline";
         connectionDetail = "Local mode · drafts and posts stay on this device";/* Do not stop the shared host node. */
     }
@@ -369,32 +447,62 @@ QtObject {
                 error: message
             });
     }
+    function retryPost(id) {
+        if (!id) return;
+        mutate({op: "retry", id: id}, function() {
+            // Retry the stored envelope, never compose a second post.
+            if (connection === "online") {
+                invalidatePublishing();
+                checkPublishing();
+            }
+            pump();
+        });
+    }
     function pump() {
+        if (claimingPost) return;
         if (inFlight) {
-            if (Date.now() - started > 60000)
+            if (Date.now() - started > acknowledgementTimeoutMs)
                 fail("Delivery acknowledgement timed out. Retry uses the same message ID.");
             return;
         }
         if (connection !== "online" || !ready)
             return;
+        if (publishingCheckBusy && Date.now() - publishingCheckStarted > 110000) {
+            publishingCheckEpoch++;
+            publishingCheckBusy = false;
+            publishingCheckedAt = Date.now();
+            publishingState = "blocked";
+            publishingDetail = "Publishing unavailable · credential check timed out. Posts remain queued.";
+        }
+        var age = Date.now() - publishingCheckedAt;
+        if (!publishingCheckedAt || age >= (publishingReady ? 60000 : 30000)) {
+            // Expired readiness cannot authorize another send during a slow check.
+            publishingState = "checking";
+            checkPublishing();
+        }
+        if (!publishingReady || publishingCheckBusy) return;
+        claimingPost = true;
         call({
             op: "next"
         }, function (r) {
+            claimingPost = false;
             if (!r.item)
                 return;
-            inFlight = r.item.id;
+            var pid = r.item.id, epoch = ++sendEpoch;
+            inFlight = pid;
             started = Date.now();
             requestId = "";
             earlyEvents = [];
             // Encode through native QByteArray property, not an ambiguous JS string.
             Qt.callLater(function () {
+                if (epoch !== sendEpoch || inFlight !== pid) return;
                 moduleCall("send", [contentTopic, backend.outboundPayload], function (value) {
-                    if (!inFlight)
+                    if (epoch !== sendEpoch || inFlight !== pid)
                         return;
                     requestId = String(value);
                     mutate({
                         op: "delivery",
-                        id: inFlight,
+                        id: pid,
                         status: "sending",
                         request: requestId
                     });
@@ -402,9 +510,11 @@ QtObject {
                     earlyEvents = [];
                     for (var i = 0; i < pending.length; i++)
                         event(pending[i].name, pending[i].data);
+                }, function(message) {
+                    if (epoch === sendEpoch && inFlight === pid) fail(message);
                 });
             });
-        });
+        }, function(message) { claimingPost = false; error = message; });
     }
     function event(name, data) {
         if ((name === "messageSent" || name === "messageError") && inFlight && !requestId) {
@@ -470,6 +580,10 @@ QtObject {
         }
         if (name === "messageError" && requestId && String(data[0]) === requestId) {
             fail(String(data[2]));
+            if (/rln|membership|credential|ambiguous_selection/i.test(String(data[2]))) {
+                invalidatePublishing();
+                checkPublishing();
+            }
             return;
         }
         if (name === "connectionStateChanged" && connection !== "offline") {

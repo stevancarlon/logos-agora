@@ -15,13 +15,14 @@ provisioning waits for a funded local payer. Registration price and fee reserve
 come from the network and can change. Until a matching `messageSent` arrives,
 posts must remain pending or failed, even when the node has connected peers.
 
-The optional **Connect when Agora opens** preference defaults to false. Once
-enabled, launch reuses an existing connected Delivery node, starts an existing
+The backend `autoConnect` preference defaults to true; existing explicit false
+values and the dedicated examples profile remain local-only. The app has no
+separate Network settings screen. On launch it reuses an existing connected Delivery node, starts an existing
 disconnected node, or creates one only when Delivery reports that its context
 has not been initialized. It does not replace another app's node configuration.
 Going offline cancels pending connection callbacks for the current session.
 
-The adapter uses `getConnectionStatus`, `subscribe(contentTopic)`, `send(contentTopic,QByteArray)` and `storeQuery(queryJSON,peer,timeoutMs)`. Starting a node is a deliberate UI action using Core mode, logos.test preset, required anonymity routing and backfill. Connecting to a shared node does not reconfigure or stop it. Local disconnect stops forum sends/ingestion, not the shared node. Connected and PartiallyConnected transport states retain the subscription; partial connectivity may still require delivery retries and is not proof of receipt.
+The adapter uses `getConnectionStatus`, `subscribe(contentTopic)`, `send(contentTopic,QByteArray)` and `storeQuery(queryJSON,peer,timeoutMs)`. Automatic startup uses Core mode, logos.test preset, required anonymity routing and backfill when no existing node is available. Connecting to a shared node does not reconfigure or stop it. Local disconnect stops forum sends/ingestion, not the shared node. Connected and PartiallyConnected transport states retain the subscription; partial connectivity may still require delivery retries and is not proof of receipt.
 
 ## Wire envelope
 
@@ -37,7 +38,20 @@ UID authors use the public key's SHA-256 fingerprint. Alias authors have arbitra
 
 ## Durable outbox
 
-A successful compose transaction inserts the complete signed envelope and deletes its draft. Status starts queued. The pump attempts one item per five-second tick, with only one in flight. A matching messageSent request ID marks sent; errors or a 60-second missing acknowledgement mark failed. Early acknowledgements are buffered until the send result supplies the request ID. Retry retains the exact envelope/ID. Backoff grows exponentially to one hour; a user can explicitly retry failures. On restart, sending entries become queued. Incoming duplicate IDs do not add another post.
+A successful compose transaction inserts the complete signed envelope and deletes its draft. Status starts queued. The pump attempts one item per five-second tick, with only one in flight. A matching messageSent request ID marks sent; errors or a 90-second missing acknowledgement mark failed. The watchdog allows Delivery's own retry window (observed at roughly 65 seconds) to return its terminal event before Agora times out. Early acknowledgements are buffered until the send result supplies the request ID. Retry retains the exact envelope/ID. Backoff grows exponentially to one hour; a user can explicitly retry failures. Each failed message exposes Retry sending; `retry` with an `id` clears backoff only for that failed envelope. Sent or in-flight posts are never requeued by this action. Offline retries wait for connection; online retries recheck credentials before sending. On restart, sending entries become queued. Incoming duplicate IDs do not add another post.
+
+Before claiming an outbox entry, Agora reads Delivery's `rlnState` and uses
+its resolved `registryId` / `rlnIdentifier` to call the RLN module's
+`get_membership_state` (90-second timeout). Only `active` or `grace_period`
+allows publishing; an explicitly RLN-disabled node needs no membership.
+Readiness is refreshed after 60 seconds and blocked checks retry after 30
+seconds without claiming posts or incrementing delivery attempts. Unknown,
+malformed, unsupported, timed-out, or ambiguous responses pause publishing;
+subscription and local composition remain available. Disconnect invalidates
+outstanding callbacks, and a 110-second watchdog releases a missing callback.
+A matching acknowledgement remains the only sent transition. The badge tooltip
+explains the pause. Hosts lacking this readiness API require
+an updated Delivery module; the adapter does not silently skip the check.
 
 A transport acknowledgement is not an application-level receipt from all subscribers. Live intake is bounded before signature work: a 240-message burst budget refills at four messages per second using monotonic time. Payloads over 64 KiB are rejected before UTF-8 conversion. The QML bridge permits at most 32 outstanding receive requests, coalesces network-triggered snapshots over 100 ms, and permits only one snapshot request in flight. Deferred live messages are not marked received; the user is directed to recover them through bounded Store pages. Recovery pages do not consume the live budget, so a burst does not strand the saved history cursor. These controls limit local processing, not network traffic or Sybil identities. The UI requests database pages: 30 thread roots plus one latest-reply preview each, or one root plus 50 replies. Counts and search cover the full stored archive. Cursors include the filter context and deterministic timestamp/ID tie breakers. Changing filters resets paging. With activity sorting, new replies can move threads between pages; refreshing from the first page includes those changes. The diagnostic snapshot without a view is bounded to 200 recent records. Full database retention is independent; sustained resource measurements and stronger moderation remain acceptance work.
 
@@ -47,13 +61,15 @@ Requests include one content topic, includeData, forward pagination, limit 50 an
 
 ## Backend operations
 
-`dispatch` accepts `snapshot`, `postInfo`, `replyPage`, `post`, `receive`, `identity`, `avatar`, `settings`, `draft`, `bookmark`, `next`, `delivery`, `retry`, `wire`, `historyPage`. All results contain `ok`; failures contain `error`. Private keys never appear in snapshots or wire output. SQLite is the local authority for drafts and pending sends; network transport is replaceable without changing the stored envelopes.
+`dispatch` accepts `snapshot`, `postInfo`, `postReference`, `replyPage`, `post`, `receive`, `identity`, `avatar`, `settings`, `draft`, `bookmark`, `next`, `delivery`, `retry`, `wire`, `historyPage`. All results contain `ok`; failures contain `error`. Private keys never appear in snapshots or wire output. SQLite is the local authority for drafts and pending sends; network transport is replaceable without changing the stored envelopes.
+
+`postReference` resolves an 8–64 digit hexadecimal prefix across the local archive. It returns `found` with the post and `threadAvailable`, or `missing` / `ambiguous`; ambiguous prefixes never select an arbitrary post. Quote previews use this local lookup without fetching remote attachments. Navigation uses `replyPage` when the referenced reply is outside the loaded page. Quote formatting and links do not modify signed post bodies.
 
 ## Pinned API reference
 
 The adapter is checked against [Delivery module v0.3.2](https://github.com/logos-co/logos-delivery-module/blob/v0.3.2/src/delivery_module_plugin.h), commit `c25b7868099949c375e7affdeb1502b354fd92e3`. This release uses raw byte-vector message payloads. Older README examples describing string/base64 live payloads do not describe this pinned contract. Store JSON payloads remain base64.
 
-Local avatars are stored per identity in SQLite settings as a resized PNG. The avatar operation accepts a local file URL or remove=true; validates type, size and dimensions; applies orientation; and redraws into a fresh image to discard source metadata. Snapshot exposes only a normalized 64×64 pixel array for canvas rendering within Basecamp’s QML sandbox. This profile image is device-local and is never added to signed posts.
+Local avatars are stored per identity in SQLite settings as a resized PNG. The avatar operation accepts a local file URL or remove=true; validates type, size and dimensions; applies orientation; and redraws into a fresh image to discard source metadata. Snapshot exposes only normalized 64×64 pixel arrays for canvas rendering within Basecamp’s QML sandbox: `avatar` for the active profile and `avatars` keyed by signing identity for visible authors. Each portrait is included once per snapshot, independently of how many posts use it. Posts retain their author's portrait when the active identity changes; matching display names alone never select an avatar, and anonymous posts use no identity photo. This profile image is device-local and is never added to signed posts.
 
 ## Local attachment operations
 

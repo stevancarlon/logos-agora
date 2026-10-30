@@ -49,3 +49,64 @@ These are real limitations, not completed features:
 5. These changes have been exercised locally on Linux. Earlier macOS acceptance does not validate this new interaction pass, and screen-reader behavior has not been audited.
 
 The existing monochrome design, discussion layout, SQLite storage, identity keys and delivery semantics are retained. This is a correction to the interaction model and responsive behavior, not a framework migration.
+
+## 28 October — discussion screen and reply flow
+
+The later screen review found a different problem: a wide layout split the reading
+column from its actions, while Reply and Quote competed as similar-looking entry
+points. Moving the Reply button alone did not correct that hierarchy.
+
+| Before | After |
+| --- | --- |
+| Thread text occupied one side of a wide canvas while Save, time and Quote sat far away. | The discussion is centered in an 880 px reading column; title, post text and composer share an edge. Save and Quote sit beneath their post. The global header and corner Logos mark retain their page-level positions. |
+| Dense author/OP/hash metadata dominated the beginning of each post. | A quiet author initial, readable name and adjacent time identify the post. Fingerprint, post ID and transport status remain in the author tooltip and accessibility description. |
+| Body text was 15 px, beneath a bold heading. | A regular serif heading and 16 px body create the reading hierarchy. Secondary actions and metadata use muted monochrome tones. |
+| Positive transport status repeated below every post. | Sent/received details move to the author tooltip; queued, failed, sending and local-only states remain visible. Transport semantics are unchanged. |
+| A separate Reply/Continue draft action hid the editor. | The reply field is directly editable and shows saved text. Focusing it reveals attachments, identity and submission. Quote inserts a quotation into that same editor. |
+| Quote, Save and reply actions competed visually. | Quote, Save, attachment and identity controls are secondary; Post reply is the only filled primary action in the thread. Keyboard focus remains visible. |
+| A growing draft could exceed its editing area. | The text editor scrolls independently within a bounded height. Minimize/Escape saves text, and returning to the discussion displays the draft. |
+
+Verification: **24 backend and 34 QML tests pass on Qt 6.9.2**. The new regression
+checks shared column alignment, a visible inline composer, draft continuity and
+submit-button reachability at 400×540. Existing tests cover quote insertion,
+selection surviving snapshots, attachment/media behavior, and a new reply on a
+later page of a 55-reply discussion. Dark/light desktop and narrow screenshots
+were inspected using isolated preview data; no real community content was seeded.
+This is an implemented design iteration, not a claim of user-study validation.
+
+## 28 October — approved compact dock and expanded composer
+
+This supersedes the inline-composer iteration above. The implementation follows
+the approved C PNGs in design/proposals/thread-reply-2026-10-28/.
+
+| Before | After |
+| --- | --- |
+| Save and Quote remained under posts alongside an always-visible editor. | Both post actions are removed. A centered, 400 px maximum reply dock is the single thread reply entry point. |
+| Draft entry competed with the post body. | Reply opens a rounded, bounded composer at the bottom, with the reading viewport reserved above it. It focuses a plain reply; it never inserts a quotation automatically. |
+| Minimize was a text action and saved text remained on display. | A minus icon and Escape collapse the editor, preserving text and attachments. The dock offers Continue reply, and keyboard focus returns to that control. |
+| Identity, attachment hints and status text competed in one row. | Replying as appears at the top; Attach and the draft indicator sit below the editor, with Post reply as the sole primary action. Selected files have removable chips; local-only and length-limit information appears when relevant. |
+| Draft persistence had no visible acknowledgement. | Draft saved appears only after both text and attachment draft writes succeed. A failed write keeps the draft and reports the failure. |
+| The fixed heading consumed reading space on small windows. | The heading scrolls with the posts; responsive editor height keeps attachment and submission actions reachable. The desktop serif heading is 38 px and body text is 18 px, with smaller narrow-screen sizes. |
+| Controls used the generic button treatment. | Rounded dock/composer surfaces, dedicated attach/minus icons, 40–44 px hit areas, hand cursors, keyboard focus and a brief composer fade follow the selected preview. |
+
+Verification uses isolated test databases: 24 backend and 36 QML checks on
+Qt 6.9.2, including opening/focusing/minimizing the dock, keyboard reopening,
+plain reply insertion, draft failure/recovery, attachment removal, identity access,
+successful local submission, and 400×540 action bounds. Desktop dark/light and
+narrow previews were visually inspected. These changes do not alter Delivery
+acknowledgement semantics or imply network receipt.
+
+## 28 October — reply shortcut and publication status
+
+| Before | After |
+| --- | --- |
+| Reply submission required clicking Post reply. | Ctrl+Enter in the editor uses the same validated submission path, including numpad Enter. Ordinary Enter inserts a line break. Empty, oversized, busy, unfocused and repeated key events do not submit. |
+| Pending publication appeared as metadata text or a line below the post; confirmation had no persistent visual marker. | Small monochrome icons sit beside timestamps in threads, the feed and reply previews: clock for queued, animated arc for sending, one check for Delivery-confirmed sends, warning for retry pending, and device for local-only posts. Hover text and accessible names explain each state. Incoming posts do not show an outgoing-send marker. |
+
+The check follows the existing persisted sent state, which requires a matching
+Delivery messageSent event. It is a transport acknowledgement, not an all-peer
+receipt or read receipt. Backend protocol and retry behavior are unchanged.
+Qt 6.9.2 checks include invalid/unfocused shortcut handling, ordinary newlines,
+numpad submission, queued-to-sending-to-confirmed UI transitions, rejection of an
+unrelated acknowledgement, and failure/local-only indicators. Preview content
+was confined to an isolated temporary database.
