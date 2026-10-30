@@ -23,7 +23,10 @@ def main():
     p.add_argument('--storage', type=Path, required=True)
     p.add_argument('--manifest', type=Path, required=True)
     p.add_argument('--output', type=Path, required=True)
+    p.add_argument('--max-peers', type=int, default=160)
     a = p.parse_args()
+    if a.max_peers < 1:
+        p.error('--max-peers must be positive')
     fixtures = json.loads(a.manifest.read_text())['files']
     if not 1 <= len(fixtures) <= 4:
         p.error('Expected one to four public test fixtures')
@@ -34,7 +37,7 @@ def main():
             p.error('Invalid fixture CID, digest or size')
     a.output.mkdir(parents=True, exist_ok=True)
     result = {'checkedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(),
-              'networkPreset': 'logos.test', 'passed': False,
+              'networkPreset': 'logos.test', 'passed': False, 'maxPeers': a.max_peers,
               'testnet04Verified': False, 'manualPeerConnection': False,
               'scope': 'Public Storage byte/hash receipt; no Delivery or Basecamp UI claim',
               'githubRun': os.environ.get('GITHUB_RUN_ID'),
@@ -50,7 +53,7 @@ def main():
         with (a.output / 'storage.log').open('w') as log:
             process = subprocess.Popen([str(a.storage.resolve()), '--data-dir=' + work,
                 '--api-bindaddr=127.0.0.1', '--api-port=' + str(port), '--network=logos.test',
-                '--num-threads=2', '--log-level=INFO;TRACE:storage', '--log-format=nocolors'], stdout=log, stderr=log)
+                '--num-threads=2', '--max-peers=' + str(a.max_peers), '--log-level=INFO;TRACE:storage', '--log-format=nocolors'], stdout=log, stderr=log)
             try:
                 deadline = time.monotonic() + 90
                 while time.monotonic() < deadline:

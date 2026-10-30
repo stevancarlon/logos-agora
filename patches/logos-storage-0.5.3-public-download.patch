@@ -1,0 +1,78 @@
+diff --git i/storage/blockexchange/engine/swarm.nim w/storage/blockexchange/engine/swarm.nim
+index f74592b..5c30501 100644
+--- i/storage/blockexchange/engine/swarm.nim
++++ w/storage/blockexchange/engine/swarm.nim
+@@ -123,7 +123,19 @@ proc addPeer*(swarm: Swarm, peerId: PeerId, availability: BlockAvailability): bo
+   if peerId in swarm.removedPeers:
+     return false
+   if swarm.peers.len >= swarm.config.deltaMax:
+-    return false
++    # Initial discovery can fill the swarm with unknown peers. Make room for
++    # a peer that actually advertises content, otherwise its positive presence
++    # responses are ignored forever and the download cannot make progress.
++    if availability.kind == bakUnknown:
++      return false
++    var replace = none(PeerId)
++    for candidate, existing in swarm.peers:
++      if existing.availability.kind == bakUnknown:
++        replace = some(candidate)
++        break
++    if replace.isNone:
++      return false
++    swarm.peers.del(replace.get())
+   swarm.peers[peerId] = SwarmPeer.new(availability)
+   true
+ 
+diff --git i/storage/blockexchange/utils.nim w/storage/blockexchange/utils.nim
+index db2e51e..b8b4c4e 100644
+--- i/storage/blockexchange/utils.nim
++++ w/storage/blockexchange/utils.nim
+@@ -49,6 +49,9 @@ func isIndexInRanges*(
+ proc computeBatchSize*(blockSize: uint32): uint32 =
+   doAssert blockSize > 0, "computeBatchSize requires blockSize > 0"
+   let
+-    optimal = TargetBatchBytes div blockSize
++    # Leave room for framing, proofs and multiplexing beneath the default
++    # 128 KiB circuit-relay allowance. A 128 KiB payload cannot fit even on a
++    # fresh circuit, so retrying that same batch can never make progress.
++    optimal = min(TargetBatchBytes, 64'u32 * 1024) div blockSize
+     maxFromBytes = MaxWantBlocksResponseBytes div blockSize
+   return clamp(optimal, MinBatchSize, maxFromBytes)
+diff --git i/tests/storage/blockexchange/engine/testswarm.nim w/tests/storage/blockexchange/engine/testswarm.nim
+index 0e30cbd..bbaf39b 100644
+--- i/tests/storage/blockexchange/engine/testswarm.nim
++++ w/tests/storage/blockexchange/engine/testswarm.nim
+@@ -243,6 +243,33 @@ suite "Swarm":
+     check removed.isSome
+     check swarm.getPeer(peerId).isNone
+ 
++  test "content provider replaces an unknown peer in a full swarm":
++    let config = SwarmConfig(deltaMin: 1, deltaMax: 2, deltaTarget: 2)
++    swarm = Swarm.new(config)
++    let provider = PeerId.example
++    check swarm.addPeer(PeerId.example, BlockAvailability.unknown())
++    check swarm.addPeer(PeerId.example, BlockAvailability.unknown())
++    check swarm.addPeer(provider,
++      BlockAvailability.fromRanges(@[IndexRange(start: 0'u64, count: 9'u64)]))
++    check swarm.peerCount() == 2
++    check provider in swarm.peersWithRange(0, 9)
++
++  test "unknown peers cannot displace known providers":
++    let config = SwarmConfig(deltaMin: 1, deltaMax: 1, deltaTarget: 1)
++    swarm = Swarm.new(config)
++    let provider = PeerId.example
++    check swarm.addPeer(provider, BlockAvailability.complete())
++    check not swarm.addPeer(PeerId.example, BlockAvailability.unknown())
++    check provider in swarm.peersWithRange(0, 9)
++
++  test "banned provider cannot displace unknown peers":
++    let config = SwarmConfig(deltaMin: 1, deltaMax: 1, deltaTarget: 1)
++    swarm = Swarm.new(config)
++    let provider = PeerId.example
++    swarm.banPeer(provider)
++    check swarm.addPeer(PeerId.example, BlockAvailability.unknown())
++    check not swarm.addPeer(provider, BlockAvailability.complete())
++
+   test "banPeer prevents re-adding":
+     let peerId = PeerId.example
+     discard swarm.addPeer(peerId, BlockAvailability.complete())
