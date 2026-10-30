@@ -2,6 +2,8 @@
 
 ## Host contract
 
+The source module descriptor is [`native/forum/module.json`](../native/forum/module.json). Packaging and installation read this descriptor and emit Basecamp’s required `manifest.json`; release kits include both names with matching target-specific fields. Logos Delivery is the transport layer of [Logos Messaging](https://github.com/logos-messaging), previously known as Waku. Agora integrates through the Delivery module API below.
+
 `logos_forum` is a `ui_qml` module. Basecamp loads `qml/Main.qml` and runs `forum_backend.so` in its UI host, exposed through Qt Remote Objects. QML gets `logos.module("logos_forum")`; `dispatch(JSON)` returns a JSON string through `logos.watch(...)`. Backend `changed` signals trigger a fresh snapshot. `receiveBytes(QByteArray)` avoids ambiguous byte/string coercion. The native `outboundPayload` QByteArray property supplies the delivery payload.
 
 Dependencies: `delivery_module >=0.3.0`. Tested host: Basecamp 0.3.2, Qt 6.9.2, Linux x86_64. Calls use `logos.callModuleAsync` with a 15-second timeout. The response wrapper `{success,value,error}` is checked before using the value. Events arrive through `moduleEventReceived(moduleName,eventName,data)` after registering `onModuleEvent`.

@@ -28,7 +28,7 @@ def main():
     backend = a.backend or ROOT / 'native/forum' / library
     subprocess.run([sys.executable, str(ROOT / 'scripts/package-native.py'), '--lgx', a.lgx,
                     '--variant', a.variant, '--backend', str(backend)], check=True)
-    version = json.loads((ROOT / 'native/forum/manifest.json').read_text())['version']
+    version = json.loads((ROOT / 'native/forum/module.json').read_text())['version']
     name = f'agora-{version}-{a.variant}'
     with tempfile.TemporaryDirectory(prefix='agora-release-') as temporary:
         stage = Path(temporary) / name
@@ -41,7 +41,7 @@ def main():
         shutil.copy2(backend, stage / 'native/forum' / library)
         files = ['README.md', 'INSTALL.md', 'LICENSE-MIT', 'LICENSE-APACHE',
                  'native/forum/metadata.json',
-                 'native/forum/manifest.json', 'native/forum/variant',
+                 'native/forum/module.json', 'native/forum/variant',
                  'scripts/install-basecamp.py', 'scripts/install-media-runtime.py', 'scripts/install-release.py',
                  'scripts/storage-network-config.py', 'scripts/check-storage-receipt.py',
                  'scripts/install-macos-runtime.py', 'scripts/stage-windows-runtime.py', 'scripts/pe_dependencies.py',
@@ -51,10 +51,12 @@ def main():
             target = stage / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / relative, target)
-        native_manifest_path = stage / 'native/forum/manifest.json'
+        native_manifest_path = stage / 'native/forum/module.json'
         native_manifest = json.loads(native_manifest_path.read_text())
         native_manifest['main'] = {a.variant: library.removeprefix('lib')}
         native_manifest_path.write_text(json.dumps(native_manifest, indent=2) + '\n')
+        # Basecamp's installed/package format still uses manifest.json.
+        (native_manifest_path.parent / 'manifest.json').write_text(native_manifest_path.read_text())
         (stage / 'native/forum/variant').write_text(a.variant)
         hashes = {str(path.relative_to(stage)): hashlib.sha256(path.read_bytes()).hexdigest()
                   for path in sorted(stage.rglob('*')) if path.is_file()}

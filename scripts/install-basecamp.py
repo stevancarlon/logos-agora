@@ -27,7 +27,11 @@ for folder in ('qml', 'assets'):
     shutil.copytree(source/folder, dest/folder, dirs_exist_ok=True)
 for name in ('metadata.json',):
     shutil.copy2(source/name, dest/name)
-manifest = json.loads((source/'manifest.json').read_text())
+# Release kits from before module.json remain installable.
+module_path = source/'module.json'
+if not module_path.is_file():
+    module_path = source/'manifest.json'
+manifest = json.loads(module_path.read_text())
 manifest['main'] = {variant: 'forum_backend.' + suffix}
 (dest/'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
 (dest/'variant').write_text(variant)
