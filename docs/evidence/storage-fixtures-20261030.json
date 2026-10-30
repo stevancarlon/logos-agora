@@ -1,0 +1,25 @@
+{
+  "createdAt": "2026-10-30T13:49:10.095321+00:00",
+  "networkPreset": "logos.test",
+  "scope": "Public synthetic attachment fixtures, no user content. Upload alone does not prove remote retrieval.",
+  "files": [
+    {
+      "name": "workshop-diagram.png",
+      "cid": "zDvZRwzm6LjEZoCu64zFZhfRKt48XVp71WCQvcQJMqh3uvokHx74",
+      "bytes": 30402,
+      "sha256": "ecf8a8131ec9af54d4d09a52a7bc17ad91a3fbd918f9cde29ebb2d957f1d0d40"
+    },
+    {
+      "name": "playback-test.mp4",
+      "cid": "zDvZRwzm3A8ib85rKRh394JyscbsXWYARoaigSfi55YRn4jbbH4a",
+      "bytes": 556240,
+      "sha256": "5d395c12d311528a4ab3a4c8993ad18dbb55492794daa2148b264b52f413b98a"
+    },
+    {
+      "name": "workshop-plan.pdf",
+      "cid": "zDvZRwzm5PDngzvMMZGt2vEmLNY55wE4PBAeoKSP7FSnMrQjKWbF",
+      "bytes": 2345,
+      "sha256": "5217541bd04fb275fe93fe2aa3432d17f9922b81cb841fa13edaa6c24dc19641"
+    }
+  ]
+}

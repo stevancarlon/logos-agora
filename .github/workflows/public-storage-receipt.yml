@@ -1,0 +1,36 @@
+name: Public Storage receipt
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/public-network-verification]
+    paths:
+      - .github/workflows/public-storage-receipt.yml
+      - scripts/check-storage-receipt.py
+      - docs/evidence/storage-fixtures-20261030.json
+permissions:
+  contents: read
+jobs:
+  receive:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and verify pinned official Storage
+        shell: bash
+        run: |
+          curl --fail --location --max-time 120 --output "$RUNNER_TEMP/storage.zip" https://github.com/logos-storage/logos-storage-nim/releases/download/v0.5.3/logos-storage-linux-amd64-v0.5.3.zip
+          echo "1086fae4f283cab882f133abe4d5a88cfae8d61edba9f0094c7f75b368ec9d56  $RUNNER_TEMP/storage.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/storage.zip" -d "$RUNNER_TEMP/storage"
+      - name: Fetch from public discovery and verify exact bytes
+        shell: bash
+        run: |
+          storage_bin=$(find "$RUNNER_TEMP/storage" -type f -name storage -print -quit)
+          test -n "$storage_bin"
+          chmod +x "$storage_bin"
+          python3 scripts/check-storage-receipt.py --storage "$storage_bin" --manifest docs/evidence/storage-fixtures-20261030.json --output "$RUNNER_TEMP/receipt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: public-storage-receipt
+          path: ${{ runner.temp }}/receipt/
+          if-no-files-found: warn
