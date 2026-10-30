@@ -1,0 +1,41 @@
+{
+  "checkedAt": "2026-10-30T17:21:33.626657+00:00",
+  "qtVersion": "6.9.2",
+  "nativeBackendTests": 26,
+  "qmlTests": 67,
+  "addressFallbackTests": 2,
+  "failures": 0,
+  "nativeBuildLogSha256": "2d07abd91d00389ec8ee77581124182e87a6f2cb4a564d9794e47db0393070a2",
+  "addressFallbackLogSha256": "629824a91ff94015dbeda9b718597e7797850bbc535efe9ab97b76ad56b18dcd",
+  "testsCover": [
+    "upload MIME type",
+    "failed provider announcement and retry",
+    "signed attachment hash/size/MIME validation",
+    "unresponsive address fallback",
+    "prefer previous successful address",
+    "connection cancellation"
+  ],
+  "installedStorage": {
+    "upstreamVersion": "v0.5.3",
+    "upstreamCommit": "56854f4ebce0cfe68e3557d1be21b758ac62ae0c",
+    "patch": "patches/logos-storage-0.5.3-public-download.patch",
+    "patchSha256": "9598e162e4a73b91637f99614d003c3f3344efa86dfbbd990e8b519deea4c1ef",
+    "binarySha256": "aad142428185af627478ada39e6ef9ce61c115523ca758b8ab926641023248b9",
+    "buildFlags": "-d:release -d:agoraRelayOnly",
+    "installedAt": "2026-10-30T17:19:06.276353+00:00",
+    "officialRelease": false
+  },
+  "userDatabaseReplaced": false,
+  "providerIdentityReplaced": false,
+  "testnet04Verified": false,
+  "hostedNativeChecks": {
+    "run": "https://github.com/stevancarlon/logos-agora/actions/runs/41097790241",
+    "commit": "d4cbade17aedf70df5b07264353d8316013495e6",
+    "conclusion": "success"
+  },
+  "hostedWindowsChecks": {
+    "run": "https://github.com/stevancarlon/logos-agora/actions/runs/41097790362",
+    "commit": "d4cbade17aedf70df5b07264353d8316013495e6",
+    "conclusion": "success"
+  }
+}

@@ -54,7 +54,9 @@ peers retain their normal connections and pipelining.
 
 Direct provider dials skip Mix-only addresses and allow eight seconds per
 address. An expired relay therefore cannot consume the full manifest timeout
-before the next address is tried. Manifest timeouts retire stale connections
+before the next address is tried, with a 25-second total connection budget.
+Previously successful addresses are preferred for subsequent circuits. Manifest
+timeouts retire stale connections
 before retrying. Regression tests cover an unresponsive first address followed
 by a working peer, and cancellation during connection setup.
 
@@ -76,9 +78,12 @@ make USE_SYSTEM_NIM=1 NIM_PARAMS="-d:release -d:agoraRelayOnly" -j2
 On 30 October, the patched reader fetched PNG, MP4 and PDF from a separate
 provider through public discovery and relays with exact byte/hash verification.
 Both nodes were on the same computer; this does not establish cross-machine
-receipt. The 556,240-byte MP4 took 120 seconds. Large-file throughput and public
-retention remain limitations. The 35 swarm regressions and isolated native
-PNG/MP4/PDF transfer tests also passed.
+receipt. Final native checks passed all three files twice, including after
+installing/restarting the persistent provider. The 556,240-byte MP4 took 60–71
+seconds; the PDF varied from 9 to 66 seconds. Large-file throughput, cold discovery
+latency and public retention remain limitations. The 35 swarm regressions,
+two address-fallback/cancellation tests and isolated native PNG/MP4/PDF transfers
+also passed. See [the dated report](../docs/evidence/NETWORK-VERIFICATION-20261030.md).
 
 The `Patched Storage public receipt` workflow independently builds this source
 and patch, loads current official fleet records, runs swarm regressions, and

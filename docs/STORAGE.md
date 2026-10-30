@@ -7,7 +7,10 @@ There is no central forum server. Each participant uses a local Storage node.
 ## Connect a node
 
 Use the official [Logos Storage implementation](https://github.com/logos-storage/logos-storage-nim).
-The tested binary is v0.5.3 on Linux x86_64. With its `storage` executable installed,
+Public relay retrieval uses v0.5.3 plus the pinned
+[Agora public-download patch](../patches/README.md#storage-public-download-correction)
+on Linux x86_64. The unpatched binary failed the public receipt checks.
+With the tested `storage` executable installed,
 run a node with a persistent directory and a loopback-only API:
 
 ```sh
@@ -31,9 +34,9 @@ these does not configure Mix discovery. Agora's current HTTP downloads use the
 direct transport. Configuration generation does not establish public retrieval.
 
 Keep this process running. Node discovery/bootstrap and network reachability must
-be configured for the network your participants use. Public-network availability
-has not yet been verified for this release. The automatic tests use two private,
-loopback-connected nodes and no external bootstrap services.
+be configured for the network your participants use. Public PNG/MP4/PDF retrieval now passes with fresh readers through public
+discovery and relays on one host; independent hosted verification is pending.
+The separate private integration checks use loopback-connected nodes.
 
 Set the forum profile’s `storageEndpoint` through the backend `settings`
 operation during installation or integration setup:
@@ -48,10 +51,11 @@ screen. Remote HTTP gateways are not accepted. The endpoint is saved per profile
 For a persistent Linux desktop setup, the node can run as a systemd user service.
 Keep `--api-bindaddr=127.0.0.1`, choose an unused API port, and keep its data
 directory across upgrades. The local development installation uses
-`agora-storage.service`, Storage v0.5.3, and port `18080`; its API is
+`agora-storage.service`, patched Storage v0.5.3, and port `18080`; its API is
 `http://127.0.0.1:18080/api/storage/v1`. Check it with
 `systemctl --user status agora-storage.service`. The service starts at user login.
-This is a separate official Storage process because Agora's HTTP integration
+This is a separate Storage process built from the pinned upstream source and
+Agora patch because Agora's HTTP integration
 does not consume the Basecamp Storage module's native upload/download methods.
 
 On 2026-10-26 this setup connected to public testnet peers and served its local
@@ -107,12 +111,32 @@ tests Mix explicitly when the node configuration supports it; it never silently
 falls back to direct. `scripts/check-public-storage.py` also accepts
 `--config-file` for its native backend acceptance test.
 
-## 28 October 2026 verification
+## 30 October 2026 public-download correction
+
+The native backend now passes PNG, MP4 and PDF upload, signed-reference ingestion,
+public fetch and exact exported-byte verification with a fresh reader and no
+manual provider connection. [Native public receipt](evidence/public-storage-native-20261030.json).
+The first final-build run took 19, 71 and 9 seconds respectively; a repeat after
+installation/restart took 14, 60 and 66 seconds. The MP4 is 556,240 bytes.
+Public relay throughput and discovery latency are still limited; the 180-second
+application transfer deadline can reject larger/slower relay transfers. These
+results do not establish
+large-file performance, retention, Mix transport or testnet 0.4 compatibility.
+Both native test processes were on one computer.
+
+The patch handles constrained relay batches, known-provider admission, stale
+addresses and relay renewal. Agora sends the validated MIME type and refreshes
+provider announcements after every upload, including deduplicated uploads.
+26 backend tests, 67 QML tests and two address-fallback/cancellation regressions
+pass. The hosted workflow rebuilds the patch and checks receipt independently;
+its current result is recorded in the dated verification report.
+
+## Earlier verification
 
 For the newer network, NAT and independent-runner checks, see
 [30 October verification](evidence/NETWORK-VERIFICATION-20261030.md).
-The independent GitHub-hosted reader also timed out; public attachment retrieval
-is still a failing acceptance gate, while private native transfer passes.
+The earlier independent GitHub-hosted reader timed out before the relay and
+address-fallback correction. Those failure records are retained for comparison.
 
 The updated candidate passes image, MP4 and PDF transfer with exact hashes between
 two isolated Storage nodes, including an MP4 through Basecamp, offline restart

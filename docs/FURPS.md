@@ -1,9 +1,10 @@
 # FURPS self-assessment — native 0.3.2 alpha
 
-30 October network recheck: signed/anonymous private Delivery exchange, restart,
-Store recovery and native PNG/MP4/PDF transfers pass. Public native retrieval
-still times out, and testnet 0.4 is not verified. The acceptance harness's
-auto-connect race has been fixed. See the
+30 October update: signed/anonymous private Delivery exchange, restart and Store
+recovery pass. Public PNG/MP4/PDF retrieval now passes through the native backend
+with a fresh reader and patched Storage; both nodes used one computer. Independent
+hosted receipt of the final patch is pending. Testnet 0.4 remains unverified.
+26 backend and 67 QML tests pass. The acceptance harness's auto-connect race is fixed. See the
 [dated verification report](evidence/NETWORK-VERIFICATION-20261030.md).
 
 
@@ -16,8 +17,8 @@ Linux host. [Receipt evidence](evidence/public-delivery-20261028.json).
 The user reported successful Intel Mac installation on Sequoia 15.1. No additional
 cross-machine exchange is claimed. A [development walkthrough](DEMO.md) is recorded. Authentic community discussions,
 verified testnet 0.4 operation and a final end-to-end recording remain open; see
-[submission preparation](SUBMISSION.md). Public Storage retrieval timed out on this host; private transfer and Basecamp
-media/restart/Store tests pass. See [Storage verification](STORAGE.md#28-october-2026-verification).
+[submission preparation](SUBMISSION.md). Earlier public Storage retrieval timeouts are superseded by the patched native
+receipt above; private transfer and Basecamp media/restart/Store tests also pass. See [Storage verification](STORAGE.md#28-october-2026-verification).
 
 | Area | Evidence | Remaining acceptance work |
 | --- | --- | --- |

@@ -6,6 +6,8 @@ The public RPC at `https://testnet.lez.logos.co` responded to `checkHealth`,
 `getChannelId` and `getProgramIds`. It does not expose `getVersion`.
 [Recorded responses](network-target-20261030.json).
 
+The official [endpoint table](https://github.com/logos-co/logos-docs/blob/65dea82e1455f0397c5bc14b7b192834c54acfa2/docs/get-started/testnet-endpoints.md) explicitly lists every testnet 0.4 deployment field (RPC, explorers, release and channel) as **TBD**, and identifies 0.3 as current. This is an external deployment dependency, not an inference from package versions.
+
 The official [node guide](https://docs.logos.co/run-a-node) still identifies
 the deployment as testnet v0.3. The official
 [faucet network table](https://github.com/logos-co/lez-faucet#networks) identifies
@@ -40,8 +42,34 @@ testnet 0.4, cross-machine Delivery, anonymity or organic-adoption evidence.
 
 ## Public attachments
 
+The corrected native backend and patched Storage v0.5.3 now retrieve all three
+public fixtures through fresh independent reader profiles, without manual peer
+connections or copied blocks. [Native result](public-storage-native-20261030.json):
+PNG 30,402 bytes in 18.987s, MP4 556,240 bytes in 70.802s, PDF 2,345 bytes in 9.401s.
+Every signed size, SHA-256 and MIME check passed before export. Both nodes ran on
+one computer; independent hosted verification of the final patch is pending.
+A second run after installing and restarting the persistent Storage service also
+passed all three files: [installed-build receipt](public-storage-installed-20261030.json).
+Its timings were 13.889s, 59.513s and 66.386s. Cold discovery remains variable;
+this is a correctness/recovery fix, not a low-latency claim.
+
+The repair bounds each direct address attempt, skips Mix-only addresses in direct
+mode, prefers previously successful addresses, admits known providers into full
+swarms, and renews relay circuits after a single 64 KiB batch. Native uploads now
+use their validated MIME type and explicitly refresh provider announcements.
+The deployment retains the provider's existing identity and block store. It uses
+a separately versioned patched binary, with the original official binary retained.
+
+26 backend tests, 67 QML checks and two direct-address fallback/cancellation
+regressions pass locally. [Hosted native checks](https://github.com/stevancarlon/logos-agora/actions/runs/41097790241)
+and [Windows checks](https://github.com/stevancarlon/logos-agora/actions/runs/41097790362)
+pass for code commit `d4cbade`. [Build/test and installation record](storage-fix-checks-20261030.json). Relay throughput and long-term file retention remain
+limitations. This is not testnet 0.4 or cross-machine Delivery evidence.
+
+### Earlier failures
+
 A fresh Storage reader independently bootstrapped through `logos.test`, without
-a direct peer connection or copied data. Native attachment retrieval still timed
+a direct peer connection or copied data. Before the correction, retrieval timed
 out: [result](public-storage-20261030.json).
 
 The long-running provider has peers and relay addresses, and the uploaded CIDs
@@ -74,13 +102,13 @@ was also corrected to test a constrained 360px viewport. All 67 QML checks pass.
 Reproduce the local native public check:
 
 ```sh
-python3 scripts/check-public-storage.py --storage /absolute/path/to/storage --provider-api http://127.0.0.1:18080/api/storage/v1 --output /tmp/agora-public-storage
+python3 scripts/check-public-storage.py --storage /absolute/path/to/patched-storage --config-file /absolute/path/to/storage-public.toml --provider-api http://127.0.0.1:18080/api/storage/v1 --output /tmp/agora-public-storage
 ```
 
 For another machine, keep the provider online and run:
 
 ```sh
-python3 scripts/check-storage-receipt.py --storage /absolute/path/to/storage --manifest docs/evidence/storage-fixtures-20261030.json --output /tmp/agora-storage-receipt
+python3 scripts/check-storage-receipt.py --storage /absolute/path/to/patched-storage --config-file /absolute/path/to/storage-public.toml --manifest docs/evidence/storage-fixtures-20261030.json --output /tmp/agora-storage-receipt
 ```
 
 The fixture manifest contains only synthetic files already distributed with the
