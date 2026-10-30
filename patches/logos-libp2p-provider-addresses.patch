@@ -1,0 +1,56 @@
+diff --git i/libp2p/protocols/kademlia/provider.nim w/libp2p/protocols/kademlia/provider.nim
+index 2158339..eda327f 100644
+--- i/libp2p/protocols/kademlia/provider.nim
++++ w/libp2p/protocols/kademlia/provider.nim
+@@ -519,7 +519,19 @@ proc getProviders*(
+       if PeerId.init(idraw).isErr:
+         debug "Invalid peer id received", peerId = provider.id
+         continue
+-      allProviders.incl(provider)
++      # Peer equality compares only the id. Keep addresses learned from every
++      # responding DHT node: the first response may contain an expired relay.
++      var merged = provider
++      for previous in allProviders:
++        if previous == provider:
++          for address in previous.addrs:
++            if address notin merged.addrs and merged.addrs.len < 32:
++              merged.addrs.add(address)
++          break
++      if merged.addrs.len > 32:
++        merged.addrs.setLen(32)
++      allProviders.excl(provider)
++      allProviders.incl(merged)
+ 
+   let enoughProviders = proc(state: LookupState): bool {.gcsafe.} =
+     allProviders.len() >= kad.config.replication
+diff --git i/tests/libp2p/kademlia/test_get_providers.nim w/tests/libp2p/kademlia/test_get_providers.nim
+index 154ea86..43f3f6b 100644
+--- i/tests/libp2p/kademlia/test_get_providers.nim
++++ w/tests/libp2p/kademlia/test_get_providers.nim
+@@ -13,6 +13,26 @@ suite "KadDHT - Get Providers":
+   teardown:
+     checkTrackers()
+ 
++  asyncTest "Get providers preserves alternate addresses from duplicate provider records":
++    let kads = setupKadSwitches(4, republishProvidedKeysInterval = chronos.hours(1))
++    startAndDeferStop(kads)
++    await connectHub(kads[0], kads[1 .. 2])
++    let key = kads[0].rtable.selfId
++    var oldRecord = kads[3].switch.peerInfo.toPeer()
++    var currentRecord = oldRecord
++    oldRecord.addrs = @[kads[1].switch.peerInfo.addrs[0]]
++    currentRecord.addrs = @[kads[2].switch.peerInfo.addrs[0]]
++    kads[1].providerManager.knownKeys[key] = [oldRecord].toHashSet()
++    kads[2].providerManager.knownKeys[key] = [currentRecord].toHashSet()
++    let providers = await kads[0].getProviders(key)
++    check providers.len == 1
++    for provider in providers:
++      check:
++        provider.id == oldRecord.id
++        oldRecord.addrs[0] in provider.addrs
++        currentRecord.addrs[0] in provider.addrs
++        provider.addrs.len == 2
++
+   asyncTest "Get providers uses iterative lookup":
+     let kads = setupKadSwitches(
+       4,

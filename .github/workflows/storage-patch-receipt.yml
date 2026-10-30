@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [codex/public-network-verification]
-    paths: [patches/logos-storage-0.5.3-public-download.patch, .github/workflows/storage-patch-receipt.yml]
+    paths: [patches/logos-libp2p-provider-addresses.patch, patches/logos-storage-0.5.3-public-download.patch, .github/workflows/storage-patch-receipt.yml]
 permissions:
   contents: read
 jobs:
@@ -21,6 +21,7 @@ jobs:
           git submodule update --init --depth 1
           git submodule foreach 'if [ "$sm_path" != "vendor/nimbus-build-system" ]; then git submodule update --init --recursive --depth 1; fi'
           git apply "$GITHUB_WORKSPACE/patches/logos-storage-0.5.3-public-download.patch"
+          git -C vendor/nim-libp2p apply "$GITHUB_WORKSPACE/patches/logos-libp2p-provider-addresses.patch"
           curl --fail --location --max-time 120 --output "$RUNNER_TEMP/nim.tar.xz" https://nim-lang.org/download/nim-2.2.10-linux_x64.tar.xz
           echo "0a3a38752e97e9d44aa479b3a7b37336dfe0176daf22ee5b5218ad0991ecd211  $RUNNER_TEMP/nim.tar.xz" | sha256sum --check
           tar -xf "$RUNNER_TEMP/nim.tar.xz" -C "$RUNNER_TEMP"
@@ -37,6 +38,11 @@ jobs:
         run: |
           cd "$RUNNER_TEMP/storage-source"
           USE_SYSTEM_NIM=1 ./env.sh nim c -r -d:release --out:build/testdirectconnect tests/storage/testdirectconnect.nim > "$RUNNER_TEMP/storage-fallback-tests.log" 2>&1
+      - name: Run provider address regressions
+        shell: bash
+        run: |
+          cd "$RUNNER_TEMP/storage-source"
+          USE_SYSTEM_NIM=1 ./env.sh nim c -r -d:release '--warningAsError:UnusedImport:off' --out:build/test_get_providers vendor/nim-libp2p/tests/libp2p/kademlia/test_get_providers.nim > "$RUNNER_TEMP/storage-provider-tests.log" 2>&1
       - name: Retrieve public fixtures without manual peer connection
         shell: bash
         run: |
@@ -51,6 +57,7 @@ jobs:
             ${{ runner.temp }}/storage-build.log
             ${{ runner.temp }}/storage-tests.log
             ${{ runner.temp }}/storage-fallback-tests.log
+            ${{ runner.temp }}/storage-provider-tests.log
             ${{ runner.temp }}/storage-fleet.json
             ${{ runner.temp }}/storage-public.toml
           if-no-files-found: warn

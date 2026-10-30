@@ -13,7 +13,7 @@ jobs:
         id: binary
         with:
           path: .probe/storage
-          key: storage-probe-ubuntu24-v1-${{ hashFiles('patches/logos-storage-0.5.3-public-download.patch') }}
+          key: storage-probe-ubuntu24-v1-${{ hashFiles('patches/*storage*.patch', 'patches/logos-libp2p-provider-addresses.patch') }}
       - name: Build pinned Storage probe
         if: steps.binary.outputs.cache-hit != 'true'
         shell: bash
@@ -24,6 +24,7 @@ jobs:
           git submodule update --init --depth 1
           git submodule foreach 'if [ "$sm_path" != "vendor/nimbus-build-system" ]; then git submodule update --init --recursive --depth 1; fi'
           git apply "$GITHUB_WORKSPACE/patches/logos-storage-0.5.3-public-download.patch"
+          git -C vendor/nim-libp2p apply "$GITHUB_WORKSPACE/patches/logos-libp2p-provider-addresses.patch"
           curl --fail --location --max-time 120 --output "$RUNNER_TEMP/nim.tar.xz" https://nim-lang.org/download/nim-2.2.10-linux_x64.tar.xz
           echo "0a3a38752e97e9d44aa479b3a7b37336dfe0176daf22ee5b5218ad0991ecd211  $RUNNER_TEMP/nim.tar.xz" | sha256sum --check
           tar -xf "$RUNNER_TEMP/nim.tar.xz" -C "$RUNNER_TEMP"
