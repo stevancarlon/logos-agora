@@ -24,8 +24,8 @@ jobs:
       - name: Fetch from public discovery and verify exact bytes
         shell: bash
         run: |
-          storage_bin=$(find "$RUNNER_TEMP/storage" -type f -name storage -print -quit)
-          test -n "$storage_bin"
+          storage_bin="$RUNNER_TEMP/storage/logos-storage-linux-amd64-v0.5.3"
+          test -f "$storage_bin"
           chmod +x "$storage_bin"
           python3 scripts/check-storage-receipt.py --storage "$storage_bin" --manifest docs/evidence/storage-fixtures-20261030.json --output "$RUNNER_TEMP/receipt"
       - uses: actions/upload-artifact@v4
