@@ -4,6 +4,6 @@
   "displayName": "Agora \u2014 Alpha testing",
   "description": "Unsigned Agora alpha. Latest Linux attachment fixes; earlier macOS/Windows variants retained. Separate media runtime required.",
   "homepage": "https://github.com/stevancarlon/logos-agora",
-  "indexUrl": "https://github.com/stevancarlon/logos-agora/releases/download/v0.3.3-alpha.1/index.json",
+  "indexUrl": "https://github.com/stevancarlon/logos-agora/releases/download/v0.3.4-alpha.1/index.json",
   "trustedSigners": []
 }
