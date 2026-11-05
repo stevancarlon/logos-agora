@@ -52,7 +52,7 @@ def main():
             if not (profile / 'modules').exists():
                 (profile / 'modules').symlink_to(a.modules.resolve(), target_is_directory=True)
             subprocess.run(['python3', str(ROOT / 'scripts/install-basecamp.py'), '--user-dir', str(profile)], check=True, capture_output=True)
-            qml = profile / 'plugins/logos_forum/qml'
+            qml = profile / 'plugins/agora_forum/qml'
             controller = qml / 'ForumController.qml'
             controller.write_text(controller.read_text().replace('/logos-forum/1/commons/json', topic))
             config = dict(listenAddress='127.0.0.1', tcpPort=port(), clusterId=42,
@@ -66,12 +66,12 @@ def main():
             template = template.replace('TEST_MODE_JSON', json.dumps('anonymous' if a.anonymous else 'alias'))
             (qml / 'Main.qml').write_text(template)
             env = dict(os.environ, LOGOS_USER_DIR=str(profile),
-                       LOGOS_FORUM_DATA_DIR=str(profile / 'module_data/logos_forum'),
+                       LOGOS_FORUM_DATA_DIR=str(profile / 'module_data/agora_forum'),
                        QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software', LOGOS_NO_SCHEME_REGISTER='1')
             log = (a.output / (role + '.log')).open('w+')
             logs.append(log)
             process = subprocess.Popen([str(a.basecamp.resolve()), '--user-dir', str(profile),
-                                        '--uri=basecamp://app/logos_forum'], env=env,
+                                        '--uri=basecamp://app/agora_forum'], env=env,
                                        stdout=log, stderr=log, start_new_session=True, cwd=profile)
             processes.append(process)
             return log
@@ -91,7 +91,7 @@ def main():
                 process.wait(timeout=10)
 
         def posts(profile):
-            path = Path(temporary) / profile / 'module_data/logos_forum/forum.sqlite'
+            path = Path(temporary) / profile / 'module_data/agora_forum/forum.sqlite'
             with sqlite3.connect(f'file:{path}?mode=ro', uri=True) as db:
                 return db.execute('SELECT id,thread,status FROM posts ORDER BY id').fetchall()
 
@@ -159,7 +159,7 @@ def main():
                         rows = posts(name)
                         if sorted(row[0] for row in rows) != expected:
                             raise RuntimeError(f'{name} persisted unexpected or duplicate posts')
-                        path = Path(temporary) / name / 'module_data/logos_forum/forum.sqlite'
+                        path = Path(temporary) / name / 'module_data/agora_forum/forum.sqlite'
                         with sqlite3.connect(f'file:{path}?mode=ro', uri=True) as db:
                             for mode, author, public_key, wire in db.execute('SELECT mode,author,pub,wire FROM posts'):
                                 signature = json.loads(wire)['signature']
@@ -171,7 +171,7 @@ def main():
                     result['independentDatabasesVerified'] = True
                     result['identityModeVerified'] = True
                     if a.media_file:
-                        path = Path(temporary) / 'receiver/module_data/logos_forum/forum.sqlite'
+                        path = Path(temporary) / 'receiver/module_data/agora_forum/forum.sqlite'
                         with sqlite3.connect(f'file:{path}?mode=ro', uri=True) as db:
                             downloaded = db.execute("SELECT path FROM attachments WHERE post=?", (result['receivedThread'],)).fetchone()
                         if not downloaded or hashlib.sha256(Path(downloaded[0]).read_bytes()).digest() != hashlib.sha256(a.media_file.read_bytes()).digest():

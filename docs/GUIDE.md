@@ -7,7 +7,7 @@ Detailed setup, everyday use, identity and media notes. For prebuilt downloads, 
 Basecamp is installed at `~/Applications/LogosBasecamp-0.3.2-x86_64.AppImage`. Agora is installed in its local plugins folder. Launch with the multimedia-enabled wrapper (also used by the desktop shortcut), then open Agora:
 
 ```sh
-~/Applications/LogosBasecamp-Agora --uri=basecamp://app/logos_forum
+~/Applications/LogosBasecamp-Agora --uri=basecamp://app/agora_forum
 ```
 
 Use the header’s **/all/** and board links to browse. The feed places its sort dropdown on the left and **New thread** on the right; the board dropdown appears only on narrow windows where the header board links are hidden. Each thread shows its opening text, latest reply preview when available, and a **Reply** action that opens its composer. Desktop search lives in the header; Ctrl+F focuses search. The profile icon opens identity/avatar settings. Narrow windows retain board and sort selectors. Pending and failed delivery states stay on posts; there is no sidebar or Outbox tab.
@@ -45,13 +45,13 @@ Build the official [logos-package CLI](https://github.com/logos-co/logos-package
 python3 scripts/package-native.py --lgx /absolute/path/to/lgx
 ```
 
-This produces `artifacts/logos_forum-0.3.1-linux-amd64.lgx` and runs `lgx verify`. It is an **unsigned local development package**, not a trusted catalog publication. It includes original-code licenses and an original 256×256 icon. Windows x86_64 and Apple Silicon development archives also pass installation and actual Basecamp MP4/WebM playback checks. Intel Mac archive installation and Basecamp MP4/WebM playback also pass. All four alpha kits are published; see [platform evidence](PLATFORMS.md) before choosing a package. Package CLI revision used locally: `c25a1167578aef5cbd9a9b6f822ffe2ae4fd6a89`.
+This produces `artifacts/agora_forum-0.3.1-linux-amd64.lgx` and runs `lgx verify`. It is an **unsigned local development package**, not a trusted catalog publication. It includes original-code licenses and an original 256×256 icon. Windows x86_64 and Apple Silicon development archives also pass installation and actual Basecamp MP4/WebM playback checks. Intel Mac archive installation and Basecamp MP4/WebM playback also pass. All four alpha kits are published; see [platform evidence](PLATFORMS.md) before choosing a package. Package CLI revision used locally: `c25a1167578aef5cbd9a9b6f822ffe2ae4fd6a89`.
 
 The header profile icon opens **Profile**. You can upload, replace or remove a PNG/JPEG avatar (up to 8 MB and 4096 pixels per side). It is cropped to a square, resized and saved locally for that identity. Avatars are not included in published posts.
 
 ## Data and identities
 
-Basecamp data: `~/.local/share/Logos/LogosBasecamp/module_data/logos_forum/forum.sqlite`. `LOGOS_USER_DIR` selects another Basecamp profile; `LOGOS_FORUM_DATA_DIR` overrides the database directory. SQLite uses WAL, transactions, parameterized queries, a busy timeout, and owner-only directory/file permissions. Close the app before copying the entire data directory for a backup; keep it private because it contains signing keys. Data and keys are **not encrypted at rest**.
+Basecamp data: `~/.local/share/Logos/LogosBasecamp/module_data/agora_forum/forum.sqlite`. `LOGOS_USER_DIR` selects another Basecamp profile; `LOGOS_FORUM_DATA_DIR` overrides the database directory. SQLite uses WAL, transactions, parameterized queries, a busy timeout, and owner-only directory/file permissions. Close the app before copying the entire data directory for a backup; keep it private because it contains signing keys. Data and keys are **not encrypted at rest**.
 
 Alias and UID posts are signed with Ed25519. Alias text is not unique: the public key defines the identity. Anonymous posts omit the stable public key and signature. Optional rotation creates a new signing identity after each new thread. Public posts are not end-to-end encrypted. Anonymous display, key rotation and requested mix routing do not constitute a verified network-anonymity guarantee.
 

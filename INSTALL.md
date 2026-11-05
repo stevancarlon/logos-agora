@@ -4,13 +4,24 @@ Download the [latest alpha release](https://github.com/stevancarlon/logos-agora/
 
 This is an unsigned testing release for Basecamp 0.3.2. Linux/macOS use Qt 6.9.2; Windows needs the release's matching Qt 6.11.1 runtime and source/license companion. Shared attachments require a local Logos Storage node; see [Storage setup](docs/STORAGE.md). Without one, attachments remain device-local. Existing local-only discussions remain local.
 
+### Upgrading from Agora 0.3.5 or earlier
+
+Agora 0.3.6 uses the unique Basecamp module identifier `agora_forum`. On its
+first start, it copies the existing Agora database, identities, signing keys,
+drafts, bookmarks, and attachments from `module_data/logos_forum` into
+`module_data/agora_forum`. The old directory is retained as a rollback backup.
+Close every Basecamp window before installing, open the new Agora entry once,
+and confirm your discussions are present before removing the old Agora entry.
+The migration refuses incomplete or unrecognized data instead of creating an
+empty replacement profile.
+
 ## Community catalog
 
 Add `https://raw.githubusercontent.com/stevancarlon/logos-agora/main/logos-repo.json` as a custom Basecamp repository. The catalog serves the LGX package; it does not install the media companion. This is a community catalog, not an official or trusted-signed catalog.
 
 In Basecamp, open **Package Manager → Manage Repositories**, paste that URL and
-select **Add**. Return to Package Manager, select **Reload**, search for **forum**
-(the host searches the module identifier), and install **Agora**. Review the
+select **Add**. Return to Package Manager, select **Reload**, search for **Agora**
+and install it. Review the
 listed dependencies, then open Agora from the sidebar. Install the companion
 runtime first using the precompiled guide above.
 

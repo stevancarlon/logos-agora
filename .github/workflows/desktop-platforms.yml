@@ -86,7 +86,7 @@ jobs:
           if-no-files-found: error
           path: |
             artifacts/agora-*-darwin-arm64.tar.gz*
-            artifacts/logos_forum-*-darwin-arm64.lgx
+            artifacts/agora_forum-*-darwin-arm64.lgx
   windows:
     runs-on: windows-2022
     timeout-minutes: 40

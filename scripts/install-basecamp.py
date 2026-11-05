@@ -21,17 +21,19 @@ args = p.parse_args()
 source = root/'native/forum'
 if not (source/library).is_file():
     raise SystemExit('Build native/backend first with Qt 6.9.2. See README.md.')
-dest = args.user_dir/'plugins/logos_forum'
-dest.mkdir(parents=True, exist_ok=True)
-for folder in ('qml', 'assets'):
-    shutil.copytree(source/folder, dest/folder, dirs_exist_ok=True)
-for name in ('metadata.json',):
-    shutil.copy2(source/name, dest/name)
 # Release kits from before module.json remain installable.
 module_path = source/'module.json'
 if not module_path.is_file():
     module_path = source/'manifest.json'
 manifest = json.loads(module_path.read_text())
+if manifest['name'] != 'agora_forum':
+    raise SystemExit('Expected the Agora module ID agora_forum')
+dest = args.user_dir/'plugins'/manifest['name']
+dest.mkdir(parents=True, exist_ok=True)
+for folder in ('qml', 'assets'):
+    shutil.copytree(source/folder, dest/folder, dirs_exist_ok=True)
+for name in ('metadata.json',):
+    shutil.copy2(source/name, dest/name)
 manifest['main'] = {variant: 'forum_backend.' + suffix}
 (dest/'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
 (dest/'variant').write_text(variant)
@@ -43,4 +45,4 @@ try:
     os.replace(staged, dest/('forum_backend.' + suffix))
 finally:
     if os.path.exists(staged): os.unlink(staged)
-print(f'Installed: {dest}\nRestart Basecamp, then open Forum. User data is preserved.')
+print(f'Installed: {dest}\nRestart Basecamp, then open Agora. User data is preserved.')

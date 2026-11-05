@@ -21,7 +21,7 @@ result = {'passed': False, 'actualBasecampHost': True, 'crossMachineVerified': F
           'videoPlaybackVerified': False}
 with (a.output / 'basecamp.log').open('w+') as log:
     proc = subprocess.Popen([str(a.launcher.resolve()), '--user-dir', str(a.profile.resolve()),
-                             '--uri=basecamp://app/logos_forum'], env=env,
+                             '--uri=basecamp://app/agora_forum'], env=env,
                             stdout=log, stderr=log, start_new_session=True)
     try:
         deadline = time.monotonic() + 60

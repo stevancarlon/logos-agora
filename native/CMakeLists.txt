@@ -7,7 +7,7 @@ find_package(OpenSSL REQUIRED)
 if(DEFINED AGORA_EXPECTED_QT_VERSION AND NOT Qt6_VERSION VERSION_EQUAL AGORA_EXPECTED_QT_VERSION)
     message(FATAL_ERROR "Expected Qt ${AGORA_EXPECTED_QT_VERSION}, found ${Qt6_VERSION}")
 endif()
-set(backend_sources backend/ForumBackend.cpp backend/ForumBackend.h
+set(backend_sources backend/ForumBackend.cpp backend/ForumBackend.h backend/ForumDataMigration.h
     backend/VideoSession.cpp backend/VideoSession.h backend/StorageTransfer.cpp
     backend/StorageTransfer.h backend/AttachmentMime.h)
 set(backend_libraries Qt6::Core Qt6::Gui Qt6::Network Qt6::Sql Qt6::Multimedia OpenSSL::Crypto)

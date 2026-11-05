@@ -1,8 +1,8 @@
 {
   "manifestVersion": "0.6.0",
-  "name": "logos_forum",
+  "name": "agora_forum",
   "display_name": "Agora",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "type": "ui_qml",
   "category": "social",
   "description": "Public discussions over Logos Messaging (Delivery), with local drafts and deliberate identities.",
@@ -16,6 +16,6 @@
   "main": {
     "linux-amd64": "forum_backend.so"
   },
-  "author": "Logos Forum contributors",
+  "author": "Agora contributors",
   "icon": "assets/icon.png"
 }

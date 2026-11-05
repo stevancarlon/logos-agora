@@ -246,7 +246,7 @@ QtObject {
     }
     function attach() {
         if (typeof forumLocal === "undefined" && typeof logos !== "undefined") {
-            backend = bridge.module("logos_forum");
+            backend = bridge.module("agora_forum");
         }
         if (backend)
             refresh();
@@ -607,7 +607,7 @@ QtObject {
         target: ctl.bridge
         ignoreUnknownSignals: true
         function onViewModuleReadyChanged(name, isReady) {
-            if (name === "logos_forum" && isReady)
+            if (name === "agora_forum" && isReady)
                 ctl.attach();
         }
         function onModuleEventReceived(moduleName, eventName, data) {

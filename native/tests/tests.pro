@@ -3,7 +3,7 @@ QT += gui
 CONFIG += console c++17 testcase
 TEMPLATE = app
 TARGET = backend_tests
-HEADERS += ../backend/ForumBackend.h
+HEADERS += ../backend/ForumBackend.h ../backend/ForumDataMigration.h
 SOURCES += backend_tests.cpp ../backend/ForumBackend.cpp
 include(../backend/crypto.pri)
 

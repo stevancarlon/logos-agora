@@ -46,13 +46,13 @@ def main():
         (a.output / 'install.log').write_text(installed.stdout + installed.stderr)
         installed.check_returncode()
         env = dict(os.environ, LOGOS_USER_DIR=str(profile),
-                   LOGOS_FORUM_DATA_DIR=str(profile / 'module_data/logos_forum'),
+                   LOGOS_FORUM_DATA_DIR=str(profile / 'module_data/agora_forum'),
                    QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software')
         for name in ('QML_IMPORT_PATH', 'QML2_IMPORT_PATH', 'QT_PLUGIN_PATH', 'LD_LIBRARY_PATH'):
             env.pop(name, None)
         with (a.output / 'basecamp.log').open('w+') as log:
             process = subprocess.Popen([str(launcher), '--user-dir', str(profile),
-                                        '--uri=basecamp://app/logos_forum'], env=env, cwd=profile,
+                                        '--uri=basecamp://app/agora_forum'], env=env, cwd=profile,
                                        stdout=log, stderr=log, start_new_session=True)
             try:
                 deadline = time.monotonic() + 45

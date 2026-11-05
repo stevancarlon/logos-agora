@@ -31,7 +31,7 @@ def main():
         (profile / 'modules').symlink_to(args.modules.resolve(), target_is_directory=True)
         subprocess.run(['python3', str(ROOT / 'scripts/install-basecamp.py'),
                         '--user-dir', str(profile)], check=True, capture_output=True)
-        main_qml = profile / 'plugins/logos_forum/qml/Main.qml'
+        main_qml = profile / 'plugins/agora_forum/qml/Main.qml'
         main_qml.write_text('''import QtQuick
 Item {
     ForumController {
@@ -46,13 +46,13 @@ Item {
 }
 ''')
         env = dict(os.environ, LOGOS_USER_DIR=str(profile),
-                   LOGOS_FORUM_DATA_DIR=str(profile / 'module_data/logos_forum'),
+                   LOGOS_FORUM_DATA_DIR=str(profile / 'module_data/agora_forum'),
                    QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software',
                    LOGOS_NO_SCHEME_REGISTER='1')
         log_path = args.output / 'basecamp.log'
         with log_path.open('w+') as log:
             process = subprocess.Popen([str(args.basecamp.resolve()), '--user-dir', str(profile),
-                                        '--uri=basecamp://app/logos_forum'], env=env,
+                                        '--uri=basecamp://app/agora_forum'], env=env,
                                        stdout=log, stderr=log, start_new_session=True, cwd=profile)
             try:
                 deadline = time.monotonic() + args.timeout

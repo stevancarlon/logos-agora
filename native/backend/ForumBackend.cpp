@@ -1,5 +1,6 @@
 #include "AttachmentMime.h"
 #include "ForumBackend.h"
+#include "ForumDataMigration.h"
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QDir>
@@ -165,7 +166,8 @@ void ForumBackend::initialize() {
       root = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + "/Logos/LogosBasecamp";
 #endif
     }
-    root += "/module_data/logos_forum";
+    AgoraData::migrate(root + "/module_data");
+    root += "/module_data/agora_forum";
   }
   require(QDir().mkpath(root), "Cannot create forum data directory");
   QFile::setPermissions(root,
@@ -431,7 +433,7 @@ QJsonObject ForumBackend::snapshot(const QJsonObject &options) {
           {"avatar", avatarValue},
           {"avatars", avatars},
           {"rotate", setting("rotate", "false") == "true"},
-          {"autoConnect", setting("autoConnect", QFileInfo(m_db.databaseName()).absolutePath().endsWith("/AgoraExamples/module_data/logos_forum") ? "false" : "true") == "true"},
+          {"autoConnect", setting("autoConnect", QFileInfo(m_db.databaseName()).absolutePath().contains("/AgoraExamples/module_data/") ? "false" : "true") == "true"},
           {"storageEndpoint",setting("storageEndpoint")},
           {"historyPeer", setting("historyPeer")},
           {"historyCursor", setting("historyCursor")}};

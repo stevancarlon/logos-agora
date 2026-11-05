@@ -97,4 +97,4 @@ jobs:
         if-no-files-found: error
         path: |-
           artifacts/agora-*-darwin-amd64.tar.gz*
-          artifacts/logos_forum-*-darwin-amd64.lgx
+          artifacts/agora_forum-*-darwin-amd64.lgx

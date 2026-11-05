@@ -1,4 +1,6 @@
 #include "../backend/ForumBackend.h"
+#include "../backend/ForumDataMigration.h"
+#include <QScopeGuard>
 #include "../backend/AttachmentMime.h"
 #include <QJsonDocument>
 #include <QImage>
@@ -40,6 +42,141 @@ private slots:
     QVERIFY(backend->lastError().isEmpty());
   }
   void cleanup() { backend.reset(); }
+  void migratesLegacyProfileWithWalAndAttachments() {
+    backend.reset();
+    QTemporaryDir profile;
+    const auto previousUserDir = qgetenv("LOGOS_USER_DIR");
+    const auto previousDataDir = qgetenv("LOGOS_FORUM_DATA_DIR");
+    const auto restore = qScopeGuard([&] {
+      backend.reset();
+      qputenv("LOGOS_USER_DIR", previousUserDir);
+      qputenv("LOGOS_FORUM_DATA_DIR", previousDataDir);
+    });
+    const auto oldRoot = profile.path() + "/module_data/logos_forum";
+    const auto newRoot = profile.path() + "/module_data/agora_forum";
+    qputenv("LOGOS_FORUM_DATA_DIR", oldRoot.toUtf8());
+    backend = std::make_unique<ForumBackend>();
+    QVERIFY(backend->lastError().isEmpty());
+    const auto identity = call({{"op", "identity"}, {"alias", "migration fixture"}})["id"].toString();
+    const auto root = post("Keep this signed envelope")["id"].toString();
+    const QJsonValue wire = call({{"op", "wire"}, {"id", root}}).value("wire");
+    QVERIFY(call({{"op", "next"}})["ok"].toBool());
+    QVERIFY(call({{"op", "bookmark"}, {"id", root}})["ok"].toBool());
+    QVERIFY(call({{"op", "settings"}, {"theme", "light"}, {"autoConnect", false}})["ok"].toBool());
+    QImage image(12, 12, QImage::Format_RGB32); image.fill(Qt::blue);
+    const auto input = profile.path() + "/fixture.png";
+    QVERIFY(image.save(input));
+    const auto imported = call({{"op", "attachmentImport"}, {"file", QUrl::fromLocalFile(input).toString()}});
+    QVERIFY(imported["ok"].toBool());
+    const auto aid = imported["attachment"].toObject()["id"].toString();
+    QVERIFY(call({{"op", "avatar"}, {"file", QUrl::fromLocalFile(input).toString()}})["ok"].toBool());
+    const QJsonValue portrait = call({{"op", "snapshot"}}).value("avatar");
+    QVERIFY(!portrait.isNull());
+    // A different app's file must stay untouched, even in the shared old folder.
+    QFile other(oldRoot + "/forum.db");
+    QVERIFY(other.open(QIODevice::WriteOnly)); other.write("other forum's database"); other.close();
+    AgoraData::Database original(oldRoot + "/forum.sqlite"); original.open();
+    original.run("PRAGMA wal_autocheckpoint=0");
+    original.run("INSERT INTO drafts VALUES ('wal-only','Unfinished draft in WAL')");
+    auto keyQuery = original.run("SELECT secret FROM identities WHERE id=?", {identity});
+    QVERIFY(keyQuery.next()); const auto secret = keyQuery.value(0).toByteArray(); keyQuery.finish();
+    auto fileQuery = original.run("SELECT path FROM attachments WHERE id=?", {aid});
+    QVERIFY(fileQuery.next()); const auto oldPath = fileQuery.value(0).toString(); fileQuery.finish();
+    backend.reset(); // Keep another connection open so committed WAL pages remain.
+    QVERIFY(QFileInfo(oldRoot + "/forum.sqlite-wal").size() > 0);
+    qputenv("LOGOS_USER_DIR", profile.path().toUtf8());
+    qunsetenv("LOGOS_FORUM_DATA_DIR");
+    backend = std::make_unique<ForumBackend>();
+    QVERIFY2(backend->lastError().isEmpty(), qPrintable(backend->lastError()));
+    const auto snapshot = call({{"op", "snapshot"}});
+    QCOMPARE(snapshot["active"].toString(), identity);
+    QCOMPARE(snapshot["identities"].toArray().size(), 2);
+    QCOMPARE(snapshot["drafts"].toObject()["wal-only"].toString(), QString("Unfinished draft in WAL"));
+    QCOMPARE(snapshot["saved"].toArray(), QJsonArray{root});
+    QCOMPARE(snapshot["theme"].toString(), QString("light"));
+    QCOMPARE(snapshot["avatar"], portrait);
+    QVERIFY(!snapshot["autoConnect"].toBool());
+    QCOMPARE(call({{"op", "wire"}, {"id", root}})["wire"], wire);
+    QCOMPARE(call({{"op", "postInfo"}, {"id", root}})["post"].toObject()["status"].toString(), QString("queued"));
+    {
+      AgoraData::Database migrated(newRoot + "/forum.sqlite"); migrated.open();
+      auto key = migrated.run("SELECT secret FROM identities WHERE id=?", {identity});
+      QVERIFY(key.next()); QCOMPARE(key.value(0).toByteArray(), secret);
+      auto path = migrated.run("SELECT path FROM attachments WHERE id=?", {aid});
+      QVERIFY(path.next()); QVERIFY(path.value(0).toString().startsWith(newRoot + "/attachments/"));
+      QVERIFY(QFileInfo::exists(path.value(0).toString()));
+#ifndef Q_OS_WIN
+      QCOMPARE(QFileInfo(newRoot).permissions() & (QFile::ReadGroup | QFile::WriteGroup | QFile::ExeGroup | QFile::ReadOther | QFile::WriteOther | QFile::ExeOther), QFile::Permissions());
+      QCOMPARE(QFileInfo(newRoot + "/forum.sqlite").permissions() & (QFile::ReadGroup | QFile::WriteGroup | QFile::ReadOther | QFile::WriteOther), QFile::Permissions());
+#endif
+    }
+    const auto exported = profile.path() + "/exported.png";
+    QVERIFY(call({{"op", "attachmentExport"}, {"id", aid}, {"file", QUrl::fromLocalFile(exported).toString()}})["ok"].toBool());
+    QCOMPARE(QImage(exported), image);
+    QVERIFY(QFileInfo::exists(oldPath));
+    QVERIFY(other.open(QIODevice::ReadOnly)); QCOMPARE(other.readAll(), QByteArray("other forum's database")); other.close();
+    QVERIFY(!QFileInfo::exists(newRoot + "/forum.db"));
+    // A restart uses the new database, never replacing it from the legacy one.
+    QVERIFY(call({{"op", "settings"}, {"theme", "dark"}})["ok"].toBool());
+    backend.reset(); backend = std::make_unique<ForumBackend>();
+    QVERIFY(backend->lastError().isEmpty());
+    QCOMPARE(call({{"op", "snapshot"}})["theme"].toString(), QString("dark"));
+    auto untouched = original.run("SELECT value FROM settings WHERE key='theme'");
+    QVERIFY(untouched.next()); QCOMPARE(untouched.value(0).toString(), QString("light"));
+    auto oldStatus = original.run("SELECT status FROM posts WHERE id=?", {root});
+    QVERIFY(oldStatus.next()); QCOMPARE(oldStatus.value(0).toString(), QString("sending"));
+  }
+  void migrationFailureDoesNotCreateFreshIdentity() {
+    backend.reset();
+    QTemporaryDir profile;
+    const auto previousUserDir = qgetenv("LOGOS_USER_DIR");
+    const auto previousDataDir = qgetenv("LOGOS_FORUM_DATA_DIR");
+    const auto restore = qScopeGuard([&] {
+      backend.reset();
+      qputenv("LOGOS_USER_DIR", previousUserDir);
+      qputenv("LOGOS_FORUM_DATA_DIR", previousDataDir);
+    });
+    const auto oldRoot = profile.path() + "/module_data/logos_forum";
+    const auto newRoot = profile.path() + "/module_data/agora_forum";
+    qputenv("LOGOS_FORUM_DATA_DIR", oldRoot.toUtf8());
+    backend = std::make_unique<ForumBackend>();
+    const QJsonValue active = call({{"op", "snapshot"}}).value("active");
+    QImage image(2, 2, QImage::Format_RGB32); image.fill(Qt::red);
+    const auto input = profile.path() + "/fixture.png"; QVERIFY(image.save(input));
+    QVERIFY(call({{"op", "attachmentImport"}, {"file", QUrl::fromLocalFile(input).toString()}})["ok"].toBool());
+    backend.reset();
+    QVERIFY(QDir().rename(oldRoot + "/attachments", oldRoot + "/saved-attachments"));
+    qputenv("LOGOS_USER_DIR", profile.path().toUtf8()); qunsetenv("LOGOS_FORUM_DATA_DIR");
+    backend = std::make_unique<ForumBackend>();
+    QVERIFY(backend->lastError().contains("attachment is missing"));
+    QVERIFY(!call({{"op", "snapshot"}})["ok"].toBool());
+    QVERIFY(!QFileInfo::exists(newRoot + "/forum.sqlite"));
+    QVERIFY(QDir(profile.path() + "/module_data").entryList({".agora-migration-*"}, QDir::Dirs | QDir::Hidden | QDir::NoDotAndDotDot).isEmpty());
+    // Restoring the missing file makes the next startup retry safely.
+    backend.reset();
+    QVERIFY(QDir().rename(oldRoot + "/saved-attachments", oldRoot + "/attachments"));
+    backend = std::make_unique<ForumBackend>();
+    QVERIFY2(backend->lastError().isEmpty(), qPrintable(backend->lastError()));
+    QCOMPARE(call({{"op", "snapshot"}}).value("active"), active);
+  }
+  void freshProfileCoexistsWithOtherForum() {
+    backend.reset();
+    QTemporaryDir profile;
+    const auto previousUserDir = qgetenv("LOGOS_USER_DIR");
+    const auto previousDataDir = qgetenv("LOGOS_FORUM_DATA_DIR");
+    const auto restore = qScopeGuard([&] {
+      backend.reset(); qputenv("LOGOS_USER_DIR", previousUserDir); qputenv("LOGOS_FORUM_DATA_DIR", previousDataDir);
+    });
+    const auto oldRoot = profile.path() + "/module_data/logos_forum";
+    QVERIFY(QDir().mkpath(oldRoot));
+    QFile other(oldRoot + "/forum.db"); QVERIFY(other.open(QIODevice::WriteOnly)); other.write("other app"); other.close();
+    qputenv("LOGOS_USER_DIR", profile.path().toUtf8()); qunsetenv("LOGOS_FORUM_DATA_DIR");
+    backend = std::make_unique<ForumBackend>();
+    QVERIFY(backend->lastError().isEmpty());
+    QVERIFY(QFileInfo::exists(profile.path() + "/module_data/agora_forum/forum.sqlite"));
+    QVERIFY(!QFileInfo::exists(oldRoot + "/forum.sqlite"));
+    QVERIFY(other.open(QIODevice::ReadOnly)); QCOMPARE(other.readAll(), QByteArray("other app"));
+  }
   void resolvesPostReferencesWithoutGuessing() {
     const auto root = post("Original post")["id"].toString();
     const auto reply = post("Referenced reply", root)["id"].toString();

@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
     // Seeding is restricted to temporary previews or the dedicated examples profile.
     const auto data = qEnvironmentVariable("LOGOS_FORUM_DATA_DIR");
     if (!args.contains("--screenshot") && !args.contains("--demo") &&
-        !data.endsWith("/AgoraExamples/module_data/logos_forum")) return 6;
+        !data.endsWith("/AgoraExamples/module_data/agora_forum")) return 6;
     backend.dispatch(QStringLiteral("{\"op\":\"settings\",\"autoConnect\":false}"));
     auto call = [&](QJsonObject c) {
       auto result = QJsonDocument::fromJson(backend.dispatch(QString::fromUtf8(QJsonDocument(c).toJson())).toUtf8()).object();

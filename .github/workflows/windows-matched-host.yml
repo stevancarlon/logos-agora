@@ -43,7 +43,7 @@ jobs:
           if-no-files-found: error
           path: |
             artifacts/agora-*-windows-amd64.tar.gz*
-            artifacts/logos_forum-*-windows-amd64.lgx
+            artifacts/agora_forum-*-windows-amd64.lgx
   host:
     needs: package
     runs-on: windows-2022
@@ -94,7 +94,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Delivery installation failed' }
           python scripts/prepare-host-video.py --profile "$env:RUNNER_TEMP/agora-profile"
           if ($LASTEXITCODE -ne 0) { throw 'Video probe installation failed' }
-          python scripts/inspect-pe-symbols.py --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --runtime-dir "$env:RUNNER_TEMP/agora-runtime" --backend "$env:RUNNER_TEMP/agora-profile/plugins/logos_forum/forum_backend.dll" --output "$env:RUNNER_TEMP/agora-runtime/symbols.json"
+          python scripts/inspect-pe-symbols.py --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --runtime-dir "$env:RUNNER_TEMP/agora-runtime" --backend "$env:RUNNER_TEMP/agora-profile/plugins/agora_forum/forum_backend.dll" --output "$env:RUNNER_TEMP/agora-runtime/symbols.json"
           if ($LASTEXITCODE -ne 0) { throw 'Windows dependency validation failed' }
           python scripts/check-windows-host.py --host-bin "$env:RUNNER_TEMP/basecamp-extracted/bin" --runtime-dir "$env:RUNNER_TEMP/agora-runtime" --profile "$env:RUNNER_TEMP/agora-profile" --output "$env:RUNNER_TEMP/agora-windows-host-check" --video
           if ($LASTEXITCODE -ne 0) { throw 'MP4 host playback failed' }

@@ -4,7 +4,7 @@ CONFIG += plugin c++17
 TEMPLATE = lib
 TARGET = forum_backend
 DESTDIR = $$PWD/../forum
-HEADERS += ForumBackend.h
+HEADERS += ForumBackend.h ForumDataMigration.h
 SOURCES += ForumBackend.cpp
 include(crypto.pri)
 

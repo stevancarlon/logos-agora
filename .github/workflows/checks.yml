@@ -34,4 +34,4 @@ jobs:
           path: |
             artifacts/agora-*-linux-amd64.tar.gz
             artifacts/agora-*-linux-amd64.tar.gz.sha256
-            artifacts/logos_forum-*-linux-amd64.lgx
+            artifacts/agora_forum-*-linux-amd64.lgx

@@ -28,7 +28,7 @@ if not valid:
     raise SystemExit(f'Backend binary format/architecture does not match {args.variant}')
 main_file = 'forum_backend.' + suffix
 manifest = json.loads((root/'native/forum/module.json').read_text())
-output = root/'artifacts'/f"logos_forum-{manifest['version']}-{args.variant}.lgx"
+output = root/'artifacts'/f"{manifest['name']}-{manifest['version']}-{args.variant}.lgx"
 output.parent.mkdir(exist_ok=True)
 with tempfile.TemporaryDirectory() as tmp:
     stage = pathlib.Path(tmp)

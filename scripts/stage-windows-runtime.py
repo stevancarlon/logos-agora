@@ -19,7 +19,7 @@ if sys.platform != 'win32':
     p.error('Run on Windows with matching Qt MinGW builds')
 root = Path(__file__).resolve().parents[1]
 qt, host, runtime = a.qt.resolve(), a.host_bin.resolve(), a.runtime_dir.resolve()
-backend = a.user_dir / 'plugins/logos_forum/forum_backend.dll'
+backend = a.user_dir / 'plugins/agora_forum/forum_backend.dll'
 if not backend.is_file() or not (host / 'LogosBasecamp.exe').is_file():
     p.error('Install the compiled Agora plugin and extract Basecamp first')
 queue = [backend]

@@ -31,7 +31,7 @@ def main():
         p.error('Qt 6.9.2 is required')
     contents = app / 'Contents'
     executable = contents / 'MacOS/LogosBasecamp.bin'
-    backend = a.user_dir.resolve() / 'plugins/logos_forum/forum_backend.dylib'
+    backend = a.user_dir.resolve() / 'plugins/agora_forum/forum_backend.dylib'
     root = Path(__file__).resolve().parents[1]
     renderer = root / 'build/qt6.9.2-media/qml/Agora/Media'
     for required in (executable, backend, renderer / 'libagoramedia.dylib'):

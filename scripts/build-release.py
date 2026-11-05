@@ -28,7 +28,8 @@ def main():
     backend = a.backend or ROOT / 'native/forum' / library
     subprocess.run([sys.executable, str(ROOT / 'scripts/package-native.py'), '--lgx', a.lgx,
                     '--variant', a.variant, '--backend', str(backend)], check=True)
-    version = json.loads((ROOT / 'native/forum/module.json').read_text())['version']
+    module = json.loads((ROOT / 'native/forum/module.json').read_text())
+    version = module['version']
     name = f'agora-{version}-{a.variant}'
     with tempfile.TemporaryDirectory(prefix='agora-release-') as temporary:
         stage = Path(temporary) / name
@@ -46,7 +47,7 @@ def main():
                  'scripts/storage-network-config.py', 'scripts/check-storage-receipt.py',
                  'scripts/install-macos-runtime.py', 'scripts/stage-windows-runtime.py', 'scripts/pe_dependencies.py',
                  'docs/PLATFORMS.md', 'docs/DESKTOP-INSTALL.md',
-                 f'artifacts/logos_forum-{version}-{a.variant}.lgx']
+                 f"artifacts/{module['name']}-{version}-{a.variant}.lgx"]
         for relative in files:
             target = stage / relative
             target.parent.mkdir(parents=True, exist_ok=True)

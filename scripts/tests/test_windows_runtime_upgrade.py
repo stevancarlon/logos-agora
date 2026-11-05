@@ -17,7 +17,7 @@ class WindowsRuntimeUpgrade(unittest.TestCase):
                 p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_bytes(data)
                 return p
-            file('profile/plugins/logos_forum/forum_backend.dll')
+            file('profile/plugins/agora_forum/forum_backend.dll')
             file('host/LogosBasecamp.exe')
             file('host/sqldrivers/qsqlite.dll')
             file('qt/plugins/multimedia/ffmpegmediaplugin.dll')

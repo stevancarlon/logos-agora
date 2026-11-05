@@ -32,7 +32,7 @@ Install, supplying the actual Basecamp path:
 
 ```sh
 python3 scripts/install-release.py --qt "$HOME/Qt/6.9.2/gcc_64" --appimage "$HOME/Applications/LogosBasecamp-0.3.2-x86_64.AppImage"
-"$HOME/Applications/LogosBasecamp-Agora" --uri=basecamp://app/logos_forum
+"$HOME/Applications/LogosBasecamp-Agora" --uri=basecamp://app/agora_forum
 ```
 
 The installer preserves the Basecamp AppImage, installs the extra media runtime

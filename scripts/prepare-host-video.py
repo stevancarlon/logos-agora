@@ -11,7 +11,7 @@ a = p.parse_args()
 root = Path(__file__).resolve().parents[1]
 if not (a.profile / '.agora-disposable-profile').is_file():
     p.error('Refusing to modify an unmarked profile')
-main = a.profile / 'plugins/logos_forum/qml/Main.qml'
+main = a.profile / 'plugins/agora_forum/qml/Main.qml'
 text = main.read_text(encoding='utf-8')
 if 'id: hostVideoProbe' in text:
     p.error('Video probe is already installed')

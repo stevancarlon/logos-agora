@@ -27,12 +27,12 @@ result = {'passed': False, 'actualBasecampHost': True, 'videoPlaybackVerified': 
           'crossMachineVerified': False, 'buildToolchainRemovedFromPath': True}
 probe = subprocess.run([sys.executable, '-c',
     'import ctypes,sys; ctypes.WinDLL(sys.argv[1], winmode=8); print("Native backend DLL dependencies resolved")',
-    str(a.profile / 'plugins/logos_forum/forum_backend.dll')], env=env, capture_output=True, timeout=15)
+    str(a.profile / 'plugins/agora_forum/forum_backend.dll')], env=env, capture_output=True, timeout=15)
 (a.output / 'dll-load.log').write_bytes(probe.stdout + probe.stderr)
 result['backendDllLoadPassed'] = probe.returncode == 0
 with (a.output / 'basecamp.log').open('w+', encoding='utf-8', errors='replace') as log:
     proc = subprocess.Popen([str(a.host_bin / 'LogosBasecamp.exe'), '--user-dir', str(a.profile),
-                             '--uri=basecamp://app/logos_forum'], env=env, stdout=log, stderr=log)
+                             '--uri=basecamp://app/agora_forum'], env=env, stdout=log, stderr=log)
     try:
         deadline = time.monotonic() + 60
         while time.monotonic() < deadline:
