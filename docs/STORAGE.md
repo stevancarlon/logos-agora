@@ -131,7 +131,7 @@ Both native test processes were on one computer. A subsequent independent GitHub
 The patch handles constrained relay batches, known-provider admission, stale
 addresses and relay renewal. Agora sends the validated MIME type and refreshes
 provider announcements after every upload, including deduplicated uploads.
-26 backend tests, 67 QML tests and two address-fallback/cancellation regressions
+29 backend tests, 68 QML tests and two address-fallback/cancellation regressions
 pass. The hosted workflow rebuilds the patch and checks receipt independently;
 its current result is recorded in the dated verification report.
 

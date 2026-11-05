@@ -2,7 +2,7 @@
   "manifestVersion": "0.6.0",
   "name": "agora_forum",
   "display_name": "Agora",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "type": "ui_qml",
   "category": "social",
   "description": "Public discussions over Logos Messaging (Delivery), with local drafts and deliberate identities.",

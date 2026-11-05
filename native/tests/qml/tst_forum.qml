@@ -1022,8 +1022,7 @@ TestCase {
         var openingProgress = area.progress;
         app.minimizeReply();
         verify(!composer.enabled);
-        wait(40);
-        verify(area.progress < openingProgress);
+        tryVerify(function () { return area.progress < openingProgress; });
         app.beginReply();
         tryCompare(area, "progress", 1);
         compare(input.activeFocus, true);

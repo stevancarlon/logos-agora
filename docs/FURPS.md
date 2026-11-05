@@ -1,10 +1,16 @@
-# FURPS self-assessment — native 0.3.5 alpha
+# FURPS self-assessment — native 0.3.7 alpha
+
+4 November update: the header now exposes publishing readiness and recovery
+actions. The same connection panel configures the loopback Storage API and lets
+users request bounded Store history pages. The pixel-color-dependent caret test
+was replaced with focus, cursor-position and viewport assertions; headless media
+tests force software decoding. **29 backend and 68 QML tests pass locally.**
 
 30 October update: signed/anonymous private Delivery exchange, restart and Store
 recovery pass. Public PNG/MP4/PDF retrieval now passes through the native backend
 with a fresh reader and patched Storage; both nodes used one computer. Independent
 hosted receipt now passes all three original fixtures with exact size/hash validation. See [cross-machine Storage evidence](evidence/PUBLIC-STORAGE-20261030.md). Testnet 0.4 remains unverified.
-26 backend and 67 QML tests pass. The acceptance harness's auto-connect race is fixed. See the
+29 backend and 68 QML tests pass. The acceptance harness's auto-connect race is fixed. See the
 [dated verification report](evidence/NETWORK-VERIFICATION-20261030.md).
 
 
@@ -23,8 +29,8 @@ receipt above; private transfer and Basecamp media/restart/Store tests also pass
 | Area | Evidence | Remaining acceptance work |
 | --- | --- | --- |
 | Functionality | Native threads/replies/quotes, boards/search, signed alias/UID and anonymous posts, identity rotation, Delivery adapter, paged Store ingestion, signed v2 attachment references and Logos Storage transfer | Live cross-machine Delivery and Store validation; authentic community discussions |
-| Usability | Compact native QML UI, persistent composers, plain text selection, keyboard-accessible controls, narrow layout tests | User usability feedback and assistive technology validation |
-| Reliability | SQLite WAL/transactions, crash recovery, durable outbox, signature rejection, deduplication, early-ack and failure tests | Long-running loss/reconnect tests against real peers; backup/restore UI |
+| Usability | Compact native QML UI, persistent composers, visible publishing readiness, in-app local Storage setup, plain text selection, keyboard-accessible controls, narrow layout tests | User usability feedback and assistive technology validation |
+| Reliability | SQLite WAL/transactions, crash recovery, durable outbox, signature rejection, deduplication, early-ack and failure tests, in-app bounded Store recovery | Long-running loss/reconnect tests against real peers; backup/restore UI |
 | Performance | Single in-flight send, five-second pacing, exponential retry, 50-message history pages, 64 KiB envelopes, live intake budget, coalesced snapshots and database-backed feed/reply pages | Sustained resource measurements, stronger moderation |
 | Supportability | C++17/QML source, build/install scripts, hosted CI (latest macOS UI rerun pending), published unsigned desktop alpha/catalog, dual license, verified Linux/Windows/Apple Silicon Basecamp loading and media | Cross-machine acceptance |
 
