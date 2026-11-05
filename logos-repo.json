@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "name": "stevancarlon-agora",
   "displayName": "Agora — Alpha testing",
-  "description": "Unsigned Agora 0.3.7 alpha with visible publishing, Storage, and recovery controls. Separate media runtime required.",
+  "description": "Unsigned Agora 0.3.8 alpha with visible publishing, Storage, and recovery controls. Separate media runtime required.",
   "homepage": "https://github.com/stevancarlon/logos-agora",
-  "indexUrl": "https://github.com/stevancarlon/logos-agora/releases/download/v0.3.7-alpha.1/index.json",
+  "indexUrl": "https://github.com/stevancarlon/logos-agora/releases/download/v0.3.8-alpha.1/index.json",
   "trustedSigners": []
 }

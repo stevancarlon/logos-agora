@@ -1,10 +1,12 @@
-# FURPS self-assessment — native 0.3.7 alpha
+# FURPS self-assessment — native 0.3.8 alpha
 
 4 November update: the header now exposes publishing readiness and recovery
 actions. The same connection panel configures the loopback Storage API and lets
 users request bounded Store history pages. The pixel-color-dependent caret test
 was replaced with focus, cursor-position and viewport assertions; headless media
-tests force software decoding. **29 backend and 68 QML tests pass locally.**
+tests force software decoding. Identity modes are now explicit, aliases cannot
+imitate anonymous/public-ID labels, remote feed order uses local receipt time,
+and unsaved remote history is bounded. **32 backend and 68 QML tests pass locally.**
 
 30 October update: signed/anonymous private Delivery exchange, restart and Store
 recovery pass. Public PNG/MP4/PDF retrieval now passes through the native backend
@@ -32,7 +34,7 @@ receipt above; private transfer and Basecamp media/restart/Store tests also pass
 | Usability | Compact native QML UI, persistent composers, visible publishing readiness, in-app local Storage setup, plain text selection, keyboard-accessible controls, narrow layout tests | User usability feedback and assistive technology validation |
 | Reliability | SQLite WAL/transactions, crash recovery, durable outbox, signature rejection, deduplication, early-ack and failure tests, in-app bounded Store recovery | Long-running loss/reconnect tests against real peers; backup/restore UI |
 | Performance | Single in-flight send, five-second pacing, exponential retry, 50-message history pages, 64 KiB envelopes, live intake budget, coalesced snapshots and database-backed feed/reply pages | Sustained resource measurements, stronger moderation |
-| Supportability | C++17/QML source, build/install scripts, hosted CI (latest macOS UI rerun pending), published unsigned desktop alpha/catalog, dual license, verified Linux/Windows/Apple Silicon Basecamp loading and media | Cross-machine acceptance |
+| Supportability | C++17/QML source, build/install scripts, hosted CI, published unsigned desktop alpha/catalog, dual license, verified Linux/Windows/Apple Silicon Basecamp loading and media | Cross-machine acceptance |
 
 Earlier desktop code evidence (28 October 2026, `860e1ec`): [Linux checks](https://github.com/stevancarlon/logos-agora/actions/runs/40776947729) and [desktop checks](https://github.com/stevancarlon/logos-agora/actions/runs/40776947735) pass. [Windows matching-host playback](https://github.com/stevancarlon/logos-agora/actions/runs/40776972271) passes with current QML. [Intel Mac host playback](https://github.com/stevancarlon/logos-agora/actions/runs/40776118984) passes for the same native binary sources before the QML-only draft fix; the subsequent Intel Qt workflow checks that fix. The release reuses these CI binaries and packages current QML and documentation. See [platform evidence and limits](PLATFORMS.md).
 

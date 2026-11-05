@@ -218,6 +218,16 @@ Pane {
     function displayAuthor(p) {
         return p.mode === "anonymous" ? "Anonymous" : p.mode === "uid" ? shortId(p.author) : p.author + " · " + shortId(p.authorId);
     }
+    function authorModeLabel(p) {
+        return p.mode === "anonymous" ? "anonymous" : p.mode === "uid" ? "public ID" : "alias";
+    }
+    function validAlias(value) {
+        var alias = value.trim();
+        return alias.length > 0 && alias.length <= 32 && alias.toLowerCase() !== "anonymous" && !/^[0-9a-f]{8,}$/i.test(alias);
+    }
+    function postTime(p) {
+        return p.received || p.created;
+    }
     function boardName(id) {
         for (var i = 0; i < boards.length; i++)
             if (boards[i].id === id)
@@ -895,7 +905,7 @@ Pane {
                                             spacing: 6
                                             Text {
                                                 width: Math.min(implicitWidth, Math.max(0, feedMetadata.width - (feedDelivery.visible ? feedDelivery.width + 6 : 0)))
-                                                text: "/" + row.modelData.board + "/  ·  " + (row.modelData.mode === "anonymous" ? "Anonymous" : row.modelData.mode === "uid" ? root.shortId(row.modelData.author) : row.modelData.author) + "  ·  " + root.activityAge(row.modelData.created) + (row.modelData.replyCount > 0 ? "  ·  " + row.modelData.replyCount + (row.modelData.replyCount === 1 ? " reply" : " replies") : "")
+                                                text: "/" + row.modelData.board + "/  ·  " + root.authorName(row.modelData) + "  ·  " + root.authorModeLabel(row.modelData) + "  ·  " + root.activityAge(root.postTime(row.modelData)) + (row.modelData.replyCount > 0 ? "  ·  " + row.modelData.replyCount + (row.modelData.replyCount === 1 ? " reply" : " replies") : "")
                                                 textFormat: Text.PlainText
                                                 color: theme.muted
                                                 font.family: "Adwaita Sans"
@@ -955,7 +965,7 @@ Pane {
                                                     spacing: 6
                                                     Text {
                                                         width: Math.min(implicitWidth, Math.max(0, previewMetadata.width - (previewDelivery.visible ? previewDelivery.width + 6 : 0)))
-                                                        text: latestPreview.latestReply ? (latestPreview.latestReply.mode === "anonymous" ? "Anonymous" : latestPreview.latestReply.mode === "uid" ? root.shortId(latestPreview.latestReply.author) : latestPreview.latestReply.author) + "  ·  " + root.activityAge(latestPreview.latestReply.created) : ""
+                                                        text: latestPreview.latestReply ? root.authorName(latestPreview.latestReply) + "  ·  " + root.authorModeLabel(latestPreview.latestReply) + "  ·  " + root.activityAge(root.postTime(latestPreview.latestReply)) : ""
                                                         textFormat: Text.PlainText
                                                         elide: Text.ElideRight
                                                         color: theme.accent
@@ -1174,13 +1184,34 @@ Pane {
                                                 textFormat: Text.PlainText
                                                 elide: Text.ElideRight
                                                 HoverHandler { id: authorHover }
-                                                ToolTip.visible: authorHover.hovered
-                                                ToolTip.delay: 500
-                                                ToolTip.text: root.displayAuthor(post.modelData) + "\nPost >>" + root.shortId(post.modelData.id) + " · " + root.statusLabel(post.modelData.status)
                                                 Accessible.description: root.displayAuthor(post.modelData) + ". Post " + root.shortId(post.modelData.id) + ". " + root.statusLabel(post.modelData.status)
+                                                ToolTip {
+                                                    visible: authorHover.hovered
+                                                    delay: 500
+                                                    contentItem: Text {
+                                                        text: root.displayAuthor(post.modelData) + "\n" + root.authorModeLabel(post.modelData) + " · Post >>" + root.shortId(post.modelData.id) + " · " + root.statusLabel(post.modelData.status)
+                                                        textFormat: Text.PlainText
+                                                        color: theme.text
+                                                        font.family: "Adwaita Sans"
+                                                        font.pixelSize: 12
+                                                    }
+                                                    background: Rectangle {
+                                                        color: theme.alternate
+                                                        border.color: theme.border
+                                                        radius: 4
+                                                    }
+                                                }
                                             }
                                             Text {
-                                                text: root.activityAge(post.modelData.created)
+                                                objectName: "post-mode-" + post.modelData.id
+                                                text: root.authorModeLabel(post.modelData)
+                                                font.family: "Adwaita Sans"
+                                                font.pixelSize: 11
+                                                color: theme.accent
+                                                textFormat: Text.PlainText
+                                            }
+                                            Text {
+                                                text: root.activityAge(root.postTime(post.modelData))
                                                 font.family: "Adwaita Sans"
                                                 font.pixelSize: 13
                                                 color: theme.muted
@@ -2206,7 +2237,7 @@ Pane {
                 }
                 ForumButton {
                     text: "Create identity"
-                    enabled: aliasInput.text.trim().length > 0
+                    enabled: root.validAlias(aliasInput.text)
                     onClicked: forum.mutate({
                         op: "identity",
                         alias: aliasInput.text
@@ -2214,6 +2245,16 @@ Pane {
                         aliasInput.text = "";
                     })
                 }
+            }
+            Text {
+                Layout.fillWidth: true
+                visible: aliasInput.text.trim().length > 0 && !root.validAlias(aliasInput.text)
+                text: "Choose a name that is not Anonymous or a public-ID-like hex value."
+                textFormat: Text.PlainText
+                wrapMode: Text.Wrap
+                color: theme.error
+                font.family: "Adwaita Sans"
+                font.pixelSize: 12
             }
             ForumButton {
                 text: "Done"

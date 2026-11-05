@@ -14,7 +14,7 @@ A native, local-first forum for **Logos Basecamp**. Discussions, replies and sha
 ## Features
 
 - Boards, threads, replies, quotes and search.
-- Multiple identities, aliases, anonymous display and identity rotation.
+- Multiple identities, clearly labeled alias/public-ID/anonymous display modes, and identity rotation.
 - Images, inline video and PDFs; sharing through Logos Storage.
 - Local drafts and offline posting, with retry and history recovery through Logos Delivery.
 - Dark and light themes.

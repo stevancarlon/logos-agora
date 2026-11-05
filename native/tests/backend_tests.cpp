@@ -1,6 +1,7 @@
 #include "../backend/ForumBackend.h"
 #include "../backend/ForumDataMigration.h"
 #include <QScopeGuard>
+#include <QSet>
 #include "../backend/AttachmentMime.h"
 #include <QJsonDocument>
 #include <QImage>
@@ -573,6 +574,56 @@ private slots:
     QVERIFY(p["author"].toString().isEmpty());
     QVERIFY(p["pub"].toString().isEmpty());
     QVERIFY(envelope["signature"].toString().isEmpty());
+  }
+  void freshProfilesUsePublicIdsAndRejectSpoofingAliases() {
+    const auto snapshot = call({{"op", "snapshot"}});
+    QCOMPARE(snapshot["mode"].toString(), QString("uid"));
+    QVERIFY(!call({{"op", "identity"}, {"alias", "Anonymous"}})["ok"].toBool());
+    QVERIFY(!call({{"op", "identity"}, {"alias", "c17dc191"}})["ok"].toBool());
+    QVERIFY(call({{"op", "identity"}, {"alias", "forest-reader"}})["ok"].toBool());
+  }
+  void receivedOrderIgnoresSenderTimestamps() {
+    const auto first = post("First authored");
+    QTest::qWait(2);
+    const auto second = post("Second authored");
+    const auto firstWire = call({{"op", "wire"}, {"id", first["id"]}})["wire"].toString();
+    const auto secondWire = call({{"op", "wire"}, {"id", second["id"]}})["wire"].toString();
+    backend.reset();
+    qputenv("LOGOS_FORUM_DATA_DIR", (dir.path() + "/receive-order").toUtf8());
+    backend = std::make_unique<ForumBackend>();
+    const auto secondReceived = call({{"op", "receive"}, {"wire", secondWire}});
+    QVERIFY2(secondReceived["ok"].toBool(), qPrintable(secondReceived["error"].toString()));
+    QTest::qWait(2);
+    const auto firstReceived = call({{"op", "receive"}, {"wire", firstWire}});
+    QVERIFY2(firstReceived["ok"].toBool(), qPrintable(firstReceived["error"].toString()));
+    const auto posts = call({{"op", "snapshot"}, {"view", "feed"},
+                             {"sort", "newest"}})["posts"].toArray();
+    QCOMPARE(posts[0].toObject()["body"].toString(), QString("First authored"));
+    QCOMPARE(posts[1].toObject()["body"].toString(), QString("Second authored"));
+  }
+  void prunesOnlyOldUnbookmarkedRemoteHistory() {
+    QList<QJsonValue> wires;
+    for (int i = 0; i < 101; ++i) {
+      const auto created = post("Remote archive " + QString::number(i));
+      wires.append(call({{"op", "wire"}, {"id", created["id"]}})["wire"]);
+    }
+    backend.reset();
+    const auto oldLimit = qgetenv("AGORA_REMOTE_ARCHIVE_LIMIT");
+    const auto restore = qScopeGuard([&] {
+      if (oldLimit.isNull()) qunsetenv("AGORA_REMOTE_ARCHIVE_LIMIT");
+      else qputenv("AGORA_REMOTE_ARCHIVE_LIMIT", oldLimit);
+    });
+    qputenv("AGORA_REMOTE_ARCHIVE_LIMIT", "100");
+    qputenv("LOGOS_FORUM_DATA_DIR", (dir.path() + "/bounded-archive").toUtf8());
+    backend = std::make_unique<ForumBackend>();
+    for (const auto &wire : wires)
+      QVERIFY(call({{"op", "receive"}, {"wire", wire}})["ok"].toBool());
+    const auto posts = call({{"op", "snapshot"}})["posts"].toArray();
+    QCOMPARE(posts.size(), 100);
+    QSet<QString> retained;
+    for (const auto &value : posts)
+      retained.insert(value.toObject()["body"].toString());
+    QCOMPARE(retained.size(), 100);
   }
   void rejectsTamperedSignature() {
     auto t = post();

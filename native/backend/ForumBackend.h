@@ -42,6 +42,7 @@ private:
   QJsonObject attachment(const QJsonObject &cmd);
   QJsonObject post(const QJsonObject &cmd);
   QJsonObject receive(const QString &wire);
+  void pruneRemoteArchive();
   QJsonObject identity(const QString &alias);
   QString setting(const QString &key, const QString &fallback = QString());
   void setSetting(const QString &key, const QString &value);

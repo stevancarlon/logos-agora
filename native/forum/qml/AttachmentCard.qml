@@ -105,9 +105,21 @@ Rectangle {
                 enabled: !card.previewOnly && !card.video && card.available
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
                 hoverEnabled: true
-                ToolTip.visible: containsMouse && card.imageOnly
-                ToolTip.delay: 600
-                ToolTip.text: card.attachment.name
+                ToolTip {
+                    visible: parent.containsMouse && card.imageOnly
+                    delay: 600
+                    contentItem: Text {
+                        text: card.attachment.name
+                        textFormat: Text.PlainText
+                        color: card.ink
+                        font.pixelSize: 12
+                    }
+                    background: Rectangle {
+                        color: card.surface
+                        border.color: card.outline
+                        radius: 4
+                    }
+                }
                 onClicked: function(mouse) {
                     if (mouse.button === Qt.RightButton) imageMenu.popup();
                     else card.openFile();

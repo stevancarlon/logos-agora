@@ -1,21 +1,21 @@
 {
   "schemaVersion": 2,
   "repositoryName": "stevancarlon-agora",
-  "generatedAt": "2026-11-04T22:44:08-03:00",
+  "generatedAt": "2026-11-05T14:56:48-03:00",
   "packages": [
     {
       "name": "agora_forum",
       "versions": [
         {
-          "releasedAt": "2026-11-04T22:44:08-03:00",
-          "publisherRef": "v0.3.7-alpha.1",
-          "url": "https://github.com/stevancarlon/logos-agora/releases/download/v0.3.7-alpha.1/agora_forum-0.3.7-linux-amd64.lgx",
+          "releasedAt": "2026-11-05T14:56:48-03:00",
+          "publisherRef": "v0.3.8-alpha.1",
+          "url": "https://github.com/stevancarlon/logos-agora/releases/download/v0.3.8-alpha.1/agora_forum-0.3.8-linux-amd64.lgx",
           "urls": [
-            "https://github.com/stevancarlon/logos-agora/releases/download/v0.3.7-alpha.1/agora_forum-0.3.7-linux-amd64.lgx"
+            "https://github.com/stevancarlon/logos-agora/releases/download/v0.3.8-alpha.1/agora_forum-0.3.8-linux-amd64.lgx"
           ],
-          "size": 1859774,
-          "sha256": "11e17cdc6ce847e1aaa41702204562dc59afd8f0c2774cde7becf5c2f6742025",
-          "rootHash": "561a13a129f2ad5e0fa1e613cc004d09f57dd29a7d2786556df1c089e4696628",
+          "size": 1864644,
+          "sha256": "f17448b6ecfc4dea067485ac3e4a61a0ce1866731203ec5a39a50b2c79cde332",
+          "rootHash": "59f6eabdcc5ee91d92d34f5c2ce1570e46e325445094af5447459cdbedc0e57d",
           "manifest": {
             "author": "Agora contributors",
             "category": "social",
@@ -30,9 +30,9 @@
             "hashes": {
               "assets": "340c73dc46853fa1a05b08bb24a054c9b3097abdb7a60fca81dbb4f10d499c56",
               "licenses": "097529c41cae003f93ba58e1b078eb3bb831571ebcb8d81ea97eaebc85a2e856",
-              "root": "561a13a129f2ad5e0fa1e613cc004d09f57dd29a7d2786556df1c089e4696628",
-              "variants": "3d0ddff46f6b11d8418af21ffc78c503752193cc185b22e1673678dacf442477",
-              "variants/linux-amd64": "e445723d19e44a67f5457ef79fd4cbcc1af3698c138ca07a9a9836e02b11560e"
+              "root": "59f6eabdcc5ee91d92d34f5c2ce1570e46e325445094af5447459cdbedc0e57d",
+              "variants": "c08000f00d00339f01e78cf735cacf9ba8e0e933966f62e2327888d225403b81",
+              "variants/linux-amd64": "87a82d7f7f1f042ed0d9f03bf22c9a80ac8f33ac02a2c0bb943f59fa61eba175"
             },
             "icon": "assets/icon.png",
             "main": {
@@ -41,7 +41,7 @@
             "manifestVersion": "0.6.0",
             "name": "agora_forum",
             "type": "ui_qml",
-            "version": "0.3.7",
+            "version": "0.3.8",
             "view": "qml/Main.qml"
           }
         },

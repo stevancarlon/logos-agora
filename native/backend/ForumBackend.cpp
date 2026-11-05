@@ -70,6 +70,14 @@ QString hash(const QByteArray &b) {
 bool validCid(const QString &cid) {
   return QRegularExpression("^[a-zA-Z0-9]{20,160}$").match(cid).hasMatch();
 }
+bool validAlias(const QString &alias) {
+  return !alias.isEmpty() && alias.size() <= 32 &&
+         alias.compare("anonymous", Qt::CaseInsensitive) != 0 &&
+         !QRegularExpression("^[0-9a-f]{8,}$",
+                             QRegularExpression::CaseInsensitiveOption)
+              .match(alias)
+              .hasMatch();
+}
 void validateAttachmentManifest(const QJsonObject &file) {
   const auto name=file["name"].toString(), mime=file["mime"].toString();
   const auto size=file["bytes"].toDouble(-1);
@@ -218,14 +226,17 @@ void ForumBackend::initialize() {
     } catch(...) {m_db.rollback();throw;}
   }
   query(m_db,"CREATE INDEX IF NOT EXISTS post_page ON posts(thread,created,id)");
+  query(m_db,"CREATE INDEX IF NOT EXISTS post_received_page ON posts(thread,received,id)");
   query(m_db, "CREATE TABLE IF NOT EXISTS bookmarks (id TEXT PRIMARY KEY)");
   query(m_db, "CREATE TABLE IF NOT EXISTS drafts (id TEXT PRIMARY KEY, body "
               "TEXT NOT NULL)");
   query(m_db,
         "UPDATE posts SET status='queued', request='' WHERE status='sending'");
   auto q = query(m_db, "SELECT id FROM identities LIMIT 1");
-  if (!q.next())
+  if (!q.next()) {
     identity("wanderer");
+    setSetting("mode", "uid");
+  }
   qInfo("FORUM_BACKEND_READY SQLite and Ed25519 initialized");
 }
 QString ForumBackend::setting(const QString &key, const QString &fallback) {
@@ -237,8 +248,8 @@ void ForumBackend::setSetting(const QString &key, const QString &value) {
 }
 QJsonObject ForumBackend::identity(const QString &name) {
   auto alias = name.trimmed();
-  require(!alias.isEmpty() && alias.size() <= 32,
-          "Alias must contain 1–32 characters");
+  require(validAlias(alias),
+          "Use 1–32 characters; aliases cannot be Anonymous or look like a public ID");
   auto pair = keys();
   QString uid = hash(pair.second);
   query(m_db, "INSERT INTO identities VALUES (?,?,?,?,?)",
@@ -292,15 +303,15 @@ QJsonValue ForumBackend::avatarImage(const QString &identity) {
 QJsonObject ForumBackend::postRecord(const QString &pid) {
   auto q = query(
       m_db,
-      "SELECT id,thread,board,title,body,author,mode,pub,created,status,error "
+      "SELECT id,thread,board,title,body,author,mode,pub,created,received,status,error "
       "FROM posts WHERE id=?", {pid});
   if (q.next()) {
     QJsonObject p;
     QStringList names = {"id",      "thread", "board", "title",
                          "body",    "author", "mode",  "pub",
-                         "created", "status", "error"};
+                         "created", "received", "status", "error"};
     for (int i = 0; i < names.size(); ++i)
-      p[names[i]] = i == 8 ? QJsonValue(q.value(i).toDouble())
+      p[names[i]] = (i == 8 || i == 9) ? QJsonValue(q.value(i).toDouble())
                            : QJsonValue(q.value(i).toString());
     p["authorId"] = p["pub"].toString().isEmpty() ? QString() : hash(QByteArray::fromBase64(p["pub"].toString().toLatin1()));
     QJsonArray files;
@@ -343,19 +354,19 @@ QJsonObject ForumBackend::browse(const QJsonObject &options) {
     require(QRegularExpression("^[a-f0-9]{64}$").match(thread).hasMatch(),"Invalid thread ID");
     auto root=postRecord(thread);
     if(!root.isEmpty() && root["thread"].toString().isEmpty()) {
-      auto stats=query(m_db,"SELECT COUNT(*),MAX(created) FROM posts WHERE thread=? AND board=?",{thread,root["board"].toString()});
+      auto stats=query(m_db,"SELECT COUNT(*),MAX(received) FROM posts WHERE thread=? AND board=?",{thread,root["board"].toString()});
       stats.next();root["replyCount"]=stats.value(0).toInt();
-      root["lastActivity"]=qMax(root["created"].toDouble(),stats.value(1).toDouble());posts.append(root);
+      root["lastActivity"]=qMax(root["received"].toDouble(),stats.value(1).toDouble());posts.append(root);
       if(options.contains("anchor")) {
-        auto target=query(m_db,"SELECT created,id FROM posts WHERE id=? AND thread=? AND board=?",{options["anchor"].toString(),thread,root["board"].toString()});
+        auto target=query(m_db,"SELECT received,id FROM posts WHERE id=? AND thread=? AND board=?",{options["anchor"].toString(),thread,root["board"].toString()});
         require(target.next(),"Reply is not part of this thread");
-        auto before=query(m_db,"SELECT id,created FROM posts WHERE thread=? AND board=? AND (created<? OR (created=? AND id<=?)) ORDER BY created DESC,id DESC LIMIT 1 OFFSET ?",{thread,root["board"].toString(),target.value(0),target.value(0),target.value(1),limit});
+        auto before=query(m_db,"SELECT id,received FROM posts WHERE thread=? AND board=? AND (received<? OR (received=? AND id<=?)) ORDER BY received DESC,id DESC LIMIT 1 OFFSET ?",{thread,root["board"].toString(),target.value(0),target.value(0),target.value(1),limit});
         if(before.next()) after={{"id",before.value(0).toString()},{"created",before.value(1).toDouble()},{"score",before.value(1).toDouble()},{"context",context}};
       }
-      QString sql="SELECT id,created FROM posts WHERE thread=? AND board=?";
+      QString sql="SELECT id,received FROM posts WHERE thread=? AND board=?";
       QVariantList values{thread,root["board"].toString()};
-      if(!after.isEmpty()) {sql+=" AND (created>? OR (created=? AND id>?))";values<<after["created"].toDouble()<<after["created"].toDouble()<<after["id"].toString();}
-      sql+=" ORDER BY created,id LIMIT ?";values<<limit+1;
+      if(!after.isEmpty()) {sql+=" AND (received>? OR (received=? AND id>?))";values<<after["created"].toDouble()<<after["created"].toDouble()<<after["id"].toString();}
+      sql+=" ORDER BY received,id LIMIT ?";values<<limit+1;
       auto rows=query(m_db,sql,values);int count=0;
       while(rows.next()) {
         if(count++==limit) {more=true;break;}
@@ -373,9 +384,9 @@ QJsonObject ForumBackend::browse(const QJsonObject &options) {
       values<<search<<search;
     }
     const auto count="(SELECT COUNT(*) FROM posts r WHERE r.thread=p.id AND r.board=p.board)";
-    const auto activity="MAX(p.created,COALESCE((SELECT MAX(created) FROM posts r WHERE r.thread=p.id AND r.board=p.board),p.created))";
-    const QString score=sorting=="replies"?count:sorting=="newest"?"p.created":activity;
-    QString sql="WITH ranked AS (SELECT p.id,p.created,"+QString(count)+" AS replyCount,"+activity+" AS activity,"+score+" AS score FROM posts p WHERE "+where+") SELECT * FROM ranked";
+    const auto activity="MAX(p.received,COALESCE((SELECT MAX(received) FROM posts r WHERE r.thread=p.id AND r.board=p.board),p.received))";
+    const QString score=sorting=="replies"?count:sorting=="newest"?"p.received":activity;
+    QString sql="WITH ranked AS (SELECT p.id,p.received AS created,"+QString(count)+" AS replyCount,"+activity+" AS activity,"+score+" AS score FROM posts p WHERE "+where+") SELECT * FROM ranked";
     if(!after.isEmpty()) {
       sql+=" WHERE (score<? OR (score=? AND (created<? OR (created=? AND id<?))))";
       values<<after["score"].toDouble()<<after["score"].toDouble()<<after["created"].toDouble()<<after["created"].toDouble()<<after["id"].toString();
@@ -386,7 +397,7 @@ QJsonObject ForumBackend::browse(const QJsonObject &options) {
       if(n++==limit) {more=true;break;}
       auto root=postRecord(rows.value(0).toString());
       root["replyCount"]=rows.value(2).toInt(); root["lastActivity"]=rows.value(3).toDouble();posts.append(root);
-      auto latest=query(m_db,"SELECT id FROM posts WHERE thread=? AND board=? ORDER BY created DESC,id DESC LIMIT 1",{root["id"].toString(),root["board"].toString()});
+      auto latest=query(m_db,"SELECT id FROM posts WHERE thread=? AND board=? ORDER BY received DESC,id DESC LIMIT 1",{root["id"].toString(),root["board"].toString()});
       if(latest.next()) posts.append(postRecord(latest.value(0).toString()));
       last={{"created",rows.value(1).toDouble()},{"score",rows.value(4).toDouble()},{"id",rows.value(0).toString()}};
     }
@@ -467,6 +478,8 @@ QJsonObject ForumBackend::post(const QJsonObject &cmd) {
     pub = QString::fromLatin1(q.value(2).toByteArray().toBase64());
     author =
         mode == "uid" ? hash(q.value(2).toByteArray()) : q.value(0).toString();
+    require(mode == "uid" || validAlias(author),
+            "This alias cannot be published; choose another alias or use your public ID");
   }
   QJsonObject envelope{
       {"v", 1},           {"nonce", id()},
@@ -675,6 +688,61 @@ QJsonObject ForumBackend::attachment(const QJsonObject &c) {
   require(false,"Unknown attachment operation");
   return {};
 }
+void ForumBackend::pruneRemoteArchive() {
+  bool customLimit = false;
+  const int requested = qEnvironmentVariableIntValue("AGORA_REMOTE_ARCHIVE_LIMIT",
+                                                      &customLimit);
+  const int limit = customLimit ? qBound(100, requested, 50000) : 50000;
+  auto count = query(m_db, "SELECT COUNT(*) FROM posts WHERE status='received'");
+  count.next();
+  int excess = count.value(0).toInt() - limit;
+  if (excess <= 0) return;
+
+  const auto removePost = [this](const QString &postId) {
+    auto files = query(m_db, "SELECT path FROM attachments WHERE post=?", {postId});
+    while (files.next()) {
+      const auto path = files.value(0).toString();
+      if (!path.isEmpty()) QFile::remove(path);
+    }
+    query(m_db, "DELETE FROM attachments WHERE post=?", {postId});
+    query(m_db, "DELETE FROM posts WHERE id=?", {postId});
+  };
+
+  auto replies = query(
+      m_db,
+      "SELECT id FROM posts WHERE status='received' AND thread<>'' "
+      "AND NOT EXISTS(SELECT 1 FROM bookmarks b WHERE b.id=posts.id) "
+      "AND NOT EXISTS(SELECT 1 FROM bookmarks b WHERE b.id=posts.thread) "
+      "ORDER BY received,id LIMIT ?",
+      {excess});
+  QStringList ids;
+  while (replies.next()) ids.append(replies.value(0).toString());
+  for (const auto &postId : ids) removePost(postId);
+  excess -= ids.size();
+  if (excess <= 0) return;
+
+  auto roots = query(
+      m_db,
+      "SELECT id FROM posts p WHERE p.status='received' AND p.thread='' "
+      "AND NOT EXISTS(SELECT 1 FROM bookmarks b WHERE b.id=p.id) "
+      "AND NOT EXISTS(SELECT 1 FROM posts r JOIN bookmarks b ON b.id=r.id WHERE r.thread=p.id) "
+      "AND NOT EXISTS(SELECT 1 FROM posts r WHERE r.thread=p.id AND r.status<>'received') "
+      "ORDER BY p.received,p.id");
+  ids.clear();
+  while (roots.next() && excess > 0) {
+    const auto rootId = roots.value(0).toString();
+    int removed = 1;
+    auto children = query(m_db, "SELECT id FROM posts WHERE thread=? AND status='received'",
+                          {rootId});
+    while (children.next()) {
+      ids.append(children.value(0).toString());
+      ++removed;
+    }
+    ids.append(rootId);
+    excess -= removed;
+  }
+  for (const auto &postId : ids) removePost(postId);
+}
 QJsonObject ForumBackend::receive(const QString &wire) {
   require(wire.toUtf8().size() <= 65536, "Envelope exceeds 64 KiB");
   auto w = object(wire), p = w["payload"].toObject();
@@ -708,7 +776,7 @@ QJsonObject ForumBackend::receive(const QString &wire) {
                QByteArray::fromBase64(w["signature"].toString().toLatin1())),
         "Invalid signature");
     require(mode == "uid" ? author == hash(publicKey)
-                          : !author.isEmpty() && author.size() <= 32,
+                          : validAlias(author.trimmed()) && author == author.trimmed(),
             "Invalid author");
   }
   if (!thread.isEmpty()) {
@@ -744,6 +812,7 @@ QJsonObject ForumBackend::receive(const QString &wire) {
     require(m_db.commit(),"Cannot commit received post");
   } catch (...) { m_db.rollback(); throw; }
 
+  pruneRemoteArchive();
   emit changed();
   return {{"id", pid}, {"duplicate", false}};
 }

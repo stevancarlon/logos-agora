@@ -6,7 +6,7 @@ This is an unsigned testing release for Basecamp 0.3.2. Linux/macOS use Qt 6.9.2
 
 ### Upgrading from Agora 0.3.5 or earlier
 
-Agora 0.3.7 uses the unique Basecamp module identifier `agora_forum`. On its
+Agora 0.3.8 uses the unique Basecamp module identifier `agora_forum`. On its
 first start, it copies the existing Agora database, identities, signing keys,
 drafts, bookmarks, and attachments from `module_data/logos_forum` into
 `module_data/agora_forum`. The old directory is retained as a rollback backup.
