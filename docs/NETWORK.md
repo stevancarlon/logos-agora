@@ -27,7 +27,17 @@ while a local Logos Storage node transfers attachment files.
 Connection is automatic by default. An existing `autoConnect: false` backend
 setting is respected for local-only profiles. Queued public posts are sent after
 connecting. Agora reuses an existing Delivery node without replacing another
-app’s configuration. There is no separate Network settings screen.
+app’s configuration. The connection control in Agora's header shows the current
+publishing state. Open it to reconnect, repeat the publishing readiness check,
+or work offline.
+
+## Recover missed posts
+
+Open the header connection control and enter a Logos Store peer multiaddress
+under **Recover missed posts**. Agora requests at most 50 messages per page,
+validates them through the normal signed-message path, and saves the cursor only
+after a successful page. Use **Recover next page** to continue. Recovery requires
+an active Delivery connection and never marks outgoing posts as delivered.
 
 Agora requests required mix routing when it creates its node. It does not silently
 fall back to direct routing if that path fails. A shared node keeps its existing

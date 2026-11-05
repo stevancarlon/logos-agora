@@ -26,10 +26,19 @@ jobs:
             extra-trusted-public-keys = public:l4HrXgL4nw246+LBh2SOJyhz64BoGegOYLheT/iIAPU=
       - name: Build against Basecamp's locked Windows Qt
         run: |
+          retry_nix() {
+            local attempt
+            for attempt in 1 2 3; do
+              "$@" && return 0
+              if [ "$attempt" -eq 3 ]; then return 1; fi
+              echo "Nix cache download failed; retrying build ($((attempt + 1))/3)…"
+              sleep $((attempt * 10))
+            done
+          }
           nix eval --impure --raw --file nix/windows-agora.nix qtVersion
-          nix build --impure --file nix/windows-agora.nix multimedia --out-link result-media -L
-          nix build --impure --file nix/windows-agora.nix native --out-link result-native -L
-          nix build --impure --file nix/windows-agora.nix codecs --out-link result-codecs -L
+          retry_nix nix build --impure --file nix/windows-agora.nix multimedia --out-link result-media -L
+          retry_nix nix build --impure --file nix/windows-agora.nix native --out-link result-native -L
+          retry_nix nix build --impure --file nix/windows-agora.nix codecs --out-link result-codecs -L
       - name: Collect native binaries and media runtime
         run: |
           mkdir -p artifacts/windows-matched/native artifacts/windows-matched/qt

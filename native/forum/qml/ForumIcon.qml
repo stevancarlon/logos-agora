@@ -141,6 +141,12 @@ Canvas {
             c.moveTo(4, 22);
             c.bezierCurveTo(4, 11, 20, 11, 20, 22);
             c.stroke();
+        } else if (name === "network") {
+            circle(5, 12, 2.2);
+            circle(19, 6, 2.2);
+            circle(19, 18, 2.2);
+            line([7.2, 11.1, 16.8, 6.9]);
+            line([7.2, 12.9, 16.8, 17.1]);
         } else {
             c.beginPath();
             c.moveTo(5, 18);

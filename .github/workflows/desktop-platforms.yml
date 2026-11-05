@@ -68,7 +68,7 @@ jobs:
           python3 scripts/install-test-delivery.py --profile "$RUNNER_TEMP/agora-webm-profile"
           python3 scripts/prepare-host-video.py --profile "$RUNNER_TEMP/agora-webm-profile" --video-file design/agora/demo-media/playback-test.webm
           python3 scripts/check-macos-host.py --launcher "$RUNNER_TEMP/launch-agora-webm" --profile "$RUNNER_TEMP/agora-webm-profile" --output "$RUNNER_TEMP/agora-webm-check" --video
-          hdiutil detach "$RUNNER_TEMP/basecamp-volume"
+          hdiutil detach "$RUNNER_TEMP/basecamp-volume" || hdiutil detach -force "$RUNNER_TEMP/basecamp-volume"
       - uses: actions/upload-artifact@v4
         if: always() && matrix.runner == 'macos-15'
         with:

@@ -86,6 +86,8 @@ QtObject {
         }
     }
     property string playingAttachment: ""
+    property bool historyBusy: false
+    property int historyEpoch: 0
     property string notice: ""
     property var state: ({
             posts: [],
@@ -251,13 +253,13 @@ QtObject {
         if (backend)
             refresh();
     }
-    function mutate(command, done) {
+    function mutate(command, done, failed) {
         error = "";
         call(command, function (r) {
             refresh();
             if (done)
                 done(r);
-        });
+        }, failed);
     }
     function draft(key, body, done, failed) {
         call({
@@ -305,6 +307,7 @@ QtObject {
     function moduleCall(method, args, done, failed) {
         if (!bridge) {
             error = "Logos Delivery is available inside Basecamp.";
+            if (failed) failed(error);
             return;
         }
         bridge.callModuleAsync("delivery_module", method, args, function (raw) {
@@ -405,10 +408,18 @@ QtObject {
         });
     }
     function loadHistory(peer) {
+        if (historyBusy) return;
         if (!peer || peer.indexOf("/") !== 0) {
             error = "Enter a Store peer multiaddress.";
             return;
         }
+        if (connection !== "online") {
+            error = "Connect to Logos Delivery before recovering history.";
+            return;
+        }
+        historyBusy = true;
+        var epoch = ++historyEpoch;
+        error = "";
         var query = {
             requestId: "forum-history-" + Date.now(),
             includeData: true,
@@ -419,18 +430,30 @@ QtObject {
         if (state.historyPeer === peer && state.historyCursor)
             query.paginationCursor = state.historyCursor;
         moduleCall("storeQuery", [JSON.stringify(query), peer, 10000], function (value) {
+            if (epoch !== historyEpoch) return;
             var page = typeof value === "string" ? JSON.parse(value) : value;
             mutate({
                 op: "historyPage",
                 peer: peer,
                 page: page
             }, function (r) {
+                historyBusy = false;
                 notice = "History: " + r.accepted + " recovered, " + r.duplicates + " already stored, " + r.rejected + " rejected.";
+            }, function (message) {
+                if (epoch !== historyEpoch) return;
+                historyBusy = false;
+                error = message;
             });
+        }, function (message) {
+            if (epoch !== historyEpoch) return;
+            historyBusy = false;
+            error = message;
         });
     }
     function disconnect() {
         connectionEpoch++;
+        historyEpoch++;
+        historyBusy = false;
         invalidatePublishing();
         connection = "offline";
         connectionDetail = "Local mode · drafts and posts stay on this device";/* Do not stop the shared host node. */
@@ -536,7 +559,7 @@ QtObject {
         }
         if (name === "messageReceived" && data[1] === contentTopic && connection === "online") {
             if (pendingReceives >= 32) {
-                notice = "Incoming traffic is busy. Recover missed posts from Network → Advanced.";
+                notice = "Incoming traffic is busy. Open Connection to recover missed posts.";
                 return;
             }
             pendingReceives++;
@@ -545,7 +568,7 @@ QtObject {
                 try {
                     var r = JSON.parse(raw);
                     if (!r.ok) {
-                        notice = r.rateLimited ? "Incoming traffic is busy. Recover missed posts from Network → Advanced." : "An invalid network message was rejected.";
+                        notice = r.rateLimited ? "Incoming traffic is busy. Open Connection to recover missed posts." : "An invalid network message was rejected.";
                         return;
                     }
                     if (!r.duplicate) scheduleRefresh();

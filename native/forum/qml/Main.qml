@@ -237,6 +237,16 @@ Pane {
             return "Local only · attachments are not published";
         return status === "sent" ? "Sent to network" : status === "received" ? "Received" : status === "sending" ? "Sending…" : status === "failed" ? "Retry pending" : "Saved locally · queued";
     }
+    function connectionLabel() {
+        if (forum.connection === "connecting") return "Connecting";
+        if (forum.connection !== "online") return "Offline";
+        if (forum.publishingCheckBusy || forum.publishingState === "checking" || forum.publishingState === "unknown") return "Checking publishing";
+        return forum.publishingReady ? "Ready to publish" : "Publishing paused";
+    }
+    function connectionDescription() {
+        if (forum.connection !== "online") return forum.connectionDetail;
+        return forum.publishingReady ? "Connected through Logos Delivery. New posts can be published." : forum.publishingDetail;
+    }
     function threadList() {
         return forum.state.posts.filter(function (p) { return !p.thread; });
     }
@@ -505,6 +515,60 @@ Pane {
                     palette.text: theme.text
                     palette.placeholderText: theme.muted
                     palette.mid: theme.border
+                }
+                ToolButton {
+                    id: connectionButton
+                    objectName: "connectionButton"
+                    Layout.preferredWidth: 40
+                    Layout.preferredHeight: 40
+                    padding: 0
+                    hoverEnabled: true
+                    enabled: forum.ready
+                    Accessible.name: "Connection: " + root.connectionLabel()
+                    HoverHandler { enabled: connectionButton.enabled; cursorShape: Qt.PointingHandCursor }
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 500
+                    ToolTip.text: root.connectionLabel()
+                    background: Rectangle {
+                        color: connectionButton.hovered ? theme.selection : "transparent"
+                        radius: 20
+                        border.color: connectionButton.visualFocus ? theme.accent : "transparent"
+                    }
+                    contentItem: Item {
+                        ForumIcon {
+                            anchors.centerIn: parent
+                            width: 19
+                            height: 19
+                            name: forum.connection === "connecting" ? "sending"
+                                : forum.connection === "online" && forum.publishingReady ? "network"
+                                : forum.connection === "online" ? "warning" : "device"
+                            ink: theme.muted
+                            rotation: connectionSpin.rotation
+                        }
+                        Item {
+                            id: connectionSpin
+                            NumberAnimation on rotation {
+                                running: forum.connection === "connecting"
+                                from: 0
+                                to: 360
+                                duration: 1200
+                                loops: Animation.Infinite
+                            }
+                        }
+                        Rectangle {
+                            width: 7
+                            height: 7
+                            radius: 4
+                            anchors.right: parent.right
+                            anchors.rightMargin: 7
+                            anchors.bottom: parent.bottom
+                            anchors.bottomMargin: 7
+                            color: forum.connection === "online" && forum.publishingReady ? theme.text : theme.canvas
+                            border.color: theme.muted
+                            border.width: 1
+                        }
+                    }
+                    onClicked: connectionDialog.open()
                 }
                 Switch {
                     id: themeSwitch
@@ -1598,7 +1662,7 @@ Pane {
     }
     Shortcut {
         sequences: [StandardKey.Find]
-        enabled: !composeDialog.visible && !identityDialog.visible
+        enabled: !composeDialog.visible && !identityDialog.visible && !connectionDialog.visible
         onActivated: {
             root.leaveThread();
             (root.narrow ? compactSearch : headerSearch).forceActiveFocus();
@@ -1606,12 +1670,12 @@ Pane {
     }
     Shortcut {
         sequences: [StandardKey.Back]
-        enabled: !!root.selected && !composeDialog.visible && !identityDialog.visible
+        enabled: !!root.selected && !composeDialog.visible && !identityDialog.visible && !connectionDialog.visible
         onActivated: root.leaveThread()
     }
     Shortcut {
         sequence: "Escape"
-        enabled: root.replyExpanded && !composeDialog.visible && !identityDialog.visible
+        enabled: root.replyExpanded && !composeDialog.visible && !identityDialog.visible && !connectionDialog.visible
         onActivated: root.minimizeReply()
     }
     Timer {
@@ -1821,6 +1885,193 @@ Pane {
         }, function () {
             forum.notice = "Attachment saved.";
         })
+    }
+    ForumDialog {
+        id: connectionDialog
+        objectName: "connectionDialog"
+        palette: root.palette
+        background: Rectangle {
+            color: theme.surface
+            border.color: theme.border
+            radius: 10
+        }
+        title: "Connection"
+        modal: true
+        anchors.centerIn: parent
+        width: Math.min(root.width - 30, 560)
+        onOpened: {
+            storageEndpointInput.text = forum.state.storageEndpoint || "";
+            historyPeerInput.text = forum.state.historyPeer || "";
+        }
+        contentItem: ScrollView {
+            id: connectionDialogScroll
+            clip: true
+            implicitHeight: Math.min(connectionDialogContents.implicitHeight, 610)
+            contentWidth: availableWidth
+            contentHeight: connectionDialogContents.implicitHeight
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+            ColumnLayout {
+                id: connectionDialogContents
+                width: connectionDialogScroll.availableWidth
+                spacing: 14
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: connectionStatusContents.implicitHeight + 28
+                    radius: 8
+                    color: theme.alternate
+                    border.color: theme.border
+                    RowLayout {
+                        id: connectionStatusContents
+                        anchors.fill: parent
+                        anchors.margins: 14
+                        spacing: 12
+                        ForumIcon {
+                            Layout.preferredWidth: 20
+                            Layout.preferredHeight: 20
+                            name: forum.connection === "online" && forum.publishingReady ? "network"
+                                : forum.connection === "online" ? "warning" : "device"
+                            ink: theme.text
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 3
+                            Text {
+                                font.family: "Adwaita Sans"
+                                text: root.connectionLabel()
+                                font.pixelSize: 14
+                                font.weight: Font.DemiBold
+                                color: theme.text
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                font.family: "Adwaita Sans"
+                                text: root.connectionDescription()
+                                textFormat: Text.PlainText
+                                wrapMode: Text.Wrap
+                                font.pixelSize: 12
+                                color: theme.muted
+                            }
+                        }
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    ForumButton {
+                        objectName: "connectionPrimaryAction"
+                        text: forum.connection === "online" ? "Check publishing" : forum.connection === "connecting" ? "Connecting…" : "Connect"
+                        primary: forum.connection !== "online"
+                        enabled: forum.connection !== "connecting" && !forum.publishingCheckBusy
+                        onClicked: {
+                            if (forum.connection === "online") {
+                                forum.invalidatePublishing();
+                                forum.checkPublishing();
+                            } else forum.connectNetwork(true);
+                        }
+                    }
+                    ForumButton {
+                        visible: forum.connection === "online" || forum.connection === "connecting"
+                        text: "Work offline"
+                        flat: true
+                        onClicked: forum.disconnect()
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+
+                Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: theme.border }
+                Text {
+                    text: "Shared attachments"
+                    font.family: "Adwaita Sans"
+                    font.pixelSize: 15
+                    font.weight: Font.DemiBold
+                    color: theme.text
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: "Connect Agora to the Storage node running on this computer. This enables publishing and fetching shared images, video and PDFs."
+                    textFormat: Text.PlainText
+                    wrapMode: Text.Wrap
+                    font.family: "Adwaita Sans"
+                    font.pixelSize: 12
+                    color: theme.muted
+                }
+                ForumField {
+                    id: storageEndpointInput
+                    objectName: "storageEndpointInput"
+                    Layout.fillWidth: true
+                    placeholderText: "http://127.0.0.1:8080/api/storage/v1"
+                    Accessible.name: "Local Storage node address"
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    ForumButton {
+                        text: "Use standard local node"
+                        flat: true
+                        onClicked: storageEndpointInput.text = "http://127.0.0.1:8080/api/storage/v1"
+                    }
+                    Item { Layout.fillWidth: true }
+                    ForumButton {
+                        objectName: "saveStorageEndpoint"
+                        text: storageEndpointInput.text.trim() ? "Save" : "Disable sharing"
+                        onClicked: forum.mutate({
+                            op: "settings",
+                            storageEndpoint: storageEndpointInput.text.trim()
+                        }, function () {
+                            forum.notice = storageEndpointInput.text.trim() ? "Storage node saved." : "Shared attachments disabled.";
+                        })
+                    }
+                }
+
+                Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: theme.border }
+                Text {
+                    text: "Recover missed posts"
+                    font.family: "Adwaita Sans"
+                    font.pixelSize: 15
+                    font.weight: Font.DemiBold
+                    color: theme.text
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: forum.state.historyCursor
+                        ? "A previous recovery page is saved. Recover the next page from the same Store peer."
+                        : "Enter a Logos Store peer address to retrieve the next 50 saved messages. Recovered posts are verified before they appear."
+                    textFormat: Text.PlainText
+                    wrapMode: Text.Wrap
+                    font.family: "Adwaita Sans"
+                    font.pixelSize: 12
+                    color: theme.muted
+                }
+                ForumField {
+                    id: historyPeerInput
+                    objectName: "historyPeerInput"
+                    Layout.fillWidth: true
+                    placeholderText: "/ip4/…/tcp/…/p2p/…"
+                    Accessible.name: "Logos Store peer multiaddress"
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Text {
+                        Layout.fillWidth: true
+                        text: forum.connection === "online" ? "Connected through Delivery" : "Connect before recovering history"
+                        font.family: "Adwaita Sans"
+                        font.pixelSize: 11
+                        color: theme.muted
+                    }
+                    ForumButton {
+                        objectName: "recoverHistoryButton"
+                        text: forum.historyBusy ? "Recovering…" : forum.state.historyCursor ? "Recover next page" : "Recover posts"
+                        primary: true
+                        enabled: !forum.historyBusy && forum.connection === "online" && historyPeerInput.text.trim().indexOf("/") === 0
+                        onClicked: forum.loadHistory(historyPeerInput.text.trim())
+                    }
+                }
+                ForumButton {
+                    text: "Done"
+                    Layout.alignment: Qt.AlignRight
+                    onClicked: connectionDialog.close()
+                }
+            }
+        }
     }
     NativeDialogs.FileDialog {
         id: avatarPicker

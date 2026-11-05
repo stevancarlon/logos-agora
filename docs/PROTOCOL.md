@@ -68,7 +68,7 @@ A transport acknowledgement is not an application-level receipt from all subscri
 
 ## Store recovery
 
-Requests include one content topic, includeData, forward pagination, limit 50 and the cursor for that peer. Only statusCode 200 pages are ingested. Every message undergoes the same size/hash/signature/topic validation as live traffic; invalid entries are counted and rejected. Peer/cursor are persisted after a successful page. The UI lets the user request the next bounded page rather than flooding the network.
+Requests include one content topic, includeData, forward pagination, limit 50 and the cursor for that peer. Only statusCode 200 pages are ingested. Every message undergoes the same size/hash/signature/topic validation as live traffic; invalid entries are counted and rejected. Peer/cursor are persisted after a successful page. The header connection panel lets the user enter a Store peer and request the next bounded page rather than flooding the network. It also shows when a previous cursor is available so recovery can continue from the interface.
 
 ## Backend operations
 

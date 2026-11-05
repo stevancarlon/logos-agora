@@ -45,7 +45,11 @@ def main():
         env['PATH'] = str(Path(env['OPENSSL_ROOT_DIR']) / 'bin') + os.pathsep + env['PATH']
     env['QML_IMPORT_PATH'] = str(ROOT / f'build/qt{version}-media/qml') + (
         os.pathsep + qt_path('QT_INSTALL_QML') + (os.pathsep + env['QML_IMPORT_PATH'] if env.get('QML_IMPORT_PATH') else ''))
-    env.update(QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software')
+    env.update(QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software',
+               # Hosted Windows runners expose DXVA without usable surfaces.
+               # Force deterministic software decoding for headless media tests.
+               QT_FFMPEG_DECODING_HW_DEVICE_TYPES=',',
+               QT_DISABLE_HW_TEXTURES_CONVERSION='1')
 
     def executable(target, name):
         directory = ROOT / f'build/qt{version}-{target}'

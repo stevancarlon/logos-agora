@@ -39,15 +39,18 @@ be configured for the network your participants use. Public PNG/MP4/PDF retrieva
 discovery and relays on one host; an independent GitHub-hosted reader now verifies all three original fixture CIDs with matching sizes and hashes. See [the receipt](evidence/PUBLIC-STORAGE-20261030.md).
 The separate private integration checks use loopback-connected nodes.
 
-Set the forum profile’s `storageEndpoint` through the backend `settings`
-operation during installation or integration setup:
+Open Agora's header connection control. Under **Shared attachments**, choose
+**Use standard local node** for port 8080 or enter the loopback API address used
+by your node, then choose **Save**. The equivalent backend setting is:
 
 ```json
 {"op":"settings","storageEndpoint":"http://127.0.0.1:8080/api/storage/v1"}
 ```
 
-Existing configuration is retained; Agora no longer exposes a Network settings
-screen. Remote HTTP gateways are not accepted. The endpoint is saved per profile.
+Existing configuration is retained. Remote HTTP gateways are not accepted. The
+endpoint is saved per profile; clearing the field and choosing **Disable sharing**
+removes it. This only configures Agora's local API client: the Storage node must
+still be installed, patched for the verified public relay behavior, and running.
 
 For a persistent Linux desktop setup, the node can run as a systemd user service.
 Keep `--api-bindaddr=127.0.0.1`, choose an unused API port, and keep its data
