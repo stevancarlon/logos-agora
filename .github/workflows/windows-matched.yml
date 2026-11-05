@@ -1,13 +1,6 @@
 name: Windows matching Qt build
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - nix/windows-agora.nix
-      # This job builds native binaries only. QML is tested by the desktop
-      # matrix and copied into the kit during packaging, not compiled here.
-      - 'native/backend/**'
-      - 'native/media-renderer/**'
 permissions:
   contents: read
 concurrency:
