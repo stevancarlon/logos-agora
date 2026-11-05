@@ -26,7 +26,8 @@ jobs:
             extra-trusted-public-keys = public:l4HrXgL4nw246+LBh2SOJyhz64BoGegOYLheT/iIAPU=
             # The Logos cache occasionally closes large parallel transfers.
             # Keep pressure low and let Nix retry each interrupted NAR itself.
-            http-connections = 4
+            http-connections = 1
+            http2 = false
             download-attempts = 10
       - name: Build against Basecamp's locked Windows Qt
         run: |
