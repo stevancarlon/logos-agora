@@ -1,8 +1,52 @@
 {
   "schemaVersion": 2,
   "repositoryName": "stevancarlon-agora",
-  "generatedAt": "2026-10-30T19:12:50.851894+00:00",
+  "generatedAt": "2026-11-04T22:11:34-03:00",
   "packages": [
+    {
+      "name": "agora_forum",
+      "versions": [
+        {
+          "releasedAt": "2026-11-04T22:11:34-03:00",
+          "publisherRef": "v0.3.6-alpha.1",
+          "url": "https://github.com/stevancarlon/logos-agora/releases/download/v0.3.6-alpha.1/agora_forum-0.3.6-linux-amd64.lgx",
+          "urls": [
+            "https://github.com/stevancarlon/logos-agora/releases/download/v0.3.6-alpha.1/agora_forum-0.3.6-linux-amd64.lgx"
+          ],
+          "size": 1858142,
+          "sha256": "7f384da3ea6cdabd457a95ec4b0a20b67307df03a642e8649695c2e12241f7a1",
+          "rootHash": "86b740ff261c7ddf487e162d97aebd883ec29259204cd3cefcf36935520888bc",
+          "manifest": {
+            "author": "Agora contributors",
+            "category": "social",
+            "dependencies": [
+              {
+                "name": "delivery_module",
+                "version": ">=0.3.0"
+              }
+            ],
+            "description": "Public discussions over Logos Messaging (Delivery), with local drafts and deliberate identities.",
+            "display_name": "Agora",
+            "hashes": {
+              "assets": "340c73dc46853fa1a05b08bb24a054c9b3097abdb7a60fca81dbb4f10d499c56",
+              "licenses": "097529c41cae003f93ba58e1b078eb3bb831571ebcb8d81ea97eaebc85a2e856",
+              "root": "86b740ff261c7ddf487e162d97aebd883ec29259204cd3cefcf36935520888bc",
+              "variants": "f16aef7fe911a06ac75ed90173db3aa57f8b9e95211c1ae07812308cdee3d48b",
+              "variants/linux-amd64": "2cfd1758856f74f7f8e858939952e030bb42fea5ea15cceb366163f56d493701"
+            },
+            "icon": "assets/icon.png",
+            "main": {
+              "linux-amd64": "forum_backend.so"
+            },
+            "manifestVersion": "0.6.0",
+            "name": "agora_forum",
+            "type": "ui_qml",
+            "version": "0.3.6",
+            "view": "qml/Main.qml"
+          }
+        }
+      ]
+    },
     {
       "name": "logos_forum",
       "versions": [
